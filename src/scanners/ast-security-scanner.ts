@@ -1,6 +1,6 @@
 import { glob } from 'glob';
 import { readFileSync } from 'fs';
-import ts from 'typescript';
+import type ts from 'typescript';
 import { Scanner, ScanOptions, ScanResult } from '../types';
 import { RULES } from '../types/rules';
 
@@ -8,6 +8,15 @@ export class AstSecurityScanner implements Scanner {
   name = 'AST Security Scanner';
 
   async scan(options: ScanOptions): Promise<ScanResult[]> {
+    // Lazily require TypeScript at runtime; if unavailable (global install without dev deps), skip AST checks gracefully
+    let tsReal: typeof import('typescript');
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      tsReal = require('typescript') as typeof import('typescript');
+    } catch {
+      return [];
+    }
+
     const results: ScanResult[] = [];
     const files = await glob('**/*.{js,jsx,ts,tsx}', {
       cwd: options.directory,
@@ -17,7 +26,13 @@ export class AstSecurityScanner implements Scanner {
     for (const file of files) {
       let sourceText = '';
       try { sourceText = readFileSync(`${options.directory}/${file}`, 'utf-8'); } catch { continue; }
-      const sf = ts.createSourceFile(file, sourceText, ts.ScriptTarget.ES2020, true, file.endsWith('.tsx') ? ts.ScriptKind.TSX : file.endsWith('.ts') ? ts.ScriptKind.TS : ts.ScriptKind.JS);
+      const sf = tsReal.createSourceFile(
+        file,
+        sourceText,
+        tsReal.ScriptTarget.ES2020,
+        true,
+        file.endsWith('.tsx') ? tsReal.ScriptKind.TSX : file.endsWith('.ts') ? tsReal.ScriptKind.TS : tsReal.ScriptKind.JS
+      );
 
       const add = (metaKey: keyof typeof RULES, node: ts.Node, message?: string) => {
         const meta = RULES[metaKey as string];
@@ -42,55 +57,55 @@ export class AstSecurityScanner implements Scanner {
 
       const visit = (node: ts.Node) => {
         // eval(...)
-        if (ts.isCallExpression(node)) {
+        if (tsReal.isCallExpression(node)) {
           const expr = node.expression;
-          if (ts.isIdentifier(expr) && expr.text === 'eval') {
+          if (tsReal.isIdentifier(expr) && expr.text === 'eval') {
             add('SEC016', node);
           }
           // React.createElement(userInput)
-          if (ts.isPropertyAccessExpression(expr)) {
-            if (ts.isIdentifier(expr.expression) && expr.expression.text === 'React' && expr.name.text === 'createElement') {
+          if (tsReal.isPropertyAccessExpression(expr)) {
+            if (tsReal.isIdentifier(expr.expression) && expr.expression.text === 'React' && expr.name.text === 'createElement') {
               const first = node.arguments[0];
-              if (first && !ts.isStringLiteralLike(first)) {
+              if (first && !tsReal.isStringLiteralLike(first)) {
                 add('SEC019', node);
               }
             }
           }
           // dynamic import(userControlled)
-          if (ts.isCallExpression(node) && node.expression.kind === ts.SyntaxKind.ImportKeyword) {
+          if (tsReal.isCallExpression(node) && node.expression.kind === tsReal.SyntaxKind.ImportKeyword) {
             const arg = node.arguments[0];
-            if (arg && !ts.isStringLiteralLike(arg)) {
+            if (arg && !tsReal.isStringLiteralLike(arg)) {
               add('NEXT004', node);
             }
           }
           // fetch(...)
-          if (ts.isIdentifier(expr) && expr.text === 'fetch') {
+          if (tsReal.isIdentifier(expr) && expr.text === 'fetch') {
             const second = node.arguments[1];
             let hasSignal = false;
-            if (second && ts.isObjectLiteralExpression(second)) {
-              hasSignal = second.properties.some(p => ts.isPropertyAssignment(p) && ts.isIdentifier(p.name) && p.name.text === 'signal');
+            if (second && tsReal.isObjectLiteralExpression(second)) {
+              hasSignal = second.properties.some(p => tsReal.isPropertyAssignment(p) && tsReal.isIdentifier(p.name) && p.name.text === 'signal');
             }
             if (!hasSignal) add('JSNET001', node, RULES.JSNET001.message);
           }
         }
 
         // dangerouslySetInnerHTML
-        if (ts.isIdentifier(node) && node.text === 'dangerouslySetInnerHTML') {
+        if (tsReal.isIdentifier(node) && node.text === 'dangerouslySetInnerHTML') {
           add('SEC017', node);
         }
 
         // process.env.X || 'fallback'
-        if (ts.isBinaryExpression(node) && node.operatorToken.kind === ts.SyntaxKind.BarBarToken) {
+        if (tsReal.isBinaryExpression(node) && node.operatorToken.kind === tsReal.SyntaxKind.BarBarToken) {
           const left = node.left;
           const right = node.right;
-          const isEnv = ts.isPropertyAccessExpression(left) && ts.isPropertyAccessExpression(left.expression) && ts.isIdentifier(left.expression.expression) && left.expression.expression.text === 'process' && ts.isIdentifier(left.expression.name) && left.expression.name.text === 'env';
-          const isLiteral = ts.isStringLiteralLike(right);
+          const isEnv = tsReal.isPropertyAccessExpression(left) && tsReal.isPropertyAccessExpression(left.expression) && tsReal.isIdentifier(left.expression.expression) && left.expression.expression.text === 'process' && tsReal.isIdentifier(left.expression.name) && left.expression.name.text === 'env';
+          const isLiteral = tsReal.isStringLiteralLike(right);
           if (isEnv && isLiteral) {
             add('SEC008', node);
           }
         }
 
-        ts.forEachChild(node, visit);
+        tsReal.forEachChild(node, visit);
       };
 
       visit(sf);

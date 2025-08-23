@@ -1,4 +1,10 @@
 ## 1.0.0 — 2025-08-23
+-
+## 1.0.1 — 2025-08-23
+
+### Fixed
+- Avoid runtime crash when installed globally by lazily requiring TypeScript in AST scanner. If `typescript` is not present, AST-based checks are skipped gracefully instead of failing.
+- Move `typescript` to runtime dependencies to support global installs.
 
 Initial stable release.
 
