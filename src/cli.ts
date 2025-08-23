@@ -52,8 +52,8 @@ const program = new Command();
 
 program
   .name('ubon')
-  .description('Ubon — peace of mind for vibe-coded apps')
-  .version('1.0.0');
+  .description('Ubon 🪷 — peace of mind for vibe-coded apps')
+  .version((pkg as any).version);
 
 program
   .command('scan')
