@@ -1,0 +1,38 @@
+# Source files
+src/
+tsconfig.json
+jest.config.js
+.eslintrc.json
+
+# Development files
+examples/
+node_modules/
+coverage/
+*.log
+*.sarif
+.tmp-*
+.tmp-cli-output.*
+ubon.sarif
+
+# Build artifacts
+.tsbuildinfo
+dist/**/.map
+
+# IDE and OS
+.vscode/
+.idea/
+.DS_Store
+
+# Testing
+__tests__/
+*.test.ts
+*.spec.ts
+
+# Documentation (keep only README and LICENSE)
+.docs/
+docs/
+CONTRIBUTING.md
+AI-INTEGRATION.md  
+SUPABASE-SECURITY.md
+CHANGELOG.md
+SECURITY.md

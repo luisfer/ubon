@@ -1,0 +1,103 @@
+{
+  "name": "ubon",
+  "version": "1.0.0",
+  "description": "Security scanner for AI-generated React/Next.js and Python apps. Catches hardcoded secrets, accessibility issues, and vulnerabilities that traditional linters miss.",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "bin": {
+    "ubon": "./dist/cli.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "start": "node dist/cli.js",
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "lint": "eslint 'src/**/*.ts'",
+    "lint:fix": "eslint 'src/**/*.ts' --fix",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "security",
+    "scanner",
+    "react",
+    "nextjs",
+    "python",
+    "ai-generated",
+    "vibe-coding",
+    "accessibility",
+    "vulnerabilities",
+    "hardcoded-secrets",
+    "static-analysis",
+    "linting",
+    "debugging",
+    "supabase",
+    "api-keys",
+    "jwt-tokens",
+    "xss",
+    "sql-injection",
+    "eval",
+    "sarif",
+    "ci-cd",
+    "github-actions",
+    "web-security",
+    "code-quality",
+    "typescript",
+    "javascript",
+    "cursor",
+    "windsurf",
+    "lovable",
+    "replit"
+  ],
+  "author": "Luisfer Romero Calero <luisfer.romero.calero@gmail.com>",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/luisfer/ubon.git"
+  },
+  "bugs": {
+    "url": "https://github.com/luisfer/ubon/issues"
+  },
+  "homepage": "https://github.com/luisfer/ubon#readme",
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "dependencies": {
+    "chalk": "^4.1.2",
+    "commander": "^11.1.0",
+    "glob": "^10.3.10"
+  },
+  "optionalDependencies": {
+    "puppeteer": "^23.6.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.5",
+    "@typescript-eslint/eslint-plugin": "^6.15.0",
+    "@typescript-eslint/parser": "^6.15.0",
+    "eslint": "^8.56.0",
+    "jest": "^29.7.0",
+    "@types/jest": "^29.5.11",
+    "ts-jest": "^29.1.1",
+    "typescript": "^5.3.3"
+  },
+  "engines": {
+    "node": ">=16.0.0"
+  },
+  "preferGlobal": true,
+  "funding": {
+    "type": "github",
+    "url": "https://github.com/sponsors/luisfer"
+  },
+  "badges": [
+    {
+      "url": "https://img.shields.io/npm/v/ubon.svg",
+      "description": "npm version"
+    },
+    {
+      "url": "https://img.shields.io/npm/dm/ubon.svg",
+      "description": "npm downloads"
+    }
+  ]
+}
