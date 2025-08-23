@@ -123,15 +123,26 @@ export class UbonScan {
     const groupedResults = this.groupByCategory(results);
 
     Object.entries(groupedResults).forEach(([category, categoryResults]) => {
-      console.log(`\n${this.getCategoryIcon(category)} ${chalk.bold(category.toUpperCase())}:`);
+      const lotus = chalk.hex('#c99cb3')(this.getCategoryIcon(category));
+      const count = chalk.gray(`(${categoryResults.length})`);
+      console.log(`\n${lotus} ${chalk.bold(category.toUpperCase())} ${count}:`);
       categoryResults.forEach(result => {
         const isError = result.type === 'error';
-        const icon = isError ? chalk.red('❌') : chalk.yellow('⚠️');
+        const icon = isError ? chalk.red('●') : chalk.yellow('●');
         const location = result.file ? chalk.gray(` (${result.file}:${result.line})`) : '';
-        const message = isError ? chalk.red(result.message) : chalk.yellow(result.message);
-        console.log(`  ${icon} ${message}${location}`);
+        const sev = (result.severity || '').toLowerCase();
+        const badge = sev === 'high'
+          ? chalk.bgRed.white(' HIGH ')
+          : sev === 'medium'
+            ? chalk.bgYellow.black(' MED ')
+            : sev === 'low'
+              ? chalk.bgBlue.white(' LOW ')
+              : '';
+        const rule = result.ruleId ? chalk.gray(` {${result.ruleId}}`) : '';
+        const msgColor = isError ? chalk.red : chalk.yellow;
+        console.log(`  ${icon} ${badge} ${msgColor(result.message)}${location}${rule}`);
         if (result.fix) {
-          console.log(`      ${chalk.green('💡')} ${chalk.green(result.fix)}`);
+          console.log(`      ${chalk.hex('#c99cb3')('🪷')} ${chalk.green(result.fix)}`);
         }
       });
     });
@@ -165,7 +176,7 @@ export class UbonScan {
     const errors = results.filter(r => r.type === 'error').length;
     const warnings = results.filter(r => r.type === 'warning').length;
     
-    console.log(`\n📊 Summary: ${errors} errors, ${warnings} warnings`);
+    console.log(`\n${chalk.hex('#c99cb3')('🪷')} ${chalk.bold('Summary')}: ${chalk.red(errors + ' errors')}, ${chalk.yellow(warnings + ' warnings')}`);
     
     if (errors > 0) {
       this.logger.error('Critical issues found that should be fixed immediately');

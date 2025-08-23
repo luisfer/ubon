@@ -5,7 +5,8 @@ export class Logger {
 
   info(message: string): void {
     if (!this.silent) {
-      console.log(chalk.blue('ℹ'), message);
+      const brand = chalk.hex('#c99cb3');
+      console.log(brand('🪷'), message);
     }
   }
 
@@ -29,19 +30,22 @@ export class Logger {
 
   debug(message: string): void {
     if (this.verbose && !this.silent) {
-      console.log(chalk.gray('🔍'), message);
+      const brand = chalk.hex('#c99cb3');
+      console.log(brand('🪷'), chalk.gray(message));
     }
   }
 
   title(message: string): void {
     if (!this.silent) {
-      console.log('\n' + chalk.bold.cyan('🔍 ' + message));
+      const brand = chalk.hex('#c99cb3');
+      console.log('\n' + brand.bold('🪷 ' + message));
     }
   }
 
   separator(): void {
     if (!this.silent) {
-      console.log(chalk.gray('─'.repeat(50)));
+      const brand = chalk.hex('#c99cb3');
+      console.log(brand('─'.repeat(50)));
     }
   }
 }
