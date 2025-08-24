@@ -48,6 +48,46 @@ export function activate(context: vscode.ExtensionContext) {
 
   // Optionally run on startup
   setTimeout(runScan, 1500);
+
+  // Run on save if enabled
+  if (vscode.workspace.getConfiguration().get<boolean>('ubon.runOnSave', true)) {
+    context.subscriptions.push(vscode.workspace.onDidSaveTextDocument(() => runScan()));
+  }
+
+  // Provide basic quick fixes for selected rules
+  context.subscriptions.push(vscode.languages.registerCodeActionsProvider([
+    { language: 'javascript' }, { language: 'javascriptreact' }, { language: 'typescript' }, { language: 'typescriptreact' }, { language: 'vue' }
+  ], {
+    provideCodeActions(document, range, ctx) {
+      const actions: vscode.CodeAction[] = [];
+      for (const diag of ctx.diagnostics) {
+        const code = String(diag.code || '');
+        if (code === 'A11Y001') {
+          const fix = new vscode.CodeAction('Add alt="" to <img>', vscode.CodeActionKind.QuickFix);
+          fix.edit = new vscode.WorkspaceEdit();
+          const lineText = document.lineAt(range.start.line).text;
+          const idx = lineText.indexOf('<img');
+          if (idx >= 0) {
+            fix.edit.insert(document.uri, new vscode.Position(range.start.line, idx + 4), ' alt=""');
+            fix.diagnostics = [diag];
+            actions.push(fix);
+          }
+        }
+        if (code === 'A11Y002') {
+          const fix = new vscode.CodeAction('Add aria-label to <input>', vscode.CodeActionKind.QuickFix);
+          fix.edit = new vscode.WorkspaceEdit();
+          const lineText = document.lineAt(range.start.line).text;
+          const idx = lineText.toLowerCase().indexOf('<input');
+          if (idx >= 0) {
+            fix.edit.insert(document.uri, new vscode.Position(range.start.line, idx + 6), ' aria-label=""');
+            fix.diagnostics = [diag];
+            actions.push(fix);
+          }
+        }
+      }
+      return actions;
+    }
+  }));
 }
 
 export function deactivate() {}

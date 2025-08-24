@@ -20,6 +20,12 @@
         "title": "Ubon: Scan Workspace"
       }
     ],
+    "codeActions": [
+      {
+        "languages": ["javascript", "javascriptreact", "typescript", "typescriptreact", "vue"],
+        "kind": "quickfix"
+      }
+    ],
     "configuration": {
       "type": "object",
       "title": "Ubon",
@@ -34,6 +40,11 @@
           "default": ["check", "--json"],
           "items": { "type": "string" },
           "description": "Additional arguments passed to the ubon CLI."
+        },
+        "ubon.runOnSave": {
+          "type": "boolean",
+          "default": true,
+          "description": "Automatically run Ubon on file save."
         }
       }
     }
