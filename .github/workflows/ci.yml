@@ -9,6 +9,9 @@ on:
 jobs:
   build-test:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
     strategy:
       matrix:
         node-version: [18, 20, 22]
@@ -28,4 +31,5 @@ jobs:
         uses: github/codeql-action/upload-sarif@v3
         with:
           sarif_file: ubon.sarif
+        if: matrix.node-version == 20
 
