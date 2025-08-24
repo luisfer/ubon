@@ -20,6 +20,50 @@ Ubon performs static checks that complement linters:
 
 See profiles and differences in `docs/PROFILES.md`.
 
+## The Reality of Debugging AI-Generated Code
+
+### Without Ubon
+
+User: "The payment button doesn't work"
+
+AI: "You're absolutely right! Let me fix that for you..."
+
+*regenerates the component*
+
+User: "Still broken"
+
+AI: "I apologize! Let me try a different approach..."
+
+*adds more event handlers*
+
+User: "Nothing happens when I click"
+
+AI: "I see the issue now! Let me update the onClick handler..."
+
+*rewrites the same broken logic*
+
+[3 hours later...]
+
+User: "PLEASE JUST MAKE IT WORK"
+
+AI: "I understand your frustration! Let me completely refactor..."
+
+### With Ubon
+
+```bash
+$ ubon check
+
+❌ Stripe key hardcoded in components/Payment.tsx:12
+   → Your 'pk_live_...' key is exposed in client code
+💡 Use NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY environment variable
+
+❌ Button div has onClick but no keyboard handlers
+   → components/Payment.tsx:45
+💡 Use <button> element or add onKeyDown for accessibility
+
+✓ Fixed in 30 seconds
+```
+
 ## About me and Ubon
 
 Hi, I'm Luisfer Romero Calero, an experienced software engineer passionate about building products and being creative. You can find more about me at https://lfrc.me. I created Ubon in six days, obsessed with solving a problem I kept seeing everywhere: the current wave of AI-generated "vibe-coded" apps that, while incredibly quick to build, are frustrating to deploy and use because AI overlooks so many essential details.
@@ -335,3 +379,7 @@ Photo credit: [Fallsonata on Unsplash](https://unsplash.com/es/@fallsonata)
 Design notes:
 - Primary accent color: `#c99cb3`
 - Typography in banner: Martini Thai Neue Slab
+
+## Release policy
+
+Ubon follows Semantic Versioning. Patch and minor releases are incremental and non-disruptive. Breaking changes only land in a new major version and include upgrade notes. See `docs/RELEASE-POLICY.md`.
