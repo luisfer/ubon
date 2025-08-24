@@ -24,29 +24,29 @@ See profiles and differences in `docs/PROFILES.md`.
 
 ### Without Ubon
 
-User: "The payment button doesn't work"
-
-AI: "You're absolutely right! Let me fix that for you..."
-
-*regenerates the component*
-
-User: "Still broken"
-
-AI: "I apologize! Let me try a different approach..."
-
-*adds more event handlers*
-
-User: "Nothing happens when I click"
-
-AI: "I see the issue now! Let me update the onClick handler..."
-
-*rewrites the same broken logic*
-
-[3 hours later...]
-
-User: "PLEASE JUST MAKE IT WORK"
-
-AI: "I understand your frustration! Let me completely refactor..."
+> **User**: "The payment button doesn't work"
+>
+> **AI**: "You're absolutely right! Let me fix that for you..."
+>
+> _regenerates the component_
+>
+> **User**: "Still broken"
+>
+> **AI**: "I apologize! Let me try a different approach..."
+>
+> _adds more event handlers_
+>
+> **User**: "Nothing happens when I click"
+>
+> **AI**: "I see the issue now! Let me update the onClick handler..."
+>
+> _rewrites the same broken logic_
+>
+> _[3 hours later...]_
+>
+> **User**: "PLEASE JUST MAKE IT WORK"
+>
+> **AI**: "I understand your frustration! Let me completely refactor..."
 
 ### With Ubon
 
