@@ -21,9 +21,25 @@ export class UbonScan {
 
   private linkScanner = new LinkScanner();
   private logger: Logger;
+  private useColor: boolean;
 
-  constructor(verbose: boolean = false, silent: boolean = false) {
-    this.logger = new Logger(verbose, silent);
+  constructor(verbose: boolean = false, silent: boolean = false, colorMode: 'auto' | 'always' | 'never' = 'auto') {
+    this.logger = new Logger(verbose, silent, colorMode);
+    this.useColor = this.shouldUseColor(colorMode);
+  }
+
+  private shouldUseColor(mode: 'auto' | 'always' | 'never'): boolean {
+    if (mode === 'always') return true;
+    if (mode === 'never') return false;
+    return process.stdout.isTTY && !process.env.NO_COLOR;
+  }
+
+  private colorize(fn: typeof chalk.red, text: string): string {
+    return this.useColor ? fn(text) : text;
+  }
+
+  private brand(text: string): string {
+    return this.useColor ? chalk.hex('#c99cb3')(text) : text;
   }
 
   async diagnose(options: ScanOptions): Promise<ScanResult[]> {
@@ -120,45 +136,53 @@ export class UbonScan {
     return jsArr;
   }
 
-  printResults(results: ScanResult[]): void {
+  printResults(results: ScanResult[], options?: ScanOptions): void {
     if (results.length === 0) {
       this.logger.success('No issues found! Your app is looking healthy! 🎉');
       return;
     }
 
+    // Apply filters and limits
+    let filteredResults = this.applyResultFilters(results, options);
+    
     // Severity-first header
-    const errorCount = results.filter(r => r.type === 'error').length;
-    const warnCount = results.filter(r => r.type === 'warning').length;
-    const criticalCount = results.filter(r => r.severity === 'high').length;
-    const highText = criticalCount > 0 ? chalk.bgRed.white(` ${criticalCount} CRITICAL `) : '';
-    console.log(`\n${chalk.hex('#c99cb3')('🪷')} ${chalk.bold('Triage')}: ${highText} ${chalk.red(errorCount + ' errors')}, ${chalk.yellow(warnCount + ' warnings')}`);
+    const errorCount = filteredResults.filter(r => r.type === 'error').length;
+    const warnCount = filteredResults.filter(r => r.type === 'warning').length;
+    const criticalCount = filteredResults.filter(r => r.severity === 'high').length;
+    const highText = criticalCount > 0 ? this.colorize(chalk.bgRed.white, ` ${criticalCount} CRITICAL `) : '';
+    console.log(`\n${this.brand('🪷')} ${this.colorize(chalk.bold, 'Triage')}: ${highText} ${this.colorize(chalk.red, errorCount + ' errors')}, ${this.colorize(chalk.yellow, warnCount + ' warnings')}`);
+
+    if (filteredResults.length !== results.length) {
+      console.log(`${this.colorize(chalk.gray, `  (showing ${filteredResults.length} of ${results.length} total issues)`)}`);
+    }
 
     this.logger.separator();
-    this.logger.title(`Found ${results.length} issues:`);
+    this.logger.title(`Found ${filteredResults.length} issues:`);
 
-    const groupedResults = this.groupByCategory(results);
+    const groupedResults = this.groupResults(filteredResults, options?.groupBy || 'category');
 
-    Object.entries(groupedResults).forEach(([category, categoryResults]) => {
-      const lotus = chalk.hex('#c99cb3')(this.getCategoryIcon(category));
-      const count = chalk.gray(`(${categoryResults.length})`);
-      console.log(`\n${lotus} ${chalk.bold(category.toUpperCase())} ${count}:`);
-      categoryResults.forEach(result => {
+    Object.entries(groupedResults).forEach(([groupKey, groupResults]) => {
+      const icon = this.getGroupIcon(groupKey, options?.groupBy || 'category');
+      const lotus = this.brand(icon);
+      const count = this.colorize(chalk.gray, `(${groupResults.length})`);
+      console.log(`\n${lotus} ${this.colorize(chalk.bold, groupKey.toUpperCase())} ${count}:`);
+      groupResults.forEach(result => {
         const isError = result.type === 'error';
-        const icon = isError ? chalk.red('●') : chalk.yellow('●');
-        const location = result.file ? chalk.gray(` (${result.file}:${result.line})`) : '';
+        const icon = isError ? this.colorize(chalk.red, '●') : this.colorize(chalk.yellow, '●');
+        const location = result.file ? this.colorize(chalk.gray, ` (${result.file}:${result.line})`) : '';
         const sev = (result.severity || '').toLowerCase();
         const badge = sev === 'high'
-          ? chalk.bgRed.white(' HIGH ')
+          ? this.colorize(chalk.bgRed.white, ' HIGH ')
           : sev === 'medium'
-            ? chalk.bgYellow.black(' MED ')
+            ? this.colorize(chalk.bgYellow.black, ' MED ')
             : sev === 'low'
-              ? chalk.bgBlue.white(' LOW ')
+              ? this.colorize(chalk.bgBlue.white, ' LOW ')
               : '';
-        const rule = result.ruleId ? chalk.gray(` {${result.ruleId}}`) : '';
+        const rule = result.ruleId ? this.colorize(chalk.gray, ` {${result.ruleId}}`) : '';
         const msgColor = isError ? chalk.red : chalk.yellow;
-        console.log(`  ${icon} ${badge} ${msgColor(result.message)}${location}${rule}`);
+        console.log(`  ${icon} ${badge} ${this.colorize(msgColor, result.message)}${location}${rule}`);
         if (result.fix) {
-          console.log(`      ${chalk.hex('#c99cb3')('🪷')} ${chalk.green(result.fix)}`);
+          console.log(`      ${this.brand('🪷')} ${this.colorize(chalk.green, result.fix)}`);
         }
       });
     });
@@ -177,6 +201,63 @@ export class UbonScan {
     }, {} as Record<string, ScanResult[]>);
   }
 
+  private applyResultFilters(results: ScanResult[], options?: ScanOptions): ScanResult[] {
+    let filtered = [...results];
+
+    // Apply severity filter
+    if (options?.minSeverity) {
+      const severityOrder: Record<string, number> = { low: 1, medium: 2, high: 3 };
+      const minLevel = severityOrder[options.minSeverity];
+      filtered = filtered.filter(r => severityOrder[r.severity] >= minLevel);
+    }
+
+    // Sort by priority: severity (high->low), then type (error->warning->info)
+    filtered.sort((a, b) => {
+      const severityOrder: Record<string, number> = { high: 3, medium: 2, low: 1 };
+      const typeOrder: Record<string, number> = { error: 3, warning: 2, info: 1 };
+      
+      const sevDiff = severityOrder[b.severity] - severityOrder[a.severity];
+      if (sevDiff !== 0) return sevDiff;
+      
+      return typeOrder[b.type] - typeOrder[a.type];
+    });
+
+    // Apply max issues limit
+    if (options?.maxIssues && options.maxIssues > 0) {
+      filtered = filtered.slice(0, options.maxIssues);
+    }
+
+    return filtered;
+  }
+
+  private groupResults(results: ScanResult[], groupBy: 'category' | 'file' | 'rule' | 'severity'): Record<string, ScanResult[]> {
+    return results.reduce((acc, result) => {
+      let key: string;
+      
+      switch (groupBy) {
+        case 'file':
+          key = result.file || 'unknown';
+          break;
+        case 'rule':
+          key = result.ruleId || 'unknown';
+          break;
+        case 'severity':
+          key = result.severity || 'unknown';
+          break;
+        case 'category':
+        default:
+          key = result.category;
+          break;
+      }
+      
+      if (!acc[key]) {
+        acc[key] = [];
+      }
+      acc[key].push(result);
+      return acc;
+    }, {} as Record<string, ScanResult[]>);
+  }
+
   private getCategoryIcon(category: string): string {
     const icons: Record<string, string> = {
       security: '🔒',
@@ -188,11 +269,31 @@ export class UbonScan {
     return icons[category] || '📋';
   }
 
+  private getGroupIcon(groupKey: string, groupBy: 'category' | 'file' | 'rule' | 'severity'): string {
+    switch (groupBy) {
+      case 'category':
+        return this.getCategoryIcon(groupKey);
+      case 'file':
+        return '📄';
+      case 'rule':
+        return '⚖️';
+      case 'severity':
+        const severityIcons: Record<string, string> = {
+          high: '🚨',
+          medium: '⚠️', 
+          low: 'ℹ️'
+        };
+        return severityIcons[groupKey] || '📊';
+      default:
+        return '📋';
+    }
+  }
+
   private printSummary(results: ScanResult[]): void {
     const errors = results.filter(r => r.type === 'error').length;
     const warnings = results.filter(r => r.type === 'warning').length;
     
-    console.log(`\n${chalk.hex('#c99cb3')('🪷')} ${chalk.bold('Summary')}: ${chalk.red(errors + ' errors')}, ${chalk.yellow(warnings + ' warnings')}`);
+    console.log(`\n${this.brand('🪷')} ${this.colorize(chalk.bold, 'Summary')}: ${this.colorize(chalk.red, errors + ' errors')}, ${this.colorize(chalk.yellow, warnings + ' warnings')}`);
     
     if (errors > 0) {
       this.logger.error('Critical issues found that should be fixed immediately');

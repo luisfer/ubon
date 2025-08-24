@@ -55,6 +55,10 @@ export interface ScanOptions {
   quickTopN?: number; // for 'quick' command, top N critical issues
   // Output mode
   json?: boolean; // whether JSON output is desired
+  color?: 'auto' | 'always' | 'never'; // colorized output mode
+  groupBy?: 'category' | 'file' | 'rule' | 'severity'; // how to group results
+  minSeverity?: 'low' | 'medium' | 'high'; // minimum severity filter
+  maxIssues?: number; // limit number of results shown
 }
 
 export interface FixEdit {

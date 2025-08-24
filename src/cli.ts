@@ -87,8 +87,12 @@ program
   .option('--focus-critical', 'Only show critical (high severity) issues')
   .option('--focus-security', 'Only show security issues (hide a11y/links/etc)')
   .option('--focus-new', 'Only show issues not in baseline')
+  .option('--color <mode>', 'Colorize output: auto|always|never', 'auto')
+  .option('--group-by <mode>', 'Group results by: category|file|rule|severity', 'category')
+  .option('--min-severity <level>', 'Minimum severity to show: low|medium|high')
+  .option('--max-issues <number>', 'Limit output to N most critical issues')
   .action(async (options) => {
-    const scanner = new UbonScan(options.verbose, options.json);
+    const scanner = new UbonScan(options.verbose, options.json, options.color as 'auto' | 'always' | 'never');
     
     const config = loadConfig(options.directory);
     const cliOptions = {
@@ -114,7 +118,11 @@ program
       detailed: !!options.detailed,
       focusCritical: !!options.focusCritical,
       focusSecurity: !!options.focusSecurity,
-      focusNew: !!options.focusNew
+      focusNew: !!options.focusNew,
+      color: options.color as 'auto' | 'always' | 'never',
+      groupBy: options.groupBy as 'category' | 'file' | 'rule' | 'severity',
+      minSeverity: options.minSeverity as 'low' | 'medium' | 'high' | undefined,
+      maxIssues: options.maxIssues ? parseInt(options.maxIssues) : undefined
     };
     const scanOptions = mergeOptions(config, cliOptions);
 
@@ -146,7 +154,7 @@ program
         }
       } else {
         // Human-readable output
-        scanner.printResults(results);
+        scanner.printResults(results, scanOptions);
       }
 
       if (options.sarif) {
@@ -214,8 +222,12 @@ program
   .option('--focus-critical', 'Only show critical (high severity) issues')
   .option('--focus-security', 'Only show security issues (hide a11y/links/etc)')
   .option('--focus-new', 'Only show issues not in baseline')
+  .option('--color <mode>', 'Colorize output: auto|always|never', 'auto')
+  .option('--group-by <mode>', 'Group results by: category|file|rule|severity', 'category')
+  .option('--min-severity <level>', 'Minimum severity to show: low|medium|high')
+  .option('--max-issues <number>', 'Limit output to N most critical issues')
   .action(async (options) => {
-    const scanner = new UbonScan(options.verbose, options.json);
+    const scanner = new UbonScan(options.verbose, options.json, options.color as 'auto' | 'always' | 'never');
     
     const config = loadConfig(options.directory);
     const cliOptions = {
@@ -240,7 +252,11 @@ program
       detailed: !!options.detailed,
       focusCritical: !!options.focusCritical,
       focusSecurity: !!options.focusSecurity,
-      focusNew: !!options.focusNew
+      focusNew: !!options.focusNew,
+      color: options.color as 'auto' | 'always' | 'never',
+      groupBy: options.groupBy as 'category' | 'file' | 'rule' | 'severity',
+      minSeverity: options.minSeverity as 'low' | 'medium' | 'high' | undefined,
+      maxIssues: options.maxIssues ? parseInt(options.maxIssues) : undefined
     };
     const scanOptions = mergeOptions(config, cliOptions);
 
@@ -272,7 +288,7 @@ program
         }
       } else {
         // Human-readable output
-        scanner.printResults(results);
+        scanner.printResults(results, scanOptions);
       }
       if (options.sarif) {
         const sarif = toSarif(results, options.directory);
