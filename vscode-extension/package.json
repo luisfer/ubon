@@ -1,0 +1,53 @@
+{
+  "name": "ubon-vscode",
+  "displayName": "Ubon Security & A11Y Scanner",
+  "description": "Run Ubon in VS Code and see diagnostics in the Problems panel.",
+  "version": "0.0.1",
+  "publisher": "luisfer",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": ["Linters"],
+  "activationEvents": [
+    "onStartupFinished",
+    "onCommand:ubon.scan"
+  ],
+  "main": "./dist/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "ubon.scan",
+        "title": "Ubon: Scan Workspace"
+      }
+    ],
+    "configuration": {
+      "type": "object",
+      "title": "Ubon",
+      "properties": {
+        "ubon.cliPath": {
+          "type": "string",
+          "default": "ubon",
+          "description": "Path to the ubon CLI (e.g. 'ubon' if installed globally or an absolute path)."
+        },
+        "ubon.args": {
+          "type": "array",
+          "default": ["check", "--json"],
+          "items": { "type": "string" },
+          "description": "Additional arguments passed to the ubon CLI."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run build",
+    "build": "tsc -p ./",
+    "watch": "tsc -w -p ./"
+  },
+  "devDependencies": {
+    "@types/node": "^18.19.0",
+    "@types/vscode": "^1.85.0",
+    "typescript": "^5.4.0"
+  },
+  "license": "MIT"
+}
+
