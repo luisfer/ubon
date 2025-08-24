@@ -91,6 +91,8 @@ program
   .option('--group-by <mode>', 'Group results by: category|file|rule|severity', 'category')
   .option('--min-severity <level>', 'Minimum severity to show: low|medium|high')
   .option('--max-issues <number>', 'Limit output to N most critical issues')
+  .option('--show-context', 'Show code context around findings (3-5 lines)')
+  .option('--explain', 'Show "why it matters" explanations for findings')
   .action(async (options) => {
     const scanner = new UbonScan(options.verbose, options.json, options.color as 'auto' | 'always' | 'never');
     
@@ -122,7 +124,9 @@ program
       color: options.color as 'auto' | 'always' | 'never',
       groupBy: options.groupBy as 'category' | 'file' | 'rule' | 'severity',
       minSeverity: options.minSeverity as 'low' | 'medium' | 'high' | undefined,
-      maxIssues: options.maxIssues ? parseInt(options.maxIssues) : undefined
+      maxIssues: options.maxIssues ? parseInt(options.maxIssues) : undefined,
+      showContext: !!options.showContext,
+      explain: !!options.explain
     };
     const scanOptions = mergeOptions(config, cliOptions);
 
@@ -226,6 +230,8 @@ program
   .option('--group-by <mode>', 'Group results by: category|file|rule|severity', 'category')
   .option('--min-severity <level>', 'Minimum severity to show: low|medium|high')
   .option('--max-issues <number>', 'Limit output to N most critical issues')
+  .option('--show-context', 'Show code context around findings (3-5 lines)')
+  .option('--explain', 'Show "why it matters" explanations for findings')
   .action(async (options) => {
     const scanner = new UbonScan(options.verbose, options.json, options.color as 'auto' | 'always' | 'never');
     
@@ -256,7 +262,9 @@ program
       color: options.color as 'auto' | 'always' | 'never',
       groupBy: options.groupBy as 'category' | 'file' | 'rule' | 'severity',
       minSeverity: options.minSeverity as 'low' | 'medium' | 'high' | undefined,
-      maxIssues: options.maxIssues ? parseInt(options.maxIssues) : undefined
+      maxIssues: options.maxIssues ? parseInt(options.maxIssues) : undefined,
+      showContext: !!options.showContext,
+      explain: !!options.explain
     };
     const scanOptions = mergeOptions(config, cliOptions);
 

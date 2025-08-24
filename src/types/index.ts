@@ -59,6 +59,8 @@ export interface ScanOptions {
   groupBy?: 'category' | 'file' | 'rule' | 'severity'; // how to group results
   minSeverity?: 'low' | 'medium' | 'high'; // minimum severity filter
   maxIssues?: number; // limit number of results shown
+  showContext?: boolean; // show code context around findings
+  explain?: boolean; // show "why it matters" explanations
 }
 
 export interface FixEdit {

@@ -8,40 +8,41 @@ export interface RuleMeta {
   message: string;
   fix?: string;
   helpUri?: string;
+  impact?: string; // "why it matters" explanation
 }
 
 // Central registry of rules used across scanners.
 export const RULES: Record<string, RuleMeta> = {
   // Accessibility
-  A11Y001: { id: 'A11Y001', category: 'accessibility', severity: 'medium', message: 'Image without alt attribute', fix: 'Add descriptive alt attribute to images', helpUri: 'https://webaim.org/techniques/alttext/' },
-  A11Y002: { id: 'A11Y002', category: 'accessibility', severity: 'medium', message: 'Input without label or aria-label', fix: 'Add proper labeling to form inputs', helpUri: 'https://web.dev/labels-and-text-alternatives/' },
-  A11Y003: { id: 'A11Y003', category: 'accessibility', severity: 'high', message: 'Empty button without aria-label', fix: 'Add descriptive text or aria-label to buttons', helpUri: 'https://dequeuniversity.com/rules/axe/4.7/button-name' },
-  A11Y004: { id: 'A11Y004', category: 'accessibility', severity: 'medium', message: 'Div with onClick (not keyboard accessible)', fix: 'Use button element or add keyboard event handlers', helpUri: 'https://developer.mozilla.org/docs/Web/Accessibility/ARIA/Roles/button_role' },
+  A11Y001: { id: 'A11Y001', category: 'accessibility', severity: 'medium', message: 'Image without alt attribute', fix: 'Add descriptive alt attribute to images', helpUri: 'https://webaim.org/techniques/alttext/', impact: 'Screen readers cannot describe images to visually impaired users' },
+  A11Y002: { id: 'A11Y002', category: 'accessibility', severity: 'medium', message: 'Input without label or aria-label', fix: 'Add proper labeling to form inputs', helpUri: 'https://web.dev/labels-and-text-alternatives/', impact: 'Users with disabilities cannot understand what the input field is for' },
+  A11Y003: { id: 'A11Y003', category: 'accessibility', severity: 'high', message: 'Empty button without aria-label', fix: 'Add descriptive text or aria-label to buttons', helpUri: 'https://dequeuniversity.com/rules/axe/4.7/button-name', impact: 'Screen readers cannot announce button purpose, blocking critical actions' },
+  A11Y004: { id: 'A11Y004', category: 'accessibility', severity: 'medium', message: 'Div with onClick (not keyboard accessible)', fix: 'Use button element or add keyboard event handlers', helpUri: 'https://developer.mozilla.org/docs/Web/Accessibility/ARIA/Roles/button_role', impact: 'Keyboard-only users cannot activate this interactive element' },
   A11Y005: { id: 'A11Y005', category: 'accessibility', severity: 'low', message: 'Link without href attribute', fix: 'Add href attribute or use button element', helpUri: 'https://dequeuniversity.com/rules/axe/4.7/link-name' },
   A11Y006: { id: 'A11Y006', category: 'accessibility', severity: 'low', message: 'Image missing width/height attributes', fix: 'Specify width and height to avoid layout shifts', helpUri: 'https://web.dev/optimize-cls/' },
   A11Y007: { id: 'A11Y007', category: 'accessibility', severity: 'low', message: 'next/image used without width and height', fix: 'Provide width and height props to <Image>', helpUri: 'https://nextjs.org/docs/pages/api-reference/components/image' },
 
   // Security (JS/TS)
-  SEC001: { id: 'SEC001', category: 'security', severity: 'high', message: 'Potential API key or secret token exposed', fix: 'Move sensitive keys to environment variables' },
-  SEC002: { id: 'SEC002', category: 'security', severity: 'medium', message: 'Supabase URL hardcoded (should use env var)', fix: 'Use NEXT_PUBLIC_SUPABASE_URL environment variable' },
-  SEC003: { id: 'SEC003', category: 'security', severity: 'high', message: 'Supabase anon key hardcoded (JWT token pattern)', fix: 'Use NEXT_PUBLIC_SUPABASE_ANON_KEY environment variable' },
-  SEC004: { id: 'SEC004', category: 'security', severity: 'medium', message: 'Supabase URL hardcoded in variable', fix: 'Use process.env.NEXT_PUBLIC_SUPABASE_URL' },
-  SEC005: { id: 'SEC005', category: 'security', severity: 'high', message: 'Supabase key hardcoded in variable', fix: 'Use process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY' },
-  SEC006: { id: 'SEC006', category: 'security', severity: 'high', message: 'Hardcoded password detected', fix: 'Use environment variables for passwords' },
-  SEC007: { id: 'SEC007', category: 'security', severity: 'high', message: 'Database URL hardcoded', fix: 'Use environment variable for database connection' },
-  SEC008: { id: 'SEC008', category: 'security', severity: 'medium', message: 'Environment variable with hardcoded fallback', fix: 'Remove hardcoded fallback values' },
-  SEC009: { id: 'SEC009', category: 'security', severity: 'high', message: 'AWS Access Key ID exposed', fix: 'Move AWS credentials to environment variables' },
-  SEC010: { id: 'SEC010', category: 'security', severity: 'high', message: 'Google OAuth token exposed', fix: 'Use secure token storage' },
-  SEC011: { id: 'SEC011', category: 'security', severity: 'high', message: 'GitHub token exposed', fix: 'Use environment variables for GitHub tokens' },
-  SEC012: { id: 'SEC012', category: 'security', severity: 'high', message: 'Stripe live secret key exposed', fix: 'Move Stripe live keys to secure environment' },
-  SEC013: { id: 'SEC013', category: 'security', severity: 'medium', message: 'Stripe live publishable key exposed', fix: 'Use environment variable for Stripe keys' },
-  SEC014: { id: 'SEC014', category: 'security', severity: 'high', message: 'OpenAI API key exposed', fix: 'Use OPENAI_API_KEY environment variable' },
-  SEC015: { id: 'SEC015', category: 'security', severity: 'low', message: 'Console statement found (may leak sensitive info)', fix: 'Remove console statements before production' },
-  SEC016: { id: 'SEC016', category: 'security', severity: 'high', message: 'Use of eval() detected (security risk)', fix: 'Replace eval() with safer alternatives' },
-  SEC017: { id: 'SEC017', category: 'security', severity: 'medium', message: 'dangerouslySetInnerHTML usage (XSS risk)', fix: 'Sanitize HTML content or use safer alternatives' },
-  SEC018: { id: 'SEC018', category: 'security', severity: 'high', message: 'High-entropy string literal (possible secret)', fix: 'Move secrets to environment variables; rotate credentials' },
-  SEC019: { id: 'SEC019', category: 'security', severity: 'high', message: 'React component injection via createElement', fix: 'Disallow dynamic element types from untrusted input' },
-  LOG001: { id: 'LOG001', category: 'security', severity: 'medium', message: 'Potential secret logged to console/logger', fix: 'Avoid logging secrets; redact values before logging' },
+  SEC001: { id: 'SEC001', category: 'security', severity: 'high', message: 'Potential API key or secret token exposed', fix: 'Move sensitive keys to environment variables', impact: 'Exposed credentials can be stolen from source code and used to access your services' },
+  SEC002: { id: 'SEC002', category: 'security', severity: 'medium', message: 'Supabase URL hardcoded (should use env var)', fix: 'Use NEXT_PUBLIC_SUPABASE_URL environment variable', impact: 'Hardcoded URLs make it difficult to manage different environments securely' },
+  SEC003: { id: 'SEC003', category: 'security', severity: 'high', message: 'Supabase anon key hardcoded (JWT token pattern)', fix: 'Use NEXT_PUBLIC_SUPABASE_ANON_KEY environment variable', impact: 'Exposed database keys allow unauthorized access to your Supabase instance' },
+  SEC004: { id: 'SEC004', category: 'security', severity: 'medium', message: 'Supabase URL hardcoded in variable', fix: 'Use process.env.NEXT_PUBLIC_SUPABASE_URL', impact: 'Hardcoded configuration prevents secure environment management' },
+  SEC005: { id: 'SEC005', category: 'security', severity: 'high', message: 'Supabase key hardcoded in variable', fix: 'Use process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY', impact: 'Database credentials in code can be extracted and misused' },
+  SEC006: { id: 'SEC006', category: 'security', severity: 'high', message: 'Hardcoded password detected', fix: 'Use environment variables for passwords', impact: 'Passwords in source code can be stolen by anyone with access to the codebase' },
+  SEC007: { id: 'SEC007', category: 'security', severity: 'high', message: 'Database URL hardcoded', fix: 'Use environment variable for database connection', impact: 'Database credentials allow complete access to your data if compromised' },
+  SEC008: { id: 'SEC008', category: 'security', severity: 'medium', message: 'Environment variable with hardcoded fallback', fix: 'Remove hardcoded fallback values', impact: 'Fallbacks can leak sensitive defaults and bypass environment-based security' },
+  SEC009: { id: 'SEC009', category: 'security', severity: 'high', message: 'AWS Access Key ID exposed', fix: 'Move AWS credentials to environment variables', impact: 'AWS credentials can be used to access and bill your cloud resources' },
+  SEC010: { id: 'SEC010', category: 'security', severity: 'high', message: 'Google OAuth token exposed', fix: 'Use secure token storage', impact: 'OAuth tokens can be used to impersonate users and access their Google data' },
+  SEC011: { id: 'SEC011', category: 'security', severity: 'high', message: 'GitHub token exposed', fix: 'Use environment variables for GitHub tokens', impact: 'GitHub tokens allow access to repositories and can be used for supply chain attacks' },
+  SEC012: { id: 'SEC012', category: 'security', severity: 'high', message: 'Stripe live secret key exposed', fix: 'Move Stripe live keys to secure environment', impact: 'Live Stripe keys can be used to process payments and access customer data' },
+  SEC013: { id: 'SEC013', category: 'security', severity: 'medium', message: 'Stripe live publishable key exposed', fix: 'Use environment variable for Stripe keys', impact: 'Exposed payment keys can be used to initiate unauthorized transactions' },
+  SEC014: { id: 'SEC014', category: 'security', severity: 'high', message: 'OpenAI API key exposed', fix: 'Use OPENAI_API_KEY environment variable', impact: 'OpenAI keys can be stolen and used to run up charges on your account' },
+  SEC015: { id: 'SEC015', category: 'security', severity: 'low', message: 'Console statement found (may leak sensitive info)', fix: 'Remove console statements before production', impact: 'Console logs can expose sensitive data in browser developer tools' },
+  SEC016: { id: 'SEC016', category: 'security', severity: 'high', message: 'Use of eval() detected (security risk)', fix: 'Replace eval() with safer alternatives', impact: 'eval() can execute malicious code and is a common vector for code injection attacks' },
+  SEC017: { id: 'SEC017', category: 'security', severity: 'medium', message: 'dangerouslySetInnerHTML usage (XSS risk)', fix: 'Sanitize HTML content or use safer alternatives', impact: 'Unsanitized HTML can inject malicious scripts that steal user data' },
+  SEC018: { id: 'SEC018', category: 'security', severity: 'high', message: 'High-entropy string literal (possible secret)', fix: 'Move secrets to environment variables; rotate credentials', impact: 'High-entropy strings often contain API keys or tokens that can be misused' },
+  SEC019: { id: 'SEC019', category: 'security', severity: 'high', message: 'React component injection via createElement', fix: 'Disallow dynamic element types from untrusted input', impact: 'Component injection can lead to XSS attacks and arbitrary code execution' },
+  LOG001: { id: 'LOG001', category: 'security', severity: 'medium', message: 'Potential secret logged to console/logger', fix: 'Avoid logging secrets; redact values before logging', impact: 'Secrets in logs can be exposed through log aggregation systems or error tracking' },
   OSV001: { id: 'OSV001', category: 'security', severity: 'high', message: 'Vulnerable dependency detected', fix: 'Upgrade to a patched version' },
 
   // Networking (JS)

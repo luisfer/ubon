@@ -15,6 +15,7 @@ import { IacScanner } from './scanners/iac-scanner';
 import { glob } from 'glob';
 import { Logger } from './utils/logger';
 import chalk from 'chalk';
+import { RULES } from './types/rules';
 
 export class UbonScan {
   private scanners: any[] = [];
@@ -184,6 +185,30 @@ export class UbonScan {
         if (result.fix) {
           console.log(`      ${this.brand('🪷')} ${this.colorize(chalk.green, result.fix)}`);
         }
+        
+        // Show "why it matters" explanation if enabled
+        if (options?.explain && result.ruleId) {
+          const ruleMeta = RULES[result.ruleId];
+          if (ruleMeta?.impact) {
+            console.log(`      ${this.colorize(chalk.blue, '💡')} ${this.colorize(chalk.italic, ruleMeta.impact)}`);
+          }
+        }
+        
+        // Show code context if enabled and available
+        if (options?.showContext && result.file && result.line) {
+          const context = this.getCodeContext(result.file, result.line);
+          if (context) {
+            console.log(`      ${this.colorize(chalk.gray, '┌─ Code context:')}`);
+            context.forEach((line, idx) => {
+              const lineNum = (result.line! - 2 + idx).toString().padStart(3);
+              const isTarget = idx === 2; // middle line (0-indexed)
+              const marker = isTarget ? this.colorize(chalk.red, '►') : this.colorize(chalk.gray, ' ');
+              const lineColor = isTarget ? chalk.yellow : chalk.gray;
+              console.log(`      ${this.colorize(chalk.gray, '│')} ${marker} ${this.colorize(lineColor, lineNum)} ${this.colorize(lineColor, line)}`);
+            });
+            console.log(`      ${this.colorize(chalk.gray, '└─')}`);
+          }
+        }
       });
     });
 
@@ -286,6 +311,27 @@ export class UbonScan {
         return severityIcons[groupKey] || '📊';
       default:
         return '📋';
+    }
+  }
+
+  private getCodeContext(filePath: string, lineNumber: number): string[] | null {
+    try {
+      const content = readFileSync(filePath, 'utf8');
+      const lines = content.split('\n');
+      
+      // Get 2 lines before and 2 lines after the target line (5 total)
+      const startLine = Math.max(0, lineNumber - 3); // -3 because lineNumber is 1-indexed
+      const endLine = Math.min(lines.length - 1, lineNumber + 1); // +1 for 2 lines after
+      
+      const contextLines: string[] = [];
+      for (let i = startLine; i <= endLine; i++) {
+        contextLines.push(lines[i] || '');
+      }
+      
+      return contextLines.length > 0 ? contextLines : null;
+    } catch (error) {
+      // File might not exist or be readable
+      return null;
     }
   }
 

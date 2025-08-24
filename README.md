@@ -1,4 +1,4 @@
-# 🔍 Ubon
+# 🪷 Ubon
 
 <p align="center">
   <img src="branding/Ubon.png" alt="Ubon — Peace of mind for vibe‑coded apps" width="100%" />
