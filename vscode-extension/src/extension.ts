@@ -84,6 +84,38 @@ export function activate(context: vscode.ExtensionContext) {
             actions.push(fix);
           }
         }
+        if (code === 'COOKIE002') {
+          const fix = new vscode.CodeAction('Add HttpOnly; Secure to cookie', vscode.CodeActionKind.QuickFix);
+          fix.edit = new vscode.WorkspaceEdit();
+          const lineText = document.lineAt(range.start.line).text;
+          // Append flags before closing quote/paren if not present
+          let replaced = lineText;
+          if (!/HttpOnly/i.test(replaced)) replaced = replaced.replace(/(['"])\s*\)\s*;?$/, '; HttpOnly$1)');
+          if (!/Secure/i.test(replaced)) replaced = replaced.replace(/(['"])\s*\)\s*;?$/, '; Secure$1)');
+          fix.edit.replace(
+            document.uri,
+            new vscode.Range(new vscode.Position(range.start.line, 0), new vscode.Position(range.start.line, lineText.length)),
+            replaced
+          );
+          fix.diagnostics = [diag];
+          actions.push(fix);
+        }
+        if (code === 'LOG001') {
+          const fix = new vscode.CodeAction('Redact secret in console log', vscode.CodeActionKind.QuickFix);
+          fix.edit = new vscode.WorkspaceEdit();
+          const lineText = document.lineAt(range.start.line).text;
+          const redacted = lineText
+            .replace(/sk-[A-Za-z0-9_-]{8,}/g, 'sk-********')
+            .replace(/eyJ[A-Za-z0-9._-]{20,}/g, 'eyJ********')
+            .replace(/AKIA[0-9A-Z]{16}/g, 'AKIA**************');
+          fix.edit.replace(
+            document.uri,
+            new vscode.Range(new vscode.Position(range.start.line, 0), new vscode.Position(range.start.line, lineText.length)),
+            redacted
+          );
+          fix.diagnostics = [diag];
+          actions.push(fix);
+        }
       }
       return actions;
     }
