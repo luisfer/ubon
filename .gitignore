@@ -57,7 +57,7 @@ temp/
 .env.production.local
 
 # Package manager lock files (optional - some prefer to include)
-package-lock.json
+# package-lock.json - now included for CI reproducibility
 yarn.lock
 pnpm-lock.yaml
 
