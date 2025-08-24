@@ -128,6 +128,19 @@ ubon check --apply-fixes
 # - A11Y: add alt to <img>, aria-label to <input>, button roles on clickable divs, convert <a> (no href) to <button>
 # - Security: redact secret-like tokens in console logs, add HttpOnly/Secure to JWT cookies
 ```
+
+Watch mode:
+
+```
+# Re-run on file changes (fast recommended)
+ubon check --watch --fast
+```
+
+CI gate (new issues only vs base):
+
+```
+ubon check --json --fail-on error --base-sha origin/main
+```
 ```
 
 Exit codes:

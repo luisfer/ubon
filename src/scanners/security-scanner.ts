@@ -345,6 +345,20 @@ export class SecurityScanner implements Scanner {
         lines.forEach((line, index) => {
           if (/console\.(log|debug|info|warn|error)\(/.test(line) && /(sk-[A-Za-z0-9_-]{8,}|eyJ[A-Za-z0-9._-]{20,}|AKIA[0-9A-Z]{16})/.test(line)) {
             const meta = RULES.LOG001;
+            const fixEdits: any[] = [];
+            // Replace logged secret literal with a redacted placeholder
+            const redacted = line
+              .replace(/sk-[A-Za-z0-9_-]{8,}/g, 'sk-********')
+              .replace(/eyJ[A-Za-z0-9._-]{20,}/g, 'eyJ********')
+              .replace(/AKIA[0-9A-Z]{16}/g, 'AKIA**************');
+            fixEdits.push({
+              file,
+              startLine: index + 1,
+              startColumn: 1,
+              endLine: index + 1,
+              endColumn: Math.max(1, line.length),
+              replacement: redacted
+            });
             results.push({
               type: 'warning',
               category: meta.category,
@@ -355,7 +369,8 @@ export class SecurityScanner implements Scanner {
               severity: meta.severity,
               ruleId: meta.id,
               confidence: 0.8,
-              fix: meta.fix
+              fix: meta.fix,
+              fixEdits
             });
           }
         });
@@ -509,10 +524,23 @@ export class SecurityScanner implements Scanner {
           }
         }
 
-        // Check for insecure JWT cookies (COOKIE002)
+        // Check for insecure JWT cookies (COOKIE002) and propose fix edits
         lines.forEach((line, index) => {
-          if (/setCookie.*jwt|setCookie.*token/.test(line) && !/HttpOnly/.test(line)) {
+          const isJwtCookie = /(Set-Cookie|setHeader\(\s*['"][Ss]et-[Cc]ookie['"])|setCookie\s*\(/.test(line) && /(jwt|token)=/i.test(line);
+          const missingHttpOnly = !/HttpOnly/i.test(line);
+          const missingSecure = !/Secure/i.test(line);
+          if (isJwtCookie && (missingHttpOnly || missingSecure)) {
             const meta = RULES.COOKIE002;
+            const addition = `${missingHttpOnly ? '; HttpOnly' : ''}${missingSecure ? '; Secure' : ''}`;
+            const fixed = line.replace(/(['"])\s*\)\s*;?$/, `${addition}$1)`);
+            const fixEdits = [{
+              file,
+              startLine: index + 1,
+              startColumn: 1,
+              endLine: index + 1,
+              endColumn: Math.max(1, line.length),
+              replacement: fixed
+            }];
             results.push({
               type: 'error',
               category: meta.category,
@@ -523,7 +551,8 @@ export class SecurityScanner implements Scanner {
               severity: meta.severity,
               ruleId: meta.id,
               confidence: 0.9,
-              fix: meta.fix
+              fix: meta.fix,
+              fixEdits
             });
           }
         });

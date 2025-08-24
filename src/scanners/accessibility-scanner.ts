@@ -153,6 +153,19 @@ export class AccessibilityScanner implements Scanner {
                   replacement: ' alt=""'
                 });
               }
+              if (ruleId === 'A11Y002') {
+                // Add aria-label="" after <input if missing label/id
+                const startIdx = line.toLowerCase().indexOf('<input');
+                const insertAt = startIdx >= 0 ? startIdx + 6 : 1;
+                fixEdits.push({
+                  file,
+                  startLine: index + 1,
+                  startColumn: insertAt,
+                  endLine: index + 1,
+                  endColumn: insertAt,
+                  replacement: ' aria-label=""'
+                });
+              }
               if (ruleId === 'A11Y005') {
                 // Replace <a ...> without href with <button ...>
                 fixEdits.push({

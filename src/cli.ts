@@ -5,7 +5,7 @@ import { UbonScan } from './index';
 import pkg from '../package.json';
 import { ScanResult } from './types';
 import { toSarif } from './utils/sarif';
-import { getChangedFilesSince } from './utils/git';
+import { getChangedFilesSince, createBranchCommitPush, tryOpenPullRequest, ensureGitRepo } from './utils/git';
 import { loadConfig, mergeOptions } from './utils/config';
 import { applyFixes } from './utils/fix';
 import { installPreCommitHooks } from './utils/hooks';
@@ -74,11 +74,14 @@ program
   .option('--output <path>', 'Write JSON output to file')
   .option('--changed-files <paths...>', 'Limit scanning to these files (relative paths)')
   .option('--git-changed-since <ref>', 'Limit scanning to files changed since Git ref')
+  .option('--base-sha <ref>', 'In CI, compare against this base ref and only fail on new issues')
   .option('--fix-dry-run', 'Compute and print auto-fix plan without writing files')
   .option('--apply-fixes', 'Apply available safe auto-fixes to the codebase')
+  .option('--create-pr', 'After applying fixes, create a PR (uses gh if available)')
   .option('--profile <name>', 'Scan profile: auto|react|next|python', 'auto')
   .option('--git-history-depth <n>', 'Scan last N commits for leaked secrets')
   .option('--fast', 'Skip expensive checks (OSV, links) for faster results')
+  .option('--watch', 'Watch files and re-run on changes (fast mode recommended)')
   .option('--crawl-internal', 'Crawl internal links with a headless browser')
   .option('--crawl-start-url <url>', 'Starting URL for internal crawl')
   .option('--crawl-depth <n>', 'Max crawl depth', '2')
@@ -142,7 +145,8 @@ program
       if (scanOptions.gitChangedSince && (!scanOptions.changedFiles || scanOptions.changedFiles.length === 0)) {
         scanOptions.changedFiles = getChangedFilesSince(scanOptions.gitChangedSince, scanOptions.directory);
       }
-      const results = await scanner.diagnose(scanOptions);
+      const runOnce = async () => await scanner.diagnose(scanOptions);
+      let results = await runOnce();
       
       if (options.json) {
         // JSON output for AI agents
@@ -183,16 +187,60 @@ program
           console.log(JSON.stringify({ fixPlan: { files: changedFiles, edits: appliedEditCount } }, null, 2));
         } else {
           console.log(JSON.stringify({ fixesApplied: { files: changedFiles, edits: appliedEditCount } }, null, 2));
+          if (options.createPr && appliedEditCount > 0 && ensureGitRepo(options.directory)) {
+            const branchName = `ubon/fixes-${Date.now()}`;
+            const title = `chore(ubon): apply safe autofixes (${appliedEditCount} edits)`;
+            const body = `Automated safe fixes applied by Ubon.\n\nFiles changed: ${changedFiles.length}`;
+            const pushRes = createBranchCommitPush({ cwd: options.directory, baseBranch: 'main', featureBranch: branchName, title, body });
+            if (pushRes.pushed) {
+              const prRes = tryOpenPullRequest(options.directory, 'main', branchName, title, body);
+              if (prRes.created) {
+                console.log('✅ Pull request created');
+              } else if (prRes.url) {
+                console.log(`➡️  Open PR: ${prRes.url}`);
+              }
+            }
+          }
         }
       }
       
       // Exit codes based on fail-on (applies to both human and JSON modes)
       {
-        const errorCount = results.filter(r => r.type === 'error').length;
-        const warningCount = results.filter(r => r.type === 'warning').length;
+        let considered = results;
+        // CI gate: new issues only vs base SHA using fingerprints
+        if (options.baseSha) {
+          const changed = getChangedFilesSince(options.baseSha, options.directory);
+          if (Array.isArray(changed) && changed.length > 0) {
+            const changedSet = new Set(changed.map(p => p.replace(/^\.\//, '')));
+            considered = results.filter(r => r.file && changedSet.has(r.file));
+          }
+        }
+        const errorCount = considered.filter(r => r.type === 'error').length;
+        const warningCount = considered.filter(r => r.type === 'warning').length;
         const failOn: 'none' | 'warning' | 'error' = (options.failOn || 'error');
         const shouldFail = (failOn === 'error' && errorCount > 0) || (failOn === 'warning' && (errorCount + warningCount) > 0);
         if (shouldFail) process.exit(1);
+      }
+
+      if (options.watch) {
+        const chokidar = await import('chokidar');
+        const watcher = chokidar.watch(['**/*.{js,jsx,ts,tsx,vue}'], {
+          cwd: options.directory,
+          ignored: ['node_modules/**', 'dist/**', 'build/**', '.next/**']
+        });
+        console.log('👀 Watching for changes...');
+        watcher.on('change', async () => {
+          try {
+            const t0 = Date.now();
+            results = await runOnce();
+            const dt = Date.now() - t0;
+            if (options.json) {
+              console.log(JSON.stringify({ summary: { total: results.length }, durationMs: dt }, null, 2));
+            } else {
+              console.log(`🪷 Re-scan complete in ${dt}ms. Issues: ${results.length}`);
+            }
+          } catch {}
+        });
       }
     } catch (error: any) {
       if (options.json) {
