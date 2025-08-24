@@ -341,7 +341,7 @@ scanner.printResults(results);
 
 ## Changelog
 
-See `CHANGELOG.md` for release notes (latest: 0.0.1).
+See `CHANGELOG.md` for release notes (latest: 1.0.4).
 
 ## Requirements
 
