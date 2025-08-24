@@ -1,6 +1,6 @@
 {
   "name": "ubon",
-  "version": "1.0.4",
+  "version": "1.1.0",
   "description": "Security scanner for AI-generated React/Next.js and Python apps. Catches hardcoded secrets, accessibility issues, and vulnerabilities that traditional linters miss.",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -9,11 +9,13 @@
   },
   "scripts": {
     "build": "tsc",
+    "rules:gen": "node scripts/generate-rules-md.js",
     "dev": "tsc --watch",
     "start": "node dist/cli.js",
     "test": "jest",
     "preversion": "node scripts/check-changelog.js",
-    "test:watch": "jest --watch",
+    "prepublishOnly": "npm run build && npm run rules:gen"
+    ,"test:watch": "jest --watch",
     "lint": "eslint 'src/**/*.ts'",
     "lint:fix": "eslint 'src/**/*.ts' --fix",
     "prepublishOnly": "npm run build"

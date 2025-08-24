@@ -162,11 +162,31 @@ export class SecurityScanner implements Scanner {
       cwd: options.directory,
       ignore: ['node_modules/**', 'dist/**', 'build/**', '.next/**', 'examples/**']
     });
+    let processed = 0;
+
+    // Project-level Next.js structure presence flags (for P5 experimental rules)
+    const hasAppDir = files.some(f => /^app\//.test(f));
+    const hasPagesDir = files.some(f => /^pages\//.test(f));
+    const hasNotFoundApp = files.some(f => /^app\/not-found\.(js|jsx|ts|tsx)$/.test(f));
+    const has404Pages = files.some(f => /^pages\/404\.(js|jsx|ts|tsx)$/.test(f));
+    const hasErrorApp = files.some(f => /^app\/error\.(js|jsx|ts|tsx)$/.test(f));
+    const hasErrorPages = files.some(f => /^pages\/_error\.(js|jsx|ts|tsx)$/.test(f));
+    const hasDocumentPages = files.some(f => /^pages\/_document\.(js|jsx|ts|tsx)$/.test(f));
+    // Emit-once sentinels
+    let emittedP5_404 = false;
+    let emittedP5_error = false;
+    let emittedP5_document = false;
 
     for (const file of files) {
       try {
         const content = readFileSync(`${options.directory}/${file}`, 'utf-8');
         const lines = content.split('\n');
+        processed++;
+        if (options.verbose && processed % 25 === 0) {
+          // Periodic progress indicator for large repos
+          console.log('🪷', `Scanning... (${processed}/${files.length} files)`);
+        }
+        const isAppRouter = /(^|\/)app\//.test(file) || hasAppDir;
 
         let ubonDisableAll = false;
         lines.forEach((line, index) => {
@@ -211,6 +231,20 @@ export class SecurityScanner implements Scanner {
                 return;
               }
               const fixEdits = [] as any[];
+              if (ruleId === 'SEC008') {
+                // Remove hardcoded fallback: process.env.X || 'fallback' -> process.env.X
+                const replacement = line.replace(/(process\.env\.\w+)\s*\|\|\s*['"][^'"`]+['"]/g, '$1');
+                if (replacement !== line) {
+                  fixEdits.push({
+                    file,
+                    startLine: index + 1,
+                    startColumn: 1,
+                    endLine: index + 1,
+                    endColumn: Math.max(1, line.length),
+                    replacement
+                  });
+                }
+              }
               if (ruleId === 'SEC015') {
                 fixEdits.push({
                   file,
@@ -238,6 +272,40 @@ export class SecurityScanner implements Scanner {
             }
           });
         });
+
+        // Project-level Next.js structure checks (emit once per project)
+        if (/^(pages|app)\//.test(file)) {
+          // Missing not-found/404
+          if (!emittedP5_404) {
+            if (hasAppDir && !hasNotFoundApp) {
+              const meta = RULES.NEXT201;
+              results.push({ type: 'warning', category: meta.category, message: meta.message, file, severity: meta.severity, ruleId: meta.id, confidence: 0.5, fix: meta.fix });
+              emittedP5_404 = true;
+            } else if (hasPagesDir && !has404Pages) {
+              const meta = RULES.NEXT201;
+              results.push({ type: 'warning', category: meta.category, message: meta.message, file, severity: meta.severity, ruleId: meta.id, confidence: 0.5, fix: meta.fix });
+              emittedP5_404 = true;
+            }
+          }
+          // Missing error boundary
+          if (!emittedP5_error) {
+            if (hasAppDir && !hasErrorApp) {
+              const meta = RULES.NEXT202;
+              results.push({ type: 'warning', category: meta.category, message: meta.message, file, severity: meta.severity, ruleId: meta.id, confidence: 0.5, fix: meta.fix });
+              emittedP5_error = true;
+            } else if (hasPagesDir && !hasErrorPages) {
+              const meta = RULES.NEXT202;
+              results.push({ type: 'warning', category: meta.category, message: meta.message, file, severity: meta.severity, ruleId: meta.id, confidence: 0.5, fix: meta.fix });
+              emittedP5_error = true;
+            }
+          }
+          // _document for Pages Router only when code hints custom head/script usage
+          if (!emittedP5_document && hasPagesDir && /from\s+['"]next\/(head|script)['"]/.test(content) && !hasDocumentPages) {
+            const meta = RULES.NEXT203;
+            results.push({ type: 'warning', category: meta.category, message: meta.message, file, severity: meta.severity, ruleId: meta.id, confidence: 0.5, fix: meta.fix });
+            emittedP5_document = true;
+          }
+        }
         // JS HTTP timeout/retry policy checks
         lines.forEach((line, index) => {
           // axios without timeout
@@ -260,6 +328,15 @@ export class SecurityScanner implements Scanner {
           // fetch without AbortController/timeout wrappers (heuristic)
           if (/\bfetch\s*\(/.test(line) && !/AbortController|signal\s*:/.test(line)) {
             const meta = RULES.JSNET001;
+            const suggested = line.replace(/fetch\(([^)]*)\)/, 'fetch($1, { signal })');
+            const fixEdits = [{
+              file,
+              startLine: index + 1,
+              startColumn: 1,
+              endLine: index + 1,
+              endColumn: Math.max(1, line.length),
+              replacement: suggested
+            }];
             results.push({
               type: meta.severity === 'high' ? 'error' : 'warning',
               category: meta.category,
@@ -271,10 +348,11 @@ export class SecurityScanner implements Scanner {
               ruleId: meta.id,
               match: line.slice(0, 200),
               confidence: 0.6,
-              fix: 'Use AbortController with a timeout to cancel long fetches'
+              fix: 'Use AbortController with a timeout to cancel long fetches',
+              fixEdits
             });
           }
-          // Set-Cookie missing attributes
+          // Set-Cookie missing attributes (with fix edits)
           if (/setHeader\(\s*['"][Ss]et-[Cc]ookie['"],\s*['"][^'"]+['"]\s*\)/.test(line) || /Set-Cookie:/i.test(line)) {
             const cookieStrMatch = line.match(/Set-Cookie:\s*([^;]+(?:;[^;]+)*)/i);
             const cookieStr = cookieStrMatch ? cookieStrMatch[1] : line;
@@ -283,6 +361,16 @@ export class SecurityScanner implements Scanner {
             const hasSameSite = /SameSite/i.test(cookieStr);
             if (!(hasHttpOnly && hasSecure && hasSameSite)) {
               const meta = RULES.COOKIE001;
+              const needed = `${hasHttpOnly ? '' : '; HttpOnly'}${hasSecure ? '' : '; Secure'}${hasSameSite ? '' : '; SameSite=Lax'}`;
+              const fixedLine = line.replace(/(['"])\s*\)\s*;?$/, `${needed}$1)`);
+              const fixEdits = [{
+                file,
+                startLine: index + 1,
+                startColumn: 1,
+                endLine: index + 1,
+                endColumn: Math.max(1, line.length),
+                replacement: fixedLine
+              }];
               results.push({
                 type: meta.severity === 'high' ? 'error' : 'warning',
                 category: meta.category,
@@ -294,7 +382,8 @@ export class SecurityScanner implements Scanner {
                 ruleId: meta.id,
                 match: line.slice(0, 200),
                 confidence: 0.8,
-                fix: meta.fix
+                fix: meta.fix,
+                fixEdits
               });
             }
           }
@@ -522,6 +611,43 @@ export class SecurityScanner implements Scanner {
               fix: meta.fix
             });
           }
+        }
+
+        // API route structure: missing method validation (NEXT209) and unauthenticated sensitive responses (NEXT205)
+        if (/\b(pages|app)\/api\//.test(file)) {
+          const isPagesAPI = /\bpages\/api\//.test(file);
+          const isAppRoute = /\bapp\/api\//.test(file);
+          if (isPagesAPI) {
+            const mentionsReqMethodCheck = /req\.method/.test(content) && /(GET|POST|PUT|DELETE|PATCH)/.test(content);
+            if (!mentionsReqMethodCheck) {
+              const meta = RULES.NEXT209;
+              results.push({ type: 'warning', category: meta.category, message: meta.message, file, severity: meta.severity, ruleId: meta.id, confidence: 0.6, fix: meta.fix });
+            }
+          }
+          if (isAppRoute) {
+            const hasMethodExports = /export\s+async\s+function\s+(GET|POST|PUT|DELETE|PATCH)\s*\(/.test(content);
+            if (!hasMethodExports) {
+              const meta = RULES.NEXT209;
+              results.push({ type: 'warning', category: meta.category, message: meta.message, file, severity: meta.severity, ruleId: meta.id, confidence: 0.6, fix: meta.fix });
+            }
+          }
+          // Unauthenticated API access heuristic: returns user/secrets without typical auth artifacts
+          const returnsSensitive = /res\.(json|send)\(\s*\{[^}]*\b(user|email|token|secret|apiKey)\b/.test(content);
+          const hasAuthSignals = /(getServerSession|next-auth|Authorization|getToken|cookies\(|jwt)/.test(content);
+          if (returnsSensitive && !hasAuthSignals) {
+            const meta = RULES.NEXT205;
+            results.push({ type: 'warning', category: meta.category, message: meta.message, file, severity: meta.severity, ruleId: meta.id, confidence: 0.6, fix: meta.fix });
+          }
+        }
+
+        // Navigation: router.push with external URL (NEXT208)
+        if (/useRouter\(\)/.test(content) || /from\s+['"]next\/navigation['"]/.test(content)) {
+          lines.forEach((line, index) => {
+            if (/router\.push\(\s*['"][a-z]+:\/\//i.test(line)) {
+              const meta = RULES.NEXT208;
+              results.push({ type: 'warning', category: meta.category, message: meta.message, file, line: index + 1, range: { startLine: index + 1, startColumn: 1, endLine: index + 1, endColumn: Math.max(1, line.length) }, severity: meta.severity, ruleId: meta.id, confidence: 0.7, fix: meta.fix });
+            }
+          });
         }
 
         // Check for insecure JWT cookies (COOKIE002) and propose fix edits

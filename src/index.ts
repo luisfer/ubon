@@ -12,6 +12,7 @@ import { GitHistoryScanner } from './scanners/git-history-scanner';
 import { AstSecurityScanner } from './scanners/ast-security-scanner';
 import { InternalCrawler } from './scanners/internal-crawler';
 import { IacScanner } from './scanners/iac-scanner';
+import { RailsSecurityScanner } from './scanners/rails-security-scanner';
 import { glob } from 'glob';
 import { Logger } from './utils/logger';
 import chalk from 'chalk';
@@ -132,6 +133,10 @@ export class UbonScan {
       if (!fast) arr.push(new OSVScanner());
       return arr;
     }
+    if (p === 'rails') {
+      const arr: any[] = [new RailsSecurityScanner()];
+      return arr;
+    }
     // vue/react/next fall through to JS scanners
     // auto/react/next default to JS scanners
     const jsArr: any[] = [new SecurityScanner(), new AstSecurityScanner(), new AccessibilityScanner(), new EnvScanner(), new IacScanner()];
@@ -162,6 +167,11 @@ export class UbonScan {
 
     // Apply filters and limits
     let filteredResults = this.applyResultFilters(activeResults, options);
+    // Smart suggestion for overwhelm
+    const totalActive = activeResults.length;
+    if (!options?.maxIssues && totalActive > 50) {
+      this.logger.info(this.colorize(chalk.gray, `Found ${totalActive} issues. Tip: use --max-issues 10 to focus on critical items first.`));
+    }
     
     // Severity-first header
     const errorCount = filteredResults.filter(r => r.type === 'error').length;
@@ -178,7 +188,7 @@ export class UbonScan {
     this.logger.separator();
     this.logger.title(`Found ${filteredResults.length} issues:`);
 
-    const groupedResults = this.groupResults(filteredResults, options?.groupBy || 'category');
+    const groupedResults = this.groupResults(filteredResults, options?.groupBy || 'severity');
 
     Object.entries(groupedResults).forEach(([groupKey, groupResults]) => {
       const icon = this.getGroupIcon(groupKey, options?.groupBy || 'category');
@@ -200,7 +210,8 @@ export class UbonScan {
         const rule = result.ruleId ? this.colorize(chalk.gray, ` {${result.ruleId}}`) : '';
         const msgColor = isError ? chalk.red : chalk.yellow;
         const suppressedIndicator = result.suppressed ? this.colorize(chalk.gray, ' [SUPPRESSED]') : '';
-        console.log(`  ${icon} ${badge} ${this.colorize(msgColor, result.message)}${location}${rule}${suppressedIndicator}`);
+        const confText = (options?.showConfidence || options?.verbose) ? this.colorize(chalk.gray, ` (confidence: ${(result.confidence ?? 0).toFixed(2)})`) : '';
+        console.log(`  ${icon} ${badge} ${this.colorize(msgColor, result.message)}${location}${rule}${confText}${suppressedIndicator}`);
         
         if (result.fix) {
           console.log(`      ${this.brand('🪷')} ${this.colorize(chalk.green, result.fix)}`);

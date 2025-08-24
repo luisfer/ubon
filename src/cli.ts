@@ -96,10 +96,12 @@ program
   .option('--max-issues <number>', 'Limit output to N most critical issues')
   .option('--show-context', 'Show code context around findings (3-5 lines)')
   .option('--explain', 'Show "why it matters" explanations for findings')
+  .option('--show-confidence', 'Show per-finding confidence score in human output')
   .option('--show-suppressed', 'Include suppressed results in output')
   .option('--ignore-suppressed', 'Completely ignore suppressed results (default: hide but count)')
   .option('--clear-cache', 'Clear OSV vulnerability cache before scanning')
   .option('--no-cache', 'Disable OSV caching for this scan')
+  .option('--ai-friendly', 'Optimize output for AI consumption (json + context + explain + grouping + cap)')
   .action(async (options) => {
     const scanner = new UbonScan(options.verbose, options.json, options.color as 'auto' | 'always' | 'never');
     
@@ -134,12 +136,22 @@ program
       maxIssues: options.maxIssues ? parseInt(options.maxIssues) : undefined,
       showContext: !!options.showContext,
       explain: !!options.explain,
+      showConfidence: !!options.showConfidence,
       showSuppressed: !!options.showSuppressed,
       ignoreSuppressed: !!options.ignoreSuppressed,
       clearCache: !!options.clearCache,
       noCache: !!options.noCache
     };
     const scanOptions = mergeOptions(config, cliOptions);
+
+    // AI-friendly preset
+    if (options.aiFriendly) {
+      (scanOptions as any).json = true;
+      (scanOptions as any).showContext = true;
+      (scanOptions as any).explain = true;
+      (scanOptions as any).groupBy = 'severity';
+      if (!scanOptions.maxIssues) (scanOptions as any).maxIssues = 15;
+    }
 
     try {
       if (scanOptions.gitChangedSince && (!scanOptions.changedFiles || scanOptions.changedFiles.length === 0)) {
@@ -288,6 +300,7 @@ program
   .option('--max-issues <number>', 'Limit output to N most critical issues')
   .option('--show-context', 'Show code context around findings (3-5 lines)')
   .option('--explain', 'Show "why it matters" explanations for findings')
+  .option('--show-confidence', 'Show per-finding confidence score in human output')
   .option('--show-suppressed', 'Include suppressed results in output')
   .option('--ignore-suppressed', 'Completely ignore suppressed results (default: hide but count)')
   .option('--clear-cache', 'Clear OSV vulnerability cache before scanning')
@@ -325,6 +338,7 @@ program
       maxIssues: options.maxIssues ? parseInt(options.maxIssues) : undefined,
       showContext: !!options.showContext,
       explain: !!options.explain,
+      showConfidence: !!options.showConfidence,
       showSuppressed: !!options.showSuppressed,
       ignoreSuppressed: !!options.ignoreSuppressed,
       clearCache: !!options.clearCache,

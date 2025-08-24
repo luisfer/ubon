@@ -1,5 +1,7 @@
 ## Ubon CLI Reference
 
+See also: `docs/FEATURES.md` for a checks/feature matrix and `docs/RULES.md` for rule details.
+
 ### Commands
 
 #### ubon scan
@@ -41,10 +43,12 @@ Options:
   --focus-new                 Only show issues not in baseline
   --color <mode>              Colorize output: auto|always|never (default: auto)
   --group-by <mode>           Group results: category|file|rule|severity (default: category)
+  --ai-friendly               AI preset: json + context + explain + severity + cap 15
   --min-severity <level>      Minimum severity to include: low|medium|high
   --max-issues <n>            Limit output to N most important issues
   --show-context              Show code context around findings (3–5 lines)
   --explain                   Show "why it matters" explanations
+  --show-confidence           Show per-finding confidence in human output
   --show-suppressed           Include suppressed results in output
   --ignore-suppressed         Completely ignore suppressed results
   --clear-cache               Clear OSV cache before scanning
@@ -71,6 +75,10 @@ ubon scan --focus-critical --focus-security
 
 # Show everything, including lower-confidence
 ubon scan --detailed
+ 
+# Experimental P5 Next.js rules (enable/disable)
+ubon check --enable-rule NEXT201,NEXT202,NEXT203,NEXT205,NEXT208,NEXT209
+ubon check --disable-rule NEXT201,NEXT202,NEXT203,NEXT205,NEXT208,NEXT209
 ```
 
 #### ubon check

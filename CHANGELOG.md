@@ -94,22 +94,38 @@ Initial stable release.
 
 This patch focuses on triage-first UX and noise reduction without changing schema or defaults that would break existing workflows.
 
-## 1.1.0 — Unreleased
+## 1.1.0 — 2025-08-25
 
 ### Added
 - Colorized, branded output with lotus (🪷) and `--color` flag
 - Result organization with `--group-by`, `--min-severity`, `--max-issues`
 - Code context (`--show-context`) and explanations (`--explain`)
+ - Confidence display (`--show-confidence`) in human output
 - Inline suppressions: `// ubon-disable-next-line RULEID [reason]` with `--show-suppressed`/`--ignore-suppressed`
 - OSV caching (24h TTL) with `--clear-cache`, `--no-cache`, and `ubon cache` command
 - Next.js security rules: JWT in responses (NEXT007), missing security headers (NEXT008), unsafe redirects (NEXT009), permissive CORS (NEXT010), client env leaks (NEXT011)
+ - CI gate: `--base-sha` (fail only on new issues vs base)
+ - Watch mode: `--watch` (incremental re-scan; use with `--fast`)
+ - Create PR: `--create-pr` after `--apply-fixes`
+ - VS Code extension (MVP): diagnostics + quick fixes
+ - Experimental Next.js routing/structure rules (NEXT201–NEXT209)
+
+ ### Rails 
+ 
+ - Rails profile (experimental): SQLi in where, system/backticks, YAML.load, html_safe in ERB
 
 ### Autofixes (safe)
 - Accessibility: add `alt` to `<img>`, `aria-label` to `<input>`, add `role="button" tabIndex={0}` to clickable `<div>`, convert `<a>` without `href` to `<button>`
 - Security: redact secret-like tokens in `console.*` calls; add `HttpOnly; Secure` to JWT cookies
+ - Env/config: remove hardcoded fallbacks from `process.env.X || '...'`
+ - Networking: suggest `{ signal }` on `fetch(...)` (AbortController)
 
 ### Performance
 - Repeat scans ~30–40% faster when OSV cache is warm
+
+### Docs
+- README streamlined with AI Assistants workflow; feature matrix added in `docs/FEATURES.md`; CLI cross-links.
+- P5 rules documented as experimental with enable/disable examples.
 
 ### Notes
 - All changes are non-breaking and gated behind flags; JSON/SARIF schema remains stable

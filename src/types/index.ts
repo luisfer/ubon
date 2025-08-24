@@ -37,7 +37,7 @@ export interface ScanOptions {
   changedFiles?: string[]; // limit scanning to these relative file paths
   gitChangedSince?: string; // use git diff --name-only <ref> to populate changedFiles
   // Profile selection
-  profile?: 'auto' | 'react' | 'next' | 'python' | 'vue';
+  profile?: 'auto' | 'react' | 'next' | 'python' | 'vue' | 'rails';
   // History scanning
   gitHistoryDepth?: number; // number of commits to search for secrets
   // Internal crawler (opt-in)
@@ -63,6 +63,7 @@ export interface ScanOptions {
   maxIssues?: number; // limit number of results shown
   showContext?: boolean; // show code context around findings
   explain?: boolean; // show "why it matters" explanations
+  showConfidence?: boolean; // show per-finding confidence in human output
   showSuppressed?: boolean; // include suppressed results in output
   ignoreSuppressed?: boolean; // completely ignore suppressed results
   clearCache?: boolean; // clear OSV cache before scanning

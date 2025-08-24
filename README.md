@@ -4,23 +4,50 @@
   <img src="branding/Ubon.png" alt="Ubon — Peace of mind for vibe‑coded apps" width="100%" />
 </p>
 
-Security scanner for React/Next.js, Vue.js, and Python projects.
 
 [![npm version](https://badge.fury.io/js/ubon.svg)](https://badge.fury.io/js/ubon)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
+## Contents
+
+- What is Ubon?
+- At a glance
+- Highlights in v1.1.0
+- The reality of debugging AI-generated code
+- Quick Start
+- How to Use with AI Assistants
+- What does it check?
+- CLI
+- Common Workflows
+- Baseline/Suppressions
+- Example Output
+- JSON Output
+- SARIF Output
+- Programmatic Usage
+- Requirements
+- FAQ
+- Experimental: Next.js P5 Routing/Structure Rules
+- Changelog
+- Contributing
+- License
+- Branding
+- Release policy
+
 ## What is Ubon?
 
-Ubon performs static checks that complement linters:
+Ubon is a fast static analysis tool for modern, AI‑generated “vibe‑coded” apps. It finds real, shippable issues—secrets, insecure cookies/redirects, accessibility problems, broken links, and config mistakes—and explains how to fix them with file:line context.
 
-- Broken links and missing resources
-- Security risks and exposed secrets
-- Accessibility issues
-- Common React/Next.js anti-patterns
+Use the colorized triage in the terminal or JSON/SARIF for CI and AI. Profiles cover Next.js/React, Python, and Rails (experimental). See profiles in `docs/PROFILES.md` and the full capability matrix in `docs/FEATURES.md`.
 
-See profiles and differences in `docs/PROFILES.md`.
+### At a glance
 
-### Highlights in v1.1.0 (in progress)
+- Security, accessibility, links, and config checks across Next.js/React, Python, Vue, and Rails (experimental)
+- Human-friendly triage: grouping, color, context, explanations, confidence scores
+- Baselines and inline suppressions for low-noise adoption
+- JSON and SARIF outputs for CI and AI; OSV caching for speed
+- Safe autofixes and optional PR creation; watch mode and changed-files gates
+
+### Highlights in v1.1.0
 
 - Colorized, branded output with lotus (🪷); control via `--color auto|always|never`
 - Result organization: `--group-by file|rule|severity|category`, `--min-severity`, `--max-issues`
@@ -28,6 +55,10 @@ See profiles and differences in `docs/PROFILES.md`.
 - Inline suppressions: `// ubon-disable-next-line RULEID [reason]` (see `docs/SUPPRESSIONS.md`)
 - OSV cache for dependency advisories with `--clear-cache`, `--no-cache`, and `ubon cache` command
 - New Next.js security rules (JWT/cookies, redirects, CORS, client env leaks)
+ - New Next.js rules (security + routing/structure, experimental)
+ - New CI/Dev tooling: `--watch`, `--base-sha`, `--create-pr`
+ - VS Code extension (MVP): problems + quick fixes
+ - Experimental Rails profile
 
 ## The Reality of Debugging AI-Generated Code
 
@@ -60,24 +91,25 @@ See profiles and differences in `docs/PROFILES.md`.
 ### With Ubon
 
 ```bash
-$ ubon check
+$ ubon check --group-by severity --min-severity medium
 
-❌ Stripe key hardcoded in components/Payment.tsx:12
-   → Your 'pk_live_...' key is exposed in client code
-💡 Use NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY environment variable
+🪷 Ubon — Triage
+High: 1 error   Medium: 1 warning
 
-❌ Button div has onClick but no keyboard handlers
-   → components/Payment.tsx:45
-💡 Use <button> element or add onKeyDown for accessibility
+HIGH
+  ❌ SEC003 Hardcoded OpenAI key (lib/ai.ts:12)
+     fix: Move key to OPENAI_API_KEY env var
 
-✓ Fixed in 30 seconds
+MEDIUM
+  ⚠️ A11Y001 Image without alt attribute (components/Hero.tsx:22)
+     fix: Add alt="" or a short descriptive text
 ```
 
 ## About me and Ubon
 
 Hi, I'm Luisfer Romero Calero, an experienced software engineer passionate about building products and being creative. You can find more about me at https://lfrc.me. I created Ubon in six days, obsessed with solving a problem I kept seeing everywhere: the current wave of AI-generated "vibe-coded" apps that, while incredibly quick to build, are frustrating to deploy and use because AI overlooks so many essential details.
 
-The explosion of AI-generated apps through tools like Lovable, Replit, and Cursor has democratized software creation—but it's also created a hidden crisis. Non-technical users prompt AI with "this doesn't work" without knowing what to check, and AI assistants miss the non-obvious issues that slip past linters: hardcoded secrets, broken links, accessibility failures, and those subtle security vulnerabilities that only surface in production.
+The explosion of AI-generated apps through tools like Lovable, Replit, Cursor and Windsurf has democratized software creation. But it’s also created a quiet reliability crisis. Non-technical users prompt AI with "this doesn't work!!!" without knowing what to check, they don’t have the vocabulary to prompt precisely, and AI assistants miss the non‑obvious issues that slip past linters: hardcoded secrets, broken links, accessibility failures, and those subtle security vulnerabilities that only surface in production.
 
 I built Ubon after realizing that instead of fighting this AI-powered wave, we should embrace it and make it better. Think of Ubon as a safety net for the age of AI-generated code, a gentle guardian that catches what traditional tools miss. It works seamlessly with the standard Next.js/React repos that agentic AI tools create by default, as well as Python projects and Vue.js ones.
 
@@ -125,32 +157,75 @@ ubon scan --sarif ubon.sarif --git-changed-since origin/main
 # Human-friendly triage with color and grouping
 ubon check --color auto --group-by severity --min-severity medium --max-issues 10
 ```
+Quick AI pass (JSON):
+
+```bash
+ubon check --ai-friendly > ubon.json
+```
+
+## How to Use with AI Assistants
+
+### The Magic Workflow
+
+```bash
+$ ubon scan
+```
+
+Then tell your AI assistant:
+
+"I ran Ubon and got N issues. Please help me fix them, starting with high severity."
+
+### Why This Works
+
+❌ Without Ubon:
+- AI guesses what might be wrong
+- Focuses on syntax or surface errors
+- Misses security and a11y issues
+- Long back-and-forth debugging loops
+
+✅ With Ubon:
+- Concrete, prioritized findings with file:line
+- Explanations and code context
+- Smart grouping and severity filters
+- Fixes root causes in 1–2 exchanges
+
+### Pro Tips for AI Conversations
+
+```bash
+# Share the full output
+ubon scan > issues.txt
+```
+Paste into the chat and ask for prioritized fixes.
+
+```bash
+# Focus on high-severity first
+ubon scan --max-issues 5 --group-by severity
+```
+
+```bash
+# Group by file for large projects
+ubon scan --group-by file
+```
+
+### Real Example
+
+Before Ubon: “My Next.js auth is broken” → 45-minute debugging session.
+
+With Ubon: “Hardcoded JWT in `pages/api/auth.ts:23`, missing `HttpOnly; Secure` on cookies” → fixed in minutes.
 
 ## What Does It Check?
 
-### Security
-- **Hardcoded secrets**: Supabase keys, OpenAI, Stripe, AWS, GitHub tokens
-- **Code execution risks**: `eval()`, `exec()`, `dangerouslySetInnerHTML`
-- **Environment files**: Exposed .env, missing .gitignore entries
-- **Database credentials**: Connection strings, hardcoded passwords
-- **Dependency vulnerabilities**: OSV.dev scanning for npm/PyPI
-- **Python-specific**: `subprocess(shell=True)`, `pickle.loads()`, debug mode
-- **Git history scanning**: Optional secret detection in commit history
+See a complete feature and checks matrix in `docs/FEATURES.md`.
 
-### Links & Resources
-- External links (HTTP/S) reachability with timeouts
-- Info: internal link crawling available via Puppeteer (opt-in)
-  - Enable with `--crawl-internal` (see flags below). Use `--crawl-start-url`, `--crawl-depth`, `--crawl-timeout`.
-
-### Accessibility
-- Images without alt text
-- Inputs without labels
-- Non-semantic interactive elements
-- Missing ARIA attributes
+Top areas covered:
+- Security findings across Next.js/React, Python, and Rails (experimental)
+- Accessibility issues that slip past linters
+- Link reachability and resource problems
+- Dependency advisories via OSV
 
 ## CLI
 
-Full reference lives in `docs/CLI.md`. Config format in `docs/CONFIG.md`. Rules glossary in `docs/RULES.md`.
+Full reference lives in `docs/CLI.md`. Config format in `docs/CONFIG.md`. Rules glossary in `docs/RULES.md`. See `docs/README.md` for the docs hub and archived notes.
 
 Exit codes respect `--fail-on`. See `docs/CLI.md`.
 
@@ -158,6 +233,7 @@ Commonly used flags (v1.1.0):
 
 - Output UX: `--color auto|always|never`, `--group-by file|rule|severity|category`, `--min-severity`, `--max-issues`
 - Context: `--show-context`, `--explain`
+- Confidence: `--show-confidence` (or use `--verbose`)
 - Suppressions: `--show-suppressed`, `--ignore-suppressed` (inline: see `docs/SUPPRESSIONS.md`)
 - OSV cache: `--clear-cache`, `--no-cache`, and `ubon cache --info|--clear|--cleanup`
 
@@ -294,59 +370,65 @@ Baseline file:
 }
 ```
 
-## Example Output
+## Example Output (v1.1.0 human view)
 
 ```bash
-🔍 Starting Ubon
-ℹ Running Security Scanner...
-✓ Security Scanner completed (3 issues found)
-ℹ Running Accessibility Scanner...
-✓ Accessibility Scanner completed (2 issues found)
+$ ubon check --group-by severity --min-severity medium --show-context --explain --show-confidence
 
-──────────────────────────────────────────────────
-🔍 Found 5 issues:
+🪷 Ubon — Triage
+High: 1 error   Medium: 2 warnings   Suppressed: 1 (hidden)
 
-🔒 SECURITY:
-  ❌ Supabase anon key hardcoded (JWT token pattern) (lib/supabase.ts:7)
-      💡 Use NEXT_PUBLIC_SUPABASE_ANON_KEY environment variable
-  ❌ .env file ".env" may not be in .gitignore
-      💡 Add .env files to .gitignore to prevent accidental commits
-  ⚠️ Supabase URL hardcoded (should use env var) (lib/supabase.ts:4)
-      💡 Use NEXT_PUBLIC_SUPABASE_URL environment variable
+HIGH
+  ❌ SEC003 Hardcoded OpenAI key (lib/ai.ts:12) (confidence: 0.94)
+     why it matters: Leaked API keys are abused quickly and can incur cost.
+     fix: Move the key to an environment variable (e.g., OPENAI_API_KEY).
+     context:
+       10 | import fetch from 'node-fetch'
+       11 |
+       12 | const openaiKey = "sk-********************************" // redacted
+          |                     ^ secret-like token detected
+       13 | export async function ask(prompt: string) {
 
-♿ ACCESSIBILITY:
-  ⚠️ Image without alt attribute (components/hero.jsx:22)
-      💡 Add descriptive alt attribute to images
-  ⚠️ Div with onClick (components/button.tsx:14)
-      💡 Use button element or add keyboard event handlers
+MEDIUM
+  ⚠️ A11Y001 Image without alt attribute (components/Hero.tsx:22)
+     fix: Add alt="" or a descriptive text.
+     context:
+       21 | <div className="hero">
+       22 |   <img src="/banner.png" />
+          |        ^ missing alt attribute
 
-📊 Summary: 1 errors, 4 warnings
-❌ Critical issues found that should be fixed immediately
+  ⚠️ JSNET001 fetch without AbortController signal (lib/net.ts:7)
+     fix: Pass { signal } from an AbortController to avoid hanging requests.
+
+Notes
+  • Use --show-suppressed to include suppressed results
+  • Use --max-issues 5 to focus on the most critical first
 ```
 
-## JSON Schema Notes
+## JSON Output (schema highlights)
 
-Each issue includes:
-
-- `ruleId`: Stable identifier (e.g., `SEC003`, `A11Y001`).
-- `confidence`: Heuristic (0.0–1.0) used for automated triage.
-- `range` and optional `fixEdits`: machine-actionable context for auto-fixes.
-
-Secrets redaction:
-
-- Sensitive matches (e.g., keys beginning with `sk-`, long JWT-like `eyJ...`) are masked in JSON and SARIF output. Fingerprints remain stable for baselines.
+Each issue includes stable `ruleId`, `category`, `severity`, `range`, and optional `fixEdits`. Sensitive matches are redacted; fingerprints remain stable for baselines. SARIF includes `helpUri` when available.
 
 ```json
 {
-  "type": "error",
-  "category": "security",
-  "message": "Supabase anon key hardcoded (JWT token pattern)",
-  "file": "lib/supabase.ts",
-  "line": 7,
-  "severity": "high",
-  "ruleId": "SEC003",
-  "confidence": 0.95,
-  "fix": "Use NEXT_PUBLIC_SUPABASE_ANON_KEY environment variable"
+  "schemaVersion": "1.1.0",
+  "toolVersion": "1.1.0",
+  "results": [
+    {
+      "type": "error",
+      "category": "security",
+      "severity": "high",
+      "ruleId": "SEC003",
+      "message": "Hardcoded OpenAI key",
+      "file": "lib/ai.ts",
+      "line": 12,
+      "confidence": 0.95,
+      "range": { "startLine": 12, "startColumn": 7, "endLine": 12, "endColumn": 32 },
+      "helpUri": "https://owasp.org/www-project-top-ten/",
+      "fix": "Move key to OPENAI_API_KEY env var",
+      "suppressed": false
+    }
+  ]
 }
 ```
 
@@ -374,7 +456,7 @@ scanner.printResults(results);
 
 ## Changelog
 
-See `CHANGELOG.md` for release notes (latest: 1.0.4).
+See `CHANGELOG.md` for release notes (latest: 1.1.0).
 
 ## Requirements
 
@@ -416,3 +498,73 @@ Design notes:
 ## Release policy
 
 Ubon follows Semantic Versioning. Patch and minor releases are incremental and non-disruptive. Breaking changes only land in a new major version and include upgrade notes. See `docs/RELEASE-POLICY.md`.
+
+## How to Use with AI Assistants
+
+### The Magic Workflow
+
+```bash
+$ ubon scan
+```
+
+Then tell your AI assistant:
+
+"I ran Ubon and got N issues. Please help me fix them, starting with high severity."
+
+### Why This Works
+
+❌ Without Ubon:
+- AI guesses what might be wrong
+- Focuses on syntax or surface errors
+- Misses security and a11y issues
+- Long back-and-forth debugging loops
+
+✅ With Ubon:
+- Concrete, prioritized findings with file:line
+- Explanations and code context
+- Smart grouping and severity filters
+- Fixes root causes in 1–2 exchanges
+
+### Pro Tips for AI Conversations
+
+```bash
+# Share the full output
+ubon scan > issues.txt
+```
+Paste into the chat and ask for prioritized fixes.
+
+```bash
+# Focus on high-severity first
+ubon scan --max-issues 5 --group-by severity
+```
+
+```bash
+# Group by file for large projects
+ubon scan --group-by file
+```
+
+### Real Example
+
+Before Ubon: “My Next.js auth is broken” → 45-minute debugging session.
+
+With Ubon: “Hardcoded JWT in `pages/api/auth.ts:23`, missing `HttpOnly; Secure` on cookies” → fixed in minutes.
+
+## Experimental: Next.js P5 Routing/Structure Rules
+
+These heuristics are conservative and may evolve. Enable/disable explicitly if you want to try them today.
+
+```bash
+# Try P5 rules only
+ubon check --enable-rule NEXT201,NEXT202,NEXT203,NEXT205,NEXT208,NEXT209
+
+# Disable P5 rules
+ubon check --disable-rule NEXT201,NEXT202,NEXT203,NEXT205,NEXT208,NEXT209
+```
+
+What they look for:
+- NEXT201: missing 404/not-found page (Pages vs App Router aware)
+- NEXT202: missing error boundary page
+- NEXT203: missing _document.tsx when customizing head/scripts (Pages Router)
+- NEXT205: API may return sensitive data without auth
+- NEXT208: router.push() to external URL (open-redirect risk)
+- NEXT209: API route missing HTTP method validation
