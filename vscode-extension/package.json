@@ -52,7 +52,9 @@
   "scripts": {
     "vscode:prepublish": "npm run build",
     "build": "tsc -p ./",
-    "watch": "tsc -w -p ./"
+    "watch": "tsc -w -p ./",
+    "vscode:package": "npx vsce package",
+    "vscode:publish": "npx vsce publish"
   },
   "devDependencies": {
     "@types/node": "^18.19.0",

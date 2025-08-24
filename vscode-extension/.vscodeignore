@@ -1,0 +1,5 @@
+node_modules
+src
+**/*.map
+.git
+**/.DS_Store
