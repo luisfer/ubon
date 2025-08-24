@@ -114,6 +114,20 @@ Options:
   --ignore-suppressed         Completely ignore suppressed results
   --clear-cache               Clear OSV cache before scanning
   --no-cache                  Disable OSV caching for this run
+
+Fixes:
+
+```
+# Preview changes (no writes)
+ubon check --fix-dry-run
+
+# Apply safe autofixes
+ubon check --apply-fixes
+
+# Notes:
+# - A11Y: add alt to <img>, aria-label to <input>, button roles on clickable divs, convert <a> (no href) to <button>
+# - Security: redact secret-like tokens in console logs, add HttpOnly/Secure to JWT cookies
+```
 ```
 
 Exit codes:

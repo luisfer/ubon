@@ -231,6 +231,12 @@ ubon check --update-baseline
 
 # Fast development mode (skips slow checks)
 ubon check --fast
+
+# Preview safe autofixes without writing changes
+ubon check --fix-dry-run --group-by file
+
+# Apply safe autofixes (A11Y, cookie flags, secret-log redaction)
+ubon check --apply-fixes
 ```
 
 ### 🔍 Incremental Scanning

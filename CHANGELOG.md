@@ -104,6 +104,10 @@ This patch focuses on triage-first UX and noise reduction without changing schem
 - OSV caching (24h TTL) with `--clear-cache`, `--no-cache`, and `ubon cache` command
 - Next.js security rules: JWT in responses (NEXT007), missing security headers (NEXT008), unsafe redirects (NEXT009), permissive CORS (NEXT010), client env leaks (NEXT011)
 
+### Autofixes (safe)
+- Accessibility: add `alt` to `<img>`, `aria-label` to `<input>`, add `role="button" tabIndex={0}` to clickable `<div>`, convert `<a>` without `href` to `<button>`
+- Security: redact secret-like tokens in `console.*` calls; add `HttpOnly; Secure` to JWT cookies
+
 ### Performance
 - Repeat scans ~30–40% faster when OSV cache is warm
 
