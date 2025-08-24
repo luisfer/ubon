@@ -1,4 +1,5 @@
 import { ScanResult } from '../types';
+import { RULES } from '../types/rules';
 import pkg from '../../package.json';
 
 interface SarifLog {
@@ -14,6 +15,7 @@ export function toSarif(results: ScanResult[], repoRoot: string): SarifLog {
   const rulesMap = new Map<string, any>();
   const sarifResults = results.map((r) => {
     if (!rulesMap.has(r.ruleId)) {
+      const meta = (RULES as any)[r.ruleId];
       rulesMap.set(r.ruleId, {
         id: r.ruleId,
         name: r.ruleId,
@@ -27,7 +29,8 @@ export function toSarif(results: ScanResult[], repoRoot: string): SarifLog {
         defaultConfiguration: {
           level: r.type === 'error' ? 'error' : r.type === 'warning' ? 'warning' : 'note',
         },
-        help: { text: r.fix || '' },
+        help: { text: r.fix || (meta?.fix || '') },
+        helpUri: meta?.helpUri,
       });
     }
     const level = r.type === 'error' ? 'error' : r.type === 'warning' ? 'warning' : 'note';
