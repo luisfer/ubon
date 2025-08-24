@@ -49,7 +49,10 @@ export const RULES: Record<string, RuleMeta> = {
   JSNET001: { id: 'JSNET001', category: 'security', severity: 'medium', message: 'HTTP request without timeout/retry policy', fix: 'Add timeout/backoff to axios/fetch calls' },
 
   // Cookies / headers
-  COOKIE001: { id: 'COOKIE001', category: 'security', severity: 'medium', message: 'Set-Cookie missing HttpOnly/Secure/SameSite', fix: 'Add HttpOnly; Secure; SameSite=Lax (or Strict) to cookies' },
+  COOKIE001: { id: 'COOKIE001', category: 'security', severity: 'medium', message: 'Set-Cookie missing HttpOnly/Secure/SameSite', fix: 'Add HttpOnly; Secure; SameSite=Lax (or Strict) to cookies', impact: 'Insecure cookies can be stolen via XSS attacks or intercepted over insecure connections' },
+  COOKIE002: { id: 'COOKIE002', category: 'security', severity: 'high', message: 'JWT token exposed in client-side cookie without security flags', fix: 'Add HttpOnly and Secure flags to JWT cookies', impact: 'JWT tokens in insecure cookies can be stolen and used to impersonate users' },
+  COOKIE003: { id: 'COOKIE003', category: 'security', severity: 'high', message: 'Sensitive data returned in JSON response (potential token leak)', fix: 'Avoid returning tokens/secrets in API responses; use secure cookies instead', impact: 'Tokens in JSON responses are visible to client-side JavaScript and can be stolen' },
+  COOKIE004: { id: 'COOKIE004', category: 'security', severity: 'medium', message: 'Cookie used without domain/path restrictions', fix: 'Set appropriate domain and path attributes for cookies', impact: 'Overly broad cookie scope can lead to unintended exposure to subdomains' },
 
   // Env
   ENV001: { id: 'ENV001', category: 'security', severity: 'high', message: '.env file may not be in .gitignore', fix: 'Add .env files to .gitignore to prevent accidental commits' },
@@ -91,7 +94,14 @@ export const RULES: Record<string, RuleMeta> = {
   // Vue
   VUE001: { id: 'VUE001', category: 'security', severity: 'high', message: 'v-html binding (XSS risk)', fix: 'Avoid v-html or sanitize input before binding' },
   // CI
-  GHA001: { id: 'GHA001', category: 'security', severity: 'high', message: 'Secrets may be echoed in GitHub Actions workflow', fix: 'Do not print secrets to logs; remove echo/printf of secrets' }
+  GHA001: { id: 'GHA001', category: 'security', severity: 'high', message: 'Secrets may be echoed in GitHub Actions workflow', fix: 'Do not print secrets to logs; remove echo/printf of secrets' },
+  
+  // Next.js JWT/Cookie security rules  
+  NEXT007: { id: 'NEXT007', category: 'security', severity: 'high', message: 'JWT token exposed in Next.js API response', fix: 'Use httpOnly cookies instead of returning tokens in JSON', impact: 'JWT tokens in API responses can be stolen via XSS and used for session hijacking' },
+  NEXT008: { id: 'NEXT008', category: 'security', severity: 'medium', message: 'Missing security headers in Next.js API route', fix: 'Add security headers like X-Content-Type-Options, X-Frame-Options', impact: 'Missing security headers expose the application to various client-side attacks' },
+  NEXT009: { id: 'NEXT009', category: 'security', severity: 'high', message: 'Unsafe redirect in Next.js API route', fix: 'Validate redirect URLs against allowlist', impact: 'Open redirects can be used for phishing attacks and credential theft' },
+  NEXT010: { id: 'NEXT010', category: 'security', severity: 'medium', message: 'CORS configuration too permissive', fix: 'Restrict CORS to specific origins instead of using wildcard', impact: 'Overly permissive CORS allows malicious sites to make requests on behalf of users' },
+  NEXT011: { id: 'NEXT011', category: 'security', severity: 'high', message: 'Environment variable leaked in client-side code', fix: 'Use NEXT_PUBLIC_ prefix only for truly public variables', impact: 'Server-side environment variables exposed to client reveal sensitive configuration' }
 };
 
 

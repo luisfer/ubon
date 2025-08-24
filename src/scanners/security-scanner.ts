@@ -418,6 +418,115 @@ export class SecurityScanner implements Scanner {
             });
           }
         }
+
+        // Next.js specific JWT/Cookie security checks
+        if (/\b(pages|app)\/api\//.test(file) || file.includes('middleware.ts')) {
+          lines.forEach((line, index) => {
+            // Check for JWT tokens in JSON responses (NEXT007)
+            if (/res\.json\s*\(\s*\{[^}]*\b(token|jwt|accessToken|authToken)\s*:/.test(line)) {
+              const meta = RULES.NEXT007;
+              results.push({
+                type: 'error',
+                category: meta.category,
+                message: meta.message,
+                file,
+                line: index + 1,
+                range: { startLine: index + 1, startColumn: 1, endLine: index + 1, endColumn: Math.max(1, line.length) },
+                severity: meta.severity,
+                ruleId: meta.id,
+                confidence: 0.9,
+                fix: meta.fix
+              });
+            }
+
+            // Check for unsafe redirects (NEXT009)
+            if (/res\.redirect\s*\(\s*(req\.query\.|req\.body\.|req\.params\.)/.test(line)) {
+              const meta = RULES.NEXT009;
+              results.push({
+                type: 'error',
+                category: meta.category,
+                message: meta.message,
+                file,
+                line: index + 1,
+                range: { startLine: index + 1, startColumn: 1, endLine: index + 1, endColumn: Math.max(1, line.length) },
+                severity: meta.severity,
+                ruleId: meta.id,
+                confidence: 0.8,
+                fix: meta.fix
+              });
+            }
+
+            // Check for permissive CORS (NEXT010)
+            if (/Access-Control-Allow-Origin.*\*/.test(line) || /cors\s*\(\s*\{\s*origin:\s*['"`]\*['"`]/.test(line)) {
+              const meta = RULES.NEXT010;
+              results.push({
+                type: 'warning',
+                category: meta.category,
+                message: meta.message,
+                file,
+                line: index + 1,
+                range: { startLine: index + 1, startColumn: 1, endLine: index + 1, endColumn: Math.max(1, line.length) },
+                severity: meta.severity,
+                ruleId: meta.id,
+                confidence: 0.7,
+                fix: meta.fix
+              });
+            }
+
+            // Check for environment variables leaked to client (NEXT011)
+            if (/process\.env\.(?!NEXT_PUBLIC_)\w+/.test(line) && (file.includes('components/') || file.includes('pages/') && !file.includes('/api/') || file.includes('app/') && !file.includes('/api/'))) {
+              const meta = RULES.NEXT011;
+              results.push({
+                type: 'error',
+                category: meta.category,
+                message: meta.message,
+                file,
+                line: index + 1,
+                range: { startLine: index + 1, startColumn: 1, endLine: index + 1, endColumn: Math.max(1, line.length) },
+                severity: meta.severity,
+                ruleId: meta.id,
+                confidence: 0.8,
+                fix: meta.fix
+              });
+            }
+          });
+
+          // Check for missing security headers (NEXT008)
+          const hasSecurityHeaders = /X-Content-Type-Options|X-Frame-Options|X-XSS-Protection|Strict-Transport-Security/.test(content);
+          const setsHeaders = /res\.setHeader|headers\s*:\s*\{/.test(content);
+          if (setsHeaders && !hasSecurityHeaders && !file.includes('_app.') && !file.includes('middleware.')) {
+            const meta = RULES.NEXT008;
+            results.push({
+              type: 'warning',
+              category: meta.category,
+              message: meta.message,
+              file,
+              severity: meta.severity,
+              ruleId: meta.id,
+              confidence: 0.6,
+              fix: meta.fix
+            });
+          }
+        }
+
+        // Check for insecure JWT cookies (COOKIE002)
+        lines.forEach((line, index) => {
+          if (/setCookie.*jwt|setCookie.*token/.test(line) && !/HttpOnly/.test(line)) {
+            const meta = RULES.COOKIE002;
+            results.push({
+              type: 'error',
+              category: meta.category,
+              message: meta.message,
+              file,
+              line: index + 1,
+              range: { startLine: index + 1, startColumn: 1, endLine: index + 1, endColumn: Math.max(1, line.length) },
+              severity: meta.severity,
+              ruleId: meta.id,
+              confidence: 0.9,
+              fix: meta.fix
+            });
+          }
+        });
       } catch (error) {
         // Skip files that can't be read
       }
