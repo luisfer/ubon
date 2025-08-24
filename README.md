@@ -20,6 +20,15 @@ Ubon performs static checks that complement linters:
 
 See profiles and differences in `docs/PROFILES.md`.
 
+### Highlights in v1.1.0 (in progress)
+
+- Colorized, branded output with lotus (🪷); control via `--color auto|always|never`
+- Result organization: `--group-by file|rule|severity|category`, `--min-severity`, `--max-issues`
+- Deep context: `--show-context` (3–5 lines) and `--explain` (why it matters)
+- Inline suppressions: `// ubon-disable-next-line RULEID [reason]` (see `docs/SUPPRESSIONS.md`)
+- OSV cache for dependency advisories with `--clear-cache`, `--no-cache`, and `ubon cache` command
+- New Next.js security rules (JWT/cookies, redirects, CORS, client env leaks)
+
 ## The Reality of Debugging AI-Generated Code
 
 ### Without Ubon
@@ -113,6 +122,8 @@ ubon check --help
 npm i -g ubon
 ubon check --json
 ubon scan --sarif ubon.sarif --git-changed-since origin/main
+# Human-friendly triage with color and grouping
+ubon check --color auto --group-by severity --min-severity medium --max-issues 10
 ```
 
 ## What Does It Check?
@@ -142,6 +153,13 @@ ubon scan --sarif ubon.sarif --git-changed-since origin/main
 Full reference lives in `docs/CLI.md`. Config format in `docs/CONFIG.md`. Rules glossary in `docs/RULES.md`.
 
 Exit codes respect `--fail-on`. See `docs/CLI.md`.
+
+Commonly used flags (v1.1.0):
+
+- Output UX: `--color auto|always|never`, `--group-by file|rule|severity|category`, `--min-severity`, `--max-issues`
+- Context: `--show-context`, `--explain`
+- Suppressions: `--show-suppressed`, `--ignore-suppressed` (inline: see `docs/SUPPRESSIONS.md`)
+- OSV cache: `--clear-cache`, `--no-cache`, and `ubon cache --info|--clear|--cleanup`
 
 ### `ubon scan` (see full reference in `docs/CLI.md`)
 
@@ -250,6 +268,15 @@ ubon check
 
 # Custom baseline path
 ubon check --baseline ./security/.ubon.baseline.json
+
+# Inline suppressions (per-file scan)
+# Suppress the next line for a rule, optional reason
+// ubon-disable-next-line SEC016 Safe in this demo
+eval('console.log(1)')
+
+# Show/hide suppressed results in output
+ubon check --show-suppressed
+ubon check --ignore-suppressed
 ```
 
 Baseline file:

@@ -93,3 +93,19 @@ Initial stable release.
 - Updated CLI docs with new flags and examples
 
 This patch focuses on triage-first UX and noise reduction without changing schema or defaults that would break existing workflows.
+
+## 1.1.0 — Unreleased
+
+### Added
+- Colorized, branded output with lotus (🪷) and `--color` flag
+- Result organization with `--group-by`, `--min-severity`, `--max-issues`
+- Code context (`--show-context`) and explanations (`--explain`)
+- Inline suppressions: `// ubon-disable-next-line RULEID [reason]` with `--show-suppressed`/`--ignore-suppressed`
+- OSV caching (24h TTL) with `--clear-cache`, `--no-cache`, and `ubon cache` command
+- Next.js security rules: JWT in responses (NEXT007), missing security headers (NEXT008), unsafe redirects (NEXT009), permissive CORS (NEXT010), client env leaks (NEXT011)
+
+### Performance
+- Repeat scans ~30–40% faster when OSV cache is warm
+
+### Notes
+- All changes are non-breaking and gated behind flags; JSON/SARIF schema remains stable

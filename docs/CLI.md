@@ -39,6 +39,16 @@ Options:
   --focus-critical            Only show critical (high severity) issues
   --focus-security            Only show security issues (hide a11y/links/etc)
   --focus-new                 Only show issues not in baseline
+  --color <mode>              Colorize output: auto|always|never (default: auto)
+  --group-by <mode>           Group results: category|file|rule|severity (default: category)
+  --min-severity <level>      Minimum severity to include: low|medium|high
+  --max-issues <n>            Limit output to N most important issues
+  --show-context              Show code context around findings (3–5 lines)
+  --explain                   Show "why it matters" explanations
+  --show-suppressed           Include suppressed results in output
+  --ignore-suppressed         Completely ignore suppressed results
+  --clear-cache               Clear OSV cache before scanning
+  --no-cache                  Disable OSV caching for this run
 ```
 
 Examples:
@@ -94,6 +104,16 @@ Options:
   --crawl-start-url <url>     Starting URL for internal crawl
   --crawl-depth <n>           Max crawl depth (default: 2)
   --crawl-timeout <ms>        Per-page timeout in ms (default: 10000)
+  --color <mode>              Colorize output: auto|always|never (default: auto)
+  --group-by <mode>           Group results: category|file|rule|severity (default: category)
+  --min-severity <level>      Minimum severity to include: low|medium|high
+  --max-issues <n>            Limit output to N most important issues
+  --show-context              Show code context around findings (3–5 lines)
+  --explain                   Show "why it matters" explanations
+  --show-suppressed           Include suppressed results in output
+  --ignore-suppressed         Completely ignore suppressed results
+  --clear-cache               Clear OSV cache before scanning
+  --no-cache                  Disable OSV caching for this run
 ```
 
 Exit codes:
@@ -116,6 +136,10 @@ ubon check
 
 # Use a custom baseline path
 ubon check --baseline ./security/.ubon.baseline.json
+
+# Inline suppressions (per-file)
+// ubon-disable-next-line SEC018 reason here
+const token = "eyJhbGciOi...";
 ```
 
 ### CI examples
@@ -149,6 +173,18 @@ jobs:
         uses: github/codeql-action/upload-sarif@v3
         with:
           sarif_file: ubon.sarif
+### Cache management
+
+```
+# Show cache directory
+ubon cache --info
+
+# Clear cached OSV advisories
+ubon cache --clear
+
+# Remove expired entries
+ubon cache --cleanup
+```
 ```
 
 ### install-hooks
