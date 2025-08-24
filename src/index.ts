@@ -16,6 +16,7 @@ import { glob } from 'glob';
 import { Logger } from './utils/logger';
 import chalk from 'chalk';
 import { RULES } from './types/rules';
+import { applySuppressions, filterSuppressedResults } from './utils/suppressions';
 
 export class UbonScan {
   private scanners: any[] = [];
@@ -118,7 +119,8 @@ export class UbonScan {
 
     const filtered = this.filterResults(allResults, options);
     const withFingerprints = filtered.map(r => ({ ...r, fingerprint: this.computeFingerprint(r) }));
-    const afterBaseline = await this.applyBaseline(withFingerprints, options);
+    const withSuppressions = applySuppressions(withFingerprints);
+    const afterBaseline = await this.applyBaseline(withSuppressions, options);
     const finalResults = this.applyFocusFilters(afterBaseline, options);
     return this.sortResults(finalResults);
   }
@@ -138,23 +140,39 @@ export class UbonScan {
   }
 
   printResults(results: ScanResult[], options?: ScanOptions): void {
-    if (results.length === 0) {
+    // Separate suppressed from active results
+    const allResultsWithSuppressions = results;
+    const suppressedCount = results.filter(r => r.suppressed).length;
+    
+    // Apply suppression filtering
+    const activeResults = filterSuppressedResults(results, {
+      showSuppressed: options?.showSuppressed,
+      ignoreSuppressed: options?.ignoreSuppressed
+    });
+
+    if (activeResults.length === 0 && suppressedCount === 0) {
       this.logger.success('No issues found! Your app is looking healthy! 🎉');
       return;
     }
 
+    if (activeResults.length === 0 && suppressedCount > 0) {
+      this.logger.success(`No active issues found! ${suppressedCount} issues suppressed. 🎉`);
+      return;
+    }
+
     // Apply filters and limits
-    let filteredResults = this.applyResultFilters(results, options);
+    let filteredResults = this.applyResultFilters(activeResults, options);
     
     // Severity-first header
     const errorCount = filteredResults.filter(r => r.type === 'error').length;
     const warnCount = filteredResults.filter(r => r.type === 'warning').length;
     const criticalCount = filteredResults.filter(r => r.severity === 'high').length;
     const highText = criticalCount > 0 ? this.colorize(chalk.bgRed.white, ` ${criticalCount} CRITICAL `) : '';
-    console.log(`\n${this.brand('🪷')} ${this.colorize(chalk.bold, 'Triage')}: ${highText} ${this.colorize(chalk.red, errorCount + ' errors')}, ${this.colorize(chalk.yellow, warnCount + ' warnings')}`);
+    const suppressedText = suppressedCount > 0 ? this.colorize(chalk.gray, ` ${suppressedCount} suppressed`) : '';
+    console.log(`\n${this.brand('🪷')} ${this.colorize(chalk.bold, 'Triage')}: ${highText} ${this.colorize(chalk.red, errorCount + ' errors')}, ${this.colorize(chalk.yellow, warnCount + ' warnings')}${suppressedText}`);
 
-    if (filteredResults.length !== results.length) {
-      console.log(`${this.colorize(chalk.gray, `  (showing ${filteredResults.length} of ${results.length} total issues)`)}`);
+    if (filteredResults.length !== activeResults.length) {
+      console.log(`${this.colorize(chalk.gray, `  (showing ${filteredResults.length} of ${activeResults.length} active issues)`)}`);
     }
 
     this.logger.separator();
@@ -181,9 +199,16 @@ export class UbonScan {
               : '';
         const rule = result.ruleId ? this.colorize(chalk.gray, ` {${result.ruleId}}`) : '';
         const msgColor = isError ? chalk.red : chalk.yellow;
-        console.log(`  ${icon} ${badge} ${this.colorize(msgColor, result.message)}${location}${rule}`);
+        const suppressedIndicator = result.suppressed ? this.colorize(chalk.gray, ' [SUPPRESSED]') : '';
+        console.log(`  ${icon} ${badge} ${this.colorize(msgColor, result.message)}${location}${rule}${suppressedIndicator}`);
+        
         if (result.fix) {
           console.log(`      ${this.brand('🪷')} ${this.colorize(chalk.green, result.fix)}`);
+        }
+        
+        // Show suppression reason if available
+        if (result.suppressed && result.suppressionReason) {
+          console.log(`      ${this.colorize(chalk.gray, '🔇')} ${this.colorize(chalk.italic, 'Suppressed: ' + result.suppressionReason)}`);
         }
         
         // Show "why it matters" explanation if enabled

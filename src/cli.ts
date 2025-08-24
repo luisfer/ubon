@@ -93,6 +93,8 @@ program
   .option('--max-issues <number>', 'Limit output to N most critical issues')
   .option('--show-context', 'Show code context around findings (3-5 lines)')
   .option('--explain', 'Show "why it matters" explanations for findings')
+  .option('--show-suppressed', 'Include suppressed results in output')
+  .option('--ignore-suppressed', 'Completely ignore suppressed results (default: hide but count)')
   .action(async (options) => {
     const scanner = new UbonScan(options.verbose, options.json, options.color as 'auto' | 'always' | 'never');
     
@@ -126,7 +128,9 @@ program
       minSeverity: options.minSeverity as 'low' | 'medium' | 'high' | undefined,
       maxIssues: options.maxIssues ? parseInt(options.maxIssues) : undefined,
       showContext: !!options.showContext,
-      explain: !!options.explain
+      explain: !!options.explain,
+      showSuppressed: !!options.showSuppressed,
+      ignoreSuppressed: !!options.ignoreSuppressed
     };
     const scanOptions = mergeOptions(config, cliOptions);
 
@@ -232,6 +236,8 @@ program
   .option('--max-issues <number>', 'Limit output to N most critical issues')
   .option('--show-context', 'Show code context around findings (3-5 lines)')
   .option('--explain', 'Show "why it matters" explanations for findings')
+  .option('--show-suppressed', 'Include suppressed results in output')
+  .option('--ignore-suppressed', 'Completely ignore suppressed results (default: hide but count)')
   .action(async (options) => {
     const scanner = new UbonScan(options.verbose, options.json, options.color as 'auto' | 'always' | 'never');
     
@@ -264,7 +270,9 @@ program
       minSeverity: options.minSeverity as 'low' | 'medium' | 'high' | undefined,
       maxIssues: options.maxIssues ? parseInt(options.maxIssues) : undefined,
       showContext: !!options.showContext,
-      explain: !!options.explain
+      explain: !!options.explain,
+      showSuppressed: !!options.showSuppressed,
+      ignoreSuppressed: !!options.ignoreSuppressed
     };
     const scanOptions = mergeOptions(config, cliOptions);
 

@@ -13,6 +13,8 @@ export interface ScanResult {
   fix?: string;
   fixEdits?: FixEdit[]; // optional machine-actionable edits
   helpUri?: string; // optional documentation URL for this rule
+  suppressed?: boolean; // whether this result was suppressed by inline comment
+  suppressionReason?: string; // optional reason for suppression
 }
 
 export interface ScanOptions {
@@ -61,6 +63,8 @@ export interface ScanOptions {
   maxIssues?: number; // limit number of results shown
   showContext?: boolean; // show code context around findings
   explain?: boolean; // show "why it matters" explanations
+  showSuppressed?: boolean; // include suppressed results in output
+  ignoreSuppressed?: boolean; // completely ignore suppressed results
 }
 
 export interface FixEdit {
