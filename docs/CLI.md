@@ -35,6 +35,10 @@ Options:
   --crawl-start-url <url>     Starting URL for internal crawl
   --crawl-depth <n>           Max crawl depth (default: 2)
   --crawl-timeout <ms>        Per-page timeout in ms (default: 10000)
+  --detailed                  Show all findings including lower-confidence/noisy ones
+  --focus-critical            Only show critical (high severity) issues
+  --focus-security            Only show security issues (hide a11y/links/etc)
+  --focus-new                 Only show issues not in baseline
 ```
 
 Examples:
@@ -51,6 +55,12 @@ ubon scan --update-baseline
 
 # SARIF report for GitHub code scanning
 ubon scan --sarif ubon.sarif
+
+# Show only critical security issues (progressive disclosure)
+ubon scan --focus-critical --focus-security
+
+# Show everything, including lower-confidence
+ubon scan --detailed
 ```
 
 #### ubon check

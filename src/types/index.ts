@@ -47,6 +47,14 @@ export interface ScanOptions {
   fast?: boolean;
   skipPatterns?: string[];
   maxFileSize?: number;
+  // Focus filters (human-friendly)
+  focusCritical?: boolean; // only show severity high
+  focusSecurity?: boolean; // only category security
+  focusNew?: boolean; // only issues not in baseline (applied post-baseline)
+  detailed?: boolean; // show all, including lower-confidence
+  quickTopN?: number; // for 'quick' command, top N critical issues
+  // Output mode
+  json?: boolean; // whether JSON output is desired
 }
 
 export interface FixEdit {

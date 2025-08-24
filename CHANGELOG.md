@@ -61,3 +61,19 @@ Initial stable release.
 ### Notes
 - External link checks are timeout-guarded; internal crawling remains opt-in.
 - Heuristics aim to minimize noise; tune with confidence thresholding, rule enable/disable, and baselines.
+
+## 1.0.4 — 2025-08-24
+
+### Added
+- Human output triage header with severity-first summary (non-breaking; JSON/SARIF unchanged)
+- Focus filters for human output: `--focus-critical`, `--focus-security`, `--focus-new`, and `--detailed`
+
+### Changed (non-disruptive)
+- SEC018 noise reduction: context/file-aware ignores (CSS/Tailwind/globs/data URIs/UUID), pattern-first detection for `sk-`/JWT/DB URLs/etc., higher entropy threshold
+- Runtime default minConfidence=0.8 for human runs (non-JSON) when not provided (does not change config or JSON/SARIF)
+
+### Tests & Docs
+- Added tests covering SEC018 false positives and true positives
+- Updated CLI docs with new flags and examples
+
+This patch focuses on triage-first UX and noise reduction without changing schema or defaults that would break existing workflows.

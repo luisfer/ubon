@@ -37,6 +37,14 @@ export class UbonScan {
     }
     // Select scanners based on profile
     this.scanners = this.resolveScanners(profile as any, options.fast);
+
+    // Runtime, non-persistent defaults for human-friendly noise reduction
+    if (!options.json && options.profile !== 'python') {
+      // If user didn't set minConfidence, prefer a gentle default
+      if (typeof options.minConfidence !== 'number') {
+        (options as any).minConfidence = 0.8;
+      }
+    }
     const allResults: ScanResult[] = [];
 
     // Run static file scanners
@@ -93,7 +101,8 @@ export class UbonScan {
 
     const filtered = this.filterResults(allResults, options);
     const withFingerprints = filtered.map(r => ({ ...r, fingerprint: this.computeFingerprint(r) }));
-    const finalResults = await this.applyBaseline(withFingerprints, options);
+    const afterBaseline = await this.applyBaseline(withFingerprints, options);
+    const finalResults = this.applyFocusFilters(afterBaseline, options);
     return this.sortResults(finalResults);
   }
 
@@ -116,6 +125,13 @@ export class UbonScan {
       this.logger.success('No issues found! Your app is looking healthy! 🎉');
       return;
     }
+
+    // Severity-first header
+    const errorCount = results.filter(r => r.type === 'error').length;
+    const warnCount = results.filter(r => r.type === 'warning').length;
+    const criticalCount = results.filter(r => r.severity === 'high').length;
+    const highText = criticalCount > 0 ? chalk.bgRed.white(` ${criticalCount} CRITICAL `) : '';
+    console.log(`\n${chalk.hex('#c99cb3')('🪷')} ${chalk.bold('Triage')}: ${highText} ${chalk.red(errorCount + ' errors')}, ${chalk.yellow(warnCount + ' warnings')}`);
 
     this.logger.separator();
     this.logger.title(`Found ${results.length} issues:`);
@@ -203,6 +219,24 @@ export class UbonScan {
       filtered = filtered.filter(r => !set.has(r.ruleId));
     }
     return filtered;
+  }
+
+  private applyFocusFilters(results: ScanResult[], options: ScanOptions): ScanResult[] {
+    let out = results;
+    if (options.focusNew) {
+      // already applied baseline; no-op here since baseline removed old issues
+    }
+    if (options.focusSecurity) {
+      out = out.filter(r => r.category === 'security');
+    }
+    if (options.focusCritical) {
+      out = out.filter(r => r.severity === 'high');
+    }
+    if (!options.detailed && typeof options.minConfidence !== 'number') {
+      // gentle noise reduction when not detailed: default minConfidence 0.8 for human runs
+      out = out.filter(r => (r.confidence ?? 1) >= 0.8);
+    }
+    return out;
   }
 
   private computeFingerprint(result: ScanResult): string {

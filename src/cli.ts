@@ -83,6 +83,10 @@ program
   .option('--crawl-start-url <url>', 'Starting URL for internal crawl')
   .option('--crawl-depth <n>', 'Max crawl depth', '2')
   .option('--crawl-timeout <ms>', 'Per-page timeout in ms', '10000')
+  .option('--detailed', 'Show all findings including lower-confidence/noisy ones')
+  .option('--focus-critical', 'Only show critical (high severity) issues')
+  .option('--focus-security', 'Only show security issues (hide a11y/links/etc)')
+  .option('--focus-new', 'Only show issues not in baseline')
   .action(async (options) => {
     const scanner = new UbonScan(options.verbose, options.json);
     
@@ -106,7 +110,11 @@ program
       crawlInternal: !!options.crawlInternal,
       crawlStartUrl: options.crawlStartUrl,
       crawlDepth: options.crawlDepth ? parseInt(options.crawlDepth) : undefined,
-      crawlTimeoutMs: options.crawlTimeout ? parseInt(options.crawlTimeout) : undefined
+      crawlTimeoutMs: options.crawlTimeout ? parseInt(options.crawlTimeout) : undefined,
+      detailed: !!options.detailed,
+      focusCritical: !!options.focusCritical,
+      focusSecurity: !!options.focusSecurity,
+      focusNew: !!options.focusNew
     };
     const scanOptions = mergeOptions(config, cliOptions);
 
@@ -202,6 +210,10 @@ program
   .option('--crawl-start-url <url>', 'Starting URL for internal crawl')
   .option('--crawl-depth <n>', 'Max crawl depth', '2')
   .option('--crawl-timeout <ms>', 'Per-page timeout in ms', '10000')
+  .option('--detailed', 'Show all findings including lower-confidence/noisy ones')
+  .option('--focus-critical', 'Only show critical (high severity) issues')
+  .option('--focus-security', 'Only show security issues (hide a11y/links/etc)')
+  .option('--focus-new', 'Only show issues not in baseline')
   .action(async (options) => {
     const scanner = new UbonScan(options.verbose, options.json);
     
@@ -224,7 +236,11 @@ program
       crawlInternal: !!options.crawlInternal,
       crawlStartUrl: options.crawlStartUrl,
       crawlDepth: options.crawlDepth ? parseInt(options.crawlDepth) : undefined,
-      crawlTimeoutMs: options.crawlTimeout ? parseInt(options.crawlTimeout) : undefined
+      crawlTimeoutMs: options.crawlTimeout ? parseInt(options.crawlTimeout) : undefined,
+      detailed: !!options.detailed,
+      focusCritical: !!options.focusCritical,
+      focusSecurity: !!options.focusSecurity,
+      focusNew: !!options.focusNew
     };
     const scanOptions = mergeOptions(config, cliOptions);
 
