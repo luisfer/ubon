@@ -62,6 +62,22 @@ Initial stable release.
 - External link checks are timeout-guarded; internal crawling remains opt-in.
 - Heuristics aim to minimize noise; tune with confidence thresholding, rule enable/disable, and baselines.
 
+## 1.0.2 — 2025-08-23
+
+### Changed
+- CLI polish: lotus emoji branding in descriptions and consistent version read from package.json.
+
+### Notes
+- Cosmetic/non-breaking update to improve CLI identity.
+
+## 1.0.3 — 2025-08-23
+
+### Changed
+- CLI styling and badges refreshed; minor cosmetic updates.
+
+### Notes
+- Cosmetic/non-breaking update; no behavior changes.
+
 ## 1.0.4 — 2025-08-24
 
 ### Added
