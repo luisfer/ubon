@@ -1,6 +1,7 @@
 import { Scanner, ScanResult, ScanOptions } from '../types';
 import { readFileSync, existsSync } from 'fs';
 import https from 'https';
+import { FileCache, createOSVCacheKey, CACHE_TTL } from '../utils/cache';
 
 function postJson(url: string, payload: any): Promise<any> {
   return new Promise((resolve, reject) => {
@@ -26,9 +27,15 @@ function postJson(url: string, payload: any): Promise<any> {
 
 export class OSVScanner implements Scanner {
   name = 'Dependency Advisory Scanner';
+  private cache = new FileCache<any>('osv');
 
   async scan(options: ScanOptions): Promise<ScanResult[]> {
     const results: ScanResult[] = [];
+    
+    // Clear cache if requested
+    if (options.clearCache) {
+      this.cache.clear();
+    }
     const npmPath = `${options.directory}/package.json`;
     const pyPath = `${options.directory}/requirements.txt`;
 
@@ -67,8 +74,27 @@ export class OSVScanner implements Scanner {
     }
     if (queries.length === 0) return results;
 
+    // Create cache key for this set of queries
+    const cacheKey = createOSVCacheKey(queries);
+    
+    // Try to get cached results first (unless caching is disabled)
+    let data = options.noCache ? null : this.cache.get(cacheKey);
+    
+    if (!data) {
+      // No cached data, make API call
+      try {
+        data = await postJson('https://api.osv.dev/v1/querybatch', { queries });
+        // Cache the results for 24 hours (unless caching is disabled)
+        if (!options.noCache) {
+          this.cache.set(cacheKey, data, CACHE_TTL.OSV_VULNERABILITIES);
+        }
+      } catch (error) {
+        // API call failed, return empty results
+        return results;
+      }
+    }
+
     try {
-      const data = await postJson('https://api.osv.dev/v1/querybatch', { queries });
       const vulns = data.results || [];
       vulns.forEach((entry: any, idx: number) => {
         const q = queries[idx];

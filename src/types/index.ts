@@ -65,6 +65,8 @@ export interface ScanOptions {
   explain?: boolean; // show "why it matters" explanations
   showSuppressed?: boolean; // include suppressed results in output
   ignoreSuppressed?: boolean; // completely ignore suppressed results
+  clearCache?: boolean; // clear OSV cache before scanning
+  noCache?: boolean; // disable OSV caching
 }
 
 export interface FixEdit {

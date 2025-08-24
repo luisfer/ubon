@@ -95,6 +95,8 @@ program
   .option('--explain', 'Show "why it matters" explanations for findings')
   .option('--show-suppressed', 'Include suppressed results in output')
   .option('--ignore-suppressed', 'Completely ignore suppressed results (default: hide but count)')
+  .option('--clear-cache', 'Clear OSV vulnerability cache before scanning')
+  .option('--no-cache', 'Disable OSV caching for this scan')
   .action(async (options) => {
     const scanner = new UbonScan(options.verbose, options.json, options.color as 'auto' | 'always' | 'never');
     
@@ -130,7 +132,9 @@ program
       showContext: !!options.showContext,
       explain: !!options.explain,
       showSuppressed: !!options.showSuppressed,
-      ignoreSuppressed: !!options.ignoreSuppressed
+      ignoreSuppressed: !!options.ignoreSuppressed,
+      clearCache: !!options.clearCache,
+      noCache: !!options.noCache
     };
     const scanOptions = mergeOptions(config, cliOptions);
 
@@ -238,6 +242,8 @@ program
   .option('--explain', 'Show "why it matters" explanations for findings')
   .option('--show-suppressed', 'Include suppressed results in output')
   .option('--ignore-suppressed', 'Completely ignore suppressed results (default: hide but count)')
+  .option('--clear-cache', 'Clear OSV vulnerability cache before scanning')
+  .option('--no-cache', 'Disable OSV caching for this scan')
   .action(async (options) => {
     const scanner = new UbonScan(options.verbose, options.json, options.color as 'auto' | 'always' | 'never');
     
@@ -272,7 +278,9 @@ program
       showContext: !!options.showContext,
       explain: !!options.explain,
       showSuppressed: !!options.showSuppressed,
-      ignoreSuppressed: !!options.ignoreSuppressed
+      ignoreSuppressed: !!options.ignoreSuppressed,
+      clearCache: !!options.clearCache,
+      noCache: !!options.noCache
     };
     const scanOptions = mergeOptions(config, cliOptions);
 
@@ -363,6 +371,34 @@ program
     } catch (e: any) {
       console.error('❌ Init failed:', e?.message || e);
       process.exit(1);
+    }
+  });
+
+program
+  .command('cache')
+  .description('Manage Ubon cache')
+  .option('--clear', 'Clear all cached data')
+  .option('--cleanup', 'Remove expired cache entries')
+  .option('--info', 'Show cache information')
+  .action(async (options) => {
+    const { FileCache } = await import('./utils/cache');
+    const osvCache = new FileCache('osv');
+    
+    if (options.clear) {
+      osvCache.clear();
+      console.log('🧹 Cache cleared successfully');
+    } else if (options.cleanup) {
+      osvCache.cleanup();
+      console.log('🧹 Expired cache entries removed');
+    } else if (options.info) {
+      const { join } = await import('path');
+      const { homedir } = await import('os');
+      const cacheDir = join(homedir(), '.ubon', 'cache');
+      console.log(`📁 Cache directory: ${cacheDir}`);
+      console.log('💡 Use --clear to remove all cached data');
+      console.log('💡 Use --cleanup to remove expired entries');
+    } else {
+      console.log('Use --clear, --cleanup, or --info');
     }
   });
 
