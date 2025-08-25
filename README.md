@@ -23,21 +23,20 @@
 
 - What is Ubon?
 - At a glance
-- Highlights in v1.1.0
 - The reality of debugging AI-generated code
 - Quick Start
 - How to Use with AI Assistants
 - What does it check?
 - CLI
+- Highlights in v1.1.0
 - Common Workflows
 - Baseline/Suppressions
-- Example Output
 - JSON Output
 - SARIF Output
 - Programmatic Usage
 - Requirements
 - FAQ
-- Experimental: Next.js P5 Routing/Structure Rules
+- Experimental: Next.js Routing/Structure Rules
 - Changelog
 - Contributing
 - License
@@ -58,18 +57,6 @@ Use the colorized triage in the terminal or JSON/SARIF for CI and AI. Profiles c
 - JSON and SARIF outputs for CI and AI; OSV caching for speed
 - Safe autofixes and optional PR creation; watch mode and changed-files gates
 
-### Highlights in v1.1.0
-
-- Colorized, branded output with lotus (🪷); control via `--color auto|always|never`
-- Result organization: `--group-by file|rule|severity|category`, `--min-severity`, `--max-issues`
-- Deep context: `--show-context` (3–5 lines) and `--explain` (why it matters)
-- Inline suppressions: `// ubon-disable-next-line RULEID [reason]` (see `docs/SUPPRESSIONS.md`)
-- OSV cache for dependency advisories with `--clear-cache`, `--no-cache`, and `ubon cache` command
-- New Next.js security rules (JWT/cookies, redirects, CORS, client env leaks)
- - New Next.js rules (security + routing/structure, experimental)
- - New CI/Dev tooling: `--watch`, `--base-sha`, `--create-pr`
- - VS Code extension (MVP): problems + quick fixes
- - Experimental Rails profile
 
 ## The Reality of Debugging AI-Generated Code
 
@@ -126,7 +113,7 @@ I built Ubon after realizing that instead of fighting this AI-powered wave, we s
 
 My hope is that Ubon becomes so essential it gets baked into Cursor, Windsurf, and other AI coding tools, automatically scanning every vibe-coded creation before it hits production. Because when anyone can ship software, everyone needs peace of mind.
 
-'Ubon' means lotus in Thai, inspired by Ubon Ratchathani province where someone very special to me is from. The lotus represents the clarity and peace of mind this tool brings to debugging.
+_Ubon_ means lotus in Thai, inspired by Ubon Ratchathani province where someone very special to me is from. The lotus represents the clarity and peace of mind this tool brings to debugging.
 
 ## Quick Start
 
@@ -300,6 +287,19 @@ Example:
 
 CLI flags override config values.
 
+## Highlights in v1.1.0
+
+- Colorized, branded output with lotus (🪷); control via `--color auto|always|never`
+- Result organization: `--group-by file|rule|severity|category`, `--min-severity`, `--max-issues`
+- Deep context: `--show-context` (3–5 lines) and `--explain` (why it matters)
+- Inline suppressions: `// ubon-disable-next-line RULEID [reason]` (see `docs/SUPPRESSIONS.md`)
+- OSV cache for dependency advisories with `--clear-cache`, `--no-cache`, and `ubon cache` command
+- New Next.js security rules (JWT/cookies, redirects, CORS, client env leaks)
+- New Next.js rules (security + routing/structure, experimental)
+- New CI/Dev tooling: `--watch`, `--base-sha`, `--create-pr`
+- VS Code extension (MVP): problems + quick fixes
+- Experimental Rails profile
+
 ## Common Workflows
 
 ### 🚀 CI/CD Integration
@@ -381,7 +381,7 @@ Baseline file:
 }
 ```
 
-## Example Output (v1.1.0 human view)
+## Example Output (v1.1.1 human view)
 
 ```bash
 $ ubon check --group-by severity --min-severity medium --show-context --explain --show-confidence
@@ -414,33 +414,6 @@ MEDIUM
 Notes
   • Use --show-suppressed to include suppressed results
   • Use --max-issues 5 to focus on the most critical first
-```
-
-## JSON Output (schema highlights)
-
-Each issue includes stable `ruleId`, `category`, `severity`, `range`, and optional `fixEdits`. Sensitive matches are redacted; fingerprints remain stable for baselines. SARIF includes `helpUri` when available.
-
-```json
-{
-  "schemaVersion": "1.1.0",
-  "toolVersion": "1.1.0",
-  "results": [
-    {
-      "type": "error",
-      "category": "security",
-      "severity": "high",
-      "ruleId": "SEC003",
-      "message": "Hardcoded OpenAI key",
-      "file": "lib/ai.ts",
-      "line": 12,
-      "confidence": 0.95,
-      "range": { "startLine": 12, "startColumn": 7, "endLine": 12, "endColumn": 32 },
-      "helpUri": "https://owasp.org/www-project-top-ten/",
-      "fix": "Move key to OPENAI_API_KEY env var",
-      "suppressed": false
-    }
-  ]
-}
 ```
 
 ## Programmatic Usage
