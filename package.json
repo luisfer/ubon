@@ -1,6 +1,6 @@
 {
   "name": "ubon",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "description": "Security scanner for AI-generated React/Next.js and Python apps. Catches hardcoded secrets, accessibility issues, and vulnerabilities that traditional linters miss.",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",

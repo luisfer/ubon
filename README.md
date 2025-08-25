@@ -4,6 +4,17 @@
   <img src="branding/Ubon.png" alt="Ubon — Peace of mind for vibe‑coded apps" width="100%" />
 </p>
 
+> TL;DR
+>
+> Fed up with “You’re absolutely right!” when debugging vibe‑coded apps with AI?
+>
+> ```bash
+> npm i -g ubon@latest
+> npx ubon scan .
+> # Or tell your AI to install Ubon and run it
+> ```
+>
+> 🪷 Peace of mind for vibe‑coded apps.
 
 [![npm version](https://badge.fury.io/js/ubon.svg)](https://badge.fury.io/js/ubon)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)

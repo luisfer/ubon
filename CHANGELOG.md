@@ -129,3 +129,13 @@ This patch focuses on triage-first UX and noise reduction without changing schem
 
 ### Notes
 - All changes are non-breaking and gated behind flags; JSON/SARIF schema remains stable
+
+## 1.1.1 — 2025-08-25
+
+### Changed
+- Default human run applies AI-friendly preset: enables show-context, explain, severity grouping, caps max-issues to 15 by default (overridable). `--ai-friendly` still forces JSON + the same human-friendly settings for agent use.
+- README: added TL;DR block at the top with quick install/run.
+ - New flag: `--pr-comment` to emit a Markdown summary for PR reviews.
+
+### Notes
+- Non-breaking; JSON/SARIF unchanged.

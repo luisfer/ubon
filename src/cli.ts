@@ -10,6 +10,32 @@ import { loadConfig, mergeOptions } from './utils/config';
 import { applyFixes } from './utils/fix';
 import { installPreCommitHooks } from './utils/hooks';
 import { initializeConfig } from './utils/init';
+function renderPrMarkdown(results: ScanResult[]): string {
+  const groups: Record<string, ScanResult[]> = { high: [], medium: [], low: [] } as any;
+  results.forEach(r => { (groups[r.severity] = groups[r.severity] || []).push(r); });
+  const lines: string[] = [];
+  const counts = {
+    high: groups.high?.length || 0,
+    medium: groups.medium?.length || 0,
+    low: groups.low?.length || 0
+  };
+  lines.push(`# Ubon Findings`);
+  lines.push(`- High: ${counts.high}  •  Medium: ${counts.medium}  •  Low: ${counts.low}`);
+  const order: Array<'high'|'medium'|'low'> = ['high','medium','low'];
+  order.forEach(sev => {
+    const arr = (groups as any)[sev] || [];
+    if (arr.length === 0) return;
+    const title = sev === 'high' ? 'High' : sev === 'medium' ? 'Medium' : 'Low';
+    lines.push(`\n## ${title}`);
+    arr.forEach((r: ScanResult) => {
+      const loc = r.file ? `${r.file}${r.line ? `:${r.line}` : ''}` : '';
+      const conf = (r.confidence ?? 0).toFixed(2);
+      const fix = r.fix ? ` — ${r.fix}` : '';
+      lines.push(`- [${title}] ${r.ruleId}: ${r.message}${loc ? ` (${loc})` : ''} (confidence: ${conf})${fix}`);
+    });
+  });
+  return lines.join('\n');
+}
 function redact(value?: string): string | undefined {
   if (!value) return value;
   if (/sk-[A-Za-z0-9_-]{8,}/.test(value)) return value.replace(/sk-[A-Za-z0-9_-]{8,}/g, 'sk-********');
@@ -102,6 +128,7 @@ program
   .option('--clear-cache', 'Clear OSV vulnerability cache before scanning')
   .option('--no-cache', 'Disable OSV caching for this scan')
   .option('--ai-friendly', 'Optimize output for AI consumption (json + context + explain + grouping + cap)')
+  .option('--pr-comment', 'Output a Markdown summary suitable for PR comments')
   .action(async (options) => {
     const scanner = new UbonScan(options.verbose, options.json, options.color as 'auto' | 'always' | 'never');
     
@@ -144,13 +171,19 @@ program
     };
     const scanOptions = mergeOptions(config, cliOptions);
 
-    // AI-friendly preset
-    if (options.aiFriendly) {
-      (scanOptions as any).json = true;
-      (scanOptions as any).showContext = true;
-      (scanOptions as any).explain = true;
-      (scanOptions as any).groupBy = 'severity';
+    // AI-friendly preset: by default apply human-friendly settings; when flag is present, also force JSON
+    const applyAiFriendly = (forceJson: boolean) => {
+      if (forceJson) (scanOptions as any).json = true;
+      if (typeof scanOptions.showContext === 'undefined') (scanOptions as any).showContext = true;
+      if (typeof scanOptions.explain === 'undefined') (scanOptions as any).explain = true;
+      if (typeof scanOptions.groupBy === 'undefined') (scanOptions as any).groupBy = 'severity';
       if (!scanOptions.maxIssues) (scanOptions as any).maxIssues = 15;
+    };
+    if (options.aiFriendly) {
+      applyAiFriendly(true);
+    } else {
+      // default human preset
+      applyAiFriendly(false);
     }
 
     try {
@@ -160,7 +193,10 @@ program
       const runOnce = async () => await scanner.diagnose(scanOptions);
       let results = await runOnce();
       
-      if (options.json) {
+      if (options.prComment) {
+        const md = renderPrMarkdown(results);
+        console.log(md);
+      } else if (options.json) {
         // JSON output for AI agents
         const payload = {
           schemaVersion: '1.0.0',
@@ -305,6 +341,7 @@ program
   .option('--ignore-suppressed', 'Completely ignore suppressed results (default: hide but count)')
   .option('--clear-cache', 'Clear OSV vulnerability cache before scanning')
   .option('--no-cache', 'Disable OSV caching for this scan')
+  .option('--pr-comment', 'Output a Markdown summary suitable for PR comments')
   .action(async (options) => {
     const scanner = new UbonScan(options.verbose, options.json, options.color as 'auto' | 'always' | 'never');
     
@@ -352,7 +389,10 @@ program
       }
       const results = await scanner.diagnose(scanOptions);
       
-      if (options.json) {
+      if (options.prComment) {
+        const md = renderPrMarkdown(results);
+        console.log(md);
+      } else if (options.json) {
         // JSON output for AI agents
         const payload = {
           schemaVersion: '1.0.0',

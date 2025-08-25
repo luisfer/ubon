@@ -11,11 +11,4 @@ Start here:
 - Security model: `docs/SECURITY.md`
 - Release policy: `docs/RELEASE-POLICY.md`
 
-Archived (process notes; may change without notice):
-
-- `docs/_archive/ROADMAP.md`
-- `docs/V1.1.0-IMPROVEMENTS.md`
-- `docs/AI-INTEGRATION.md`
-- `docs/SUPABASE-SECURITY.md`
-
 

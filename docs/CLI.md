@@ -44,6 +44,7 @@ Options:
   --color <mode>              Colorize output: auto|always|never (default: auto)
   --group-by <mode>           Group results: category|file|rule|severity (default: category)
   --ai-friendly               AI preset: json + context + explain + severity + cap 15
+  --pr-comment                Output Markdown summary for PR comments
   --min-severity <level>      Minimum severity to include: low|medium|high
   --max-issues <n>            Limit output to N most important issues
   --show-context              Show code context around findings (3–5 lines)
@@ -75,6 +76,12 @@ ubon scan --focus-critical --focus-security
 
 # Show everything, including lower-confidence
 ubon scan --detailed
+
+PR comment output:
+
+```
+ubon check --pr-comment > ubon-review.md
+```
  
 # Experimental P5 Next.js rules (enable/disable)
 ubon check --enable-rule NEXT201,NEXT202,NEXT203,NEXT205,NEXT208,NEXT209
