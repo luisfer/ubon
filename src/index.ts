@@ -195,6 +195,20 @@ export class UbonScan {
       const lotus = this.brand(icon);
       const count = this.colorize(chalk.gray, `(${groupResults.length})`);
       console.log(`\n${lotus} ${this.colorize(chalk.bold, groupKey.toUpperCase())} ${count}:`);
+      if (options?.format === 'table') {
+        const header = `${this.colorize(chalk.gray, 'SEV'.padEnd(6))}  ${this.colorize(chalk.gray, 'RULE'.padEnd(8))}  ${this.colorize(chalk.gray, 'FILE:LINE'.padEnd(32))}  ${this.colorize(chalk.gray, 'CONF'.padEnd(6))}  ${this.colorize(chalk.gray, 'MESSAGE')}`;
+        console.log(`  ${header}`);
+        groupResults.forEach(result => {
+          const sev = (result.severity || '').toUpperCase().padEnd(6);
+          const rule = (result.ruleId || '').padEnd(8);
+          const loc = result.file ? `${result.file}${result.line ? `:${result.line}` : ''}` : '';
+          const locCol = (loc.length > 32 ? loc.slice(0, 29) + '…' : loc).padEnd(32);
+          const conf = (result.confidence ?? 0).toFixed(2).padEnd(6);
+          const msg = result.message;
+          console.log(`  ${sev}  ${rule}  ${locCol}  ${conf}  ${msg}`);
+        });
+        return;
+      }
       groupResults.forEach(result => {
         const isError = result.type === 'error';
         const icon = isError ? this.colorize(chalk.red, '●') : this.colorize(chalk.yellow, '●');

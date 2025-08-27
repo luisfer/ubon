@@ -3,6 +3,7 @@ import { readFileSync } from 'fs';
 import { Scanner, ScanResult, ScanOptions } from '../types';
 import { RULES } from '../types/rules';
 import { extractQuotedLiterals, shannonEntropy } from '../utils/entropy';
+import { ResultCache } from '../utils/result-cache';
 
 export class SecurityScanner implements Scanner {
   name = 'Security Scanner';
@@ -162,6 +163,8 @@ export class SecurityScanner implements Scanner {
       cwd: options.directory,
       ignore: ['node_modules/**', 'dist/**', 'build/**', '.next/**', 'examples/**']
     });
+    const signature = `sec:1:profile:${options.profile || 'auto'}`;
+    const resultCache = options.noResultCache ? null : new ResultCache(options.directory, signature);
     let processed = 0;
 
     // Project-level Next.js structure presence flags (for P5 experimental rules)
@@ -180,6 +183,16 @@ export class SecurityScanner implements Scanner {
     for (const file of files) {
       try {
         const content = readFileSync(`${options.directory}/${file}`, 'utf-8');
+        const contentHash = ResultCache.hashContent(content);
+        const cached = resultCache?.get(file, contentHash);
+        if (cached) {
+          results.push(...cached);
+          processed++;
+          if (options.verbose && processed % 25 === 0) {
+            console.log('🪷', `Scanning... (${processed}/${files.length} files)`);
+          }
+          continue;
+        }
         const lines = content.split('\n');
         processed++;
         if (options.verbose && processed % 25 === 0) {
@@ -485,19 +498,22 @@ export class SecurityScanner implements Scanner {
           });
         }
 
-        // Next.js SSR secrets heuristic
+        // Next.js SSR secrets heuristic (legacy NEXT006)
         if (/get(ServerSideProps|StaticProps)\s*\(/.test(content) && /process\.env\./.test(content)) {
           const meta = RULES.NEXT006;
-          results.push({
-            type: 'error',
-            category: meta.category,
-            message: meta.message,
-            file,
-            severity: meta.severity,
-            ruleId: meta.id,
-            confidence: 0.6,
-            fix: meta.fix
-          });
+          results.push({ type: 'error', category: meta.category, message: meta.message, file, severity: meta.severity, ruleId: meta.id, confidence: 0.6, fix: meta.fix });
+        }
+
+        // Experimental P5: Server -> Client secret bleed (NEXT210)
+        // Heuristic: in Pages Router SSR functions, detect reading env/secret var and returning it via props
+        if (/\bexport\s+async\s+function\s+get(ServerSideProps|StaticProps)\b|\bexport\s+const\s+get(ServerSideProps|StaticProps)\b/.test(content)) {
+          const readsSecret = /(process\.env\.(?!NEXT_PUBLIC_)[A-Z0-9_]+|secret|apiKey|token)/.test(content);
+          // Roughly detect props return shape with suspect keys
+          const returnsPropsWithSensitive = /return\s*\{\s*props\s*:\s*\{[\s\S]*\b(secret|token|apiKey|password|auth|key)\b/.test(content);
+          if (readsSecret && returnsPropsWithSensitive) {
+            const meta = RULES.NEXT210;
+            results.push({ type: 'error', category: meta.category, message: meta.message, file, severity: meta.severity, ruleId: meta.id, confidence: 0.7, fix: meta.fix });
+          }
         }
 
         // Next.js API route basic input validation heuristic
@@ -682,11 +698,14 @@ export class SecurityScanner implements Scanner {
             });
           }
         });
+        // store per-file results for this file only
+        const fileResults = results.filter(r => r.file === file);
+        resultCache?.set(file, contentHash, fileResults);
       } catch (error) {
         // Skip files that can't be read
       }
     }
-
+    resultCache?.save();
     return results;
   }
 }

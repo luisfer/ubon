@@ -5,7 +5,7 @@
 | Area | Examples | Notes |
 |---|---|---|
 | Security (JS/TS/Next) | Secrets (OpenAI/Stripe/AWS/GitHub), Supabase URL/keys, eval/innerHTML, React injection, JWT/cookies, open redirects, CORS, client env leaks | SEC001–SEC019, NEXT007–NEXT011, COOKIE001–004, LOG001, JSNET001 |
-| Next.js Routing/Structure (experimental) | missing 404/error pages, method validation, external router.push | NEXT201–NEXT209 (opt-in via enable/disable) |
+| Next.js Routing/Structure (experimental) | missing 404/error pages, method validation, external router.push, server→client secret bleed | NEXT201–NEXT210 (opt-in via enable/disable) |
 | Security (Python) | exec/eval, subprocess(shell=True), yaml.load, pickle, requests verify=False, DEBUG=True | PYSEC001–PYSEC010, PYNET001 |
 | Rails (experimental) | SQLi in where/find_by_sql, system/backticks, YAML.load, html_safe/raw, mass assignment | RAILS001–005 |
 | Accessibility | <img> missing alt, inputs without labels, clickable divs without roles | A11Y001, A11Y004–005 |
@@ -17,6 +17,7 @@
 
 - Colorized, branded output with lotus (🪷): `--color auto|always|never`
 - Result organization: `--group-by file|rule|severity|category`, `--min-severity`, `--max-issues`
+- Compact output: `--format table` for skimmable triage
 - Deep context and explanations: `--show-context`, `--explain`
 - Confidence scores: `--show-confidence` (or `--verbose`)
 - Inline suppressions with reasons: `// ubon-disable-next-line RULEID [reason]`
@@ -24,6 +25,7 @@
 - Fast loops: `--watch --fast`, `--git-changed-since`, `--changed-files`
 - Safe autofixes: A11Y (alts/roles), cookie flags, secret-log redaction, env fallback cleanup, fetch AbortController signal
 - OSV caching with TTL: `--clear-cache`, `--no-cache`, `ubon cache --info|--clear|--cleanup`
+- Result cache (per-file): speeds up repeat scans; disable with `--no-result-cache`
 - CI gates: `--fail-on`, `--base-sha`, SARIF output
 - Create PR workflow: `--create-pr` after `--apply-fixes`
 
@@ -43,7 +45,8 @@
 - Missing `_document.tsx` when customizing head/scripts (Pages Router)
 - API route method validation and unauthenticated sensitive responses
 - `router.push()` to external URL risk
-  - Rule IDs: NEXT201–NEXT209 (opt-in via enable/disable)
+- Server→Client secret bleed in SSR props
+  - Rule IDs: NEXT201–NEXT210 (opt-in via enable/disable)
 
 See also: `docs/CLI.md` for full command reference, `docs/RULES.md` for rule glossary, `docs/PROFILES.md` for profiles.
 

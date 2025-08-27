@@ -118,6 +118,7 @@ program
   .option('--focus-new', 'Only show issues not in baseline')
   .option('--color <mode>', 'Colorize output: auto|always|never', 'auto')
   .option('--group-by <mode>', 'Group results by: category|file|rule|severity', 'category')
+  .option('--format <mode>', 'Output format in human mode: human|table', 'human')
   .option('--min-severity <level>', 'Minimum severity to show: low|medium|high')
   .option('--max-issues <number>', 'Limit output to N most critical issues')
   .option('--show-context', 'Show code context around findings (3-5 lines)')
@@ -159,6 +160,7 @@ program
       focusNew: !!options.focusNew,
       color: options.color as 'auto' | 'always' | 'never',
       groupBy: options.groupBy as 'category' | 'file' | 'rule' | 'severity',
+      format: options.format as 'human' | 'table',
       minSeverity: options.minSeverity as 'low' | 'medium' | 'high' | undefined,
       maxIssues: options.maxIssues ? parseInt(options.maxIssues) : undefined,
       showContext: !!options.showContext,
@@ -332,6 +334,7 @@ program
   .option('--focus-new', 'Only show issues not in baseline')
   .option('--color <mode>', 'Colorize output: auto|always|never', 'auto')
   .option('--group-by <mode>', 'Group results by: category|file|rule|severity', 'category')
+  .option('--format <mode>', 'Output format in human mode: human|table', 'human')
   .option('--min-severity <level>', 'Minimum severity to show: low|medium|high')
   .option('--max-issues <number>', 'Limit output to N most critical issues')
   .option('--show-context', 'Show code context around findings (3-5 lines)')
@@ -371,6 +374,7 @@ program
       focusNew: !!options.focusNew,
       color: options.color as 'auto' | 'always' | 'never',
       groupBy: options.groupBy as 'category' | 'file' | 'rule' | 'severity',
+      format: options.format as 'human' | 'table',
       minSeverity: options.minSeverity as 'low' | 'medium' | 'high' | undefined,
       maxIssues: options.maxIssues ? parseInt(options.maxIssues) : undefined,
       showContext: !!options.showContext,

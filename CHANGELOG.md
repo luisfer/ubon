@@ -139,3 +139,14 @@ This patch focuses on triage-first UX and noise reduction without changing schem
 
 ### Notes
 - Non-breaking; JSON/SARIF unchanged.
+
+## 1.1.2 — 2025-08-27
+
+### Added
+- Compact table output: `--format table` for skimmable terminal triage.
+- Per-file result cache for faster repeat scans (disable with `--no-result-cache`).
+- Experimental P5 rule: NEXT210 — detects server→client secret bleed via SSR props.
+
+### Docs
+- CLI docs updated (format=table, result cache, pr-comment).
+- New `docs/COMPARISON.md` outlining Ubon vs ESLint vs npm audit.

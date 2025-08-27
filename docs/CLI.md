@@ -43,8 +43,10 @@ Options:
   --focus-new                 Only show issues not in baseline
   --color <mode>              Colorize output: auto|always|never (default: auto)
   --group-by <mode>           Group results: category|file|rule|severity (default: category)
+  --format <mode>             Output format (human mode): human|table (default: human)
   --ai-friendly               AI preset: json + context + explain + severity + cap 15
   --pr-comment                Output Markdown summary for PR comments
+  --no-result-cache           Disable per-file result cache (skip reuse between runs)
   --min-severity <level>      Minimum severity to include: low|medium|high
   --max-issues <n>            Limit output to N most important issues
   --show-context              Show code context around findings (3–5 lines)
@@ -81,6 +83,12 @@ PR comment output:
 
 ```
 ubon check --pr-comment > ubon-review.md
+
+Table output:
+
+```
+ubon check --format table --group-by severity --show-confidence
+```
 ```
  
 # Experimental P5 Next.js rules (enable/disable)
@@ -119,8 +127,9 @@ Options:
   --crawl-start-url <url>     Starting URL for internal crawl
   --crawl-depth <n>           Max crawl depth (default: 2)
   --crawl-timeout <ms>        Per-page timeout in ms (default: 10000)
-  --color <mode>              Colorize output: auto|always|never (default: auto)
   --group-by <mode>           Group results: category|file|rule|severity (default: category)
+  --format <mode>             Output format (human mode): human|table (default: human)
+  --color <mode>              Colorize output: auto|always|never (default: auto)
   --min-severity <level>      Minimum severity to include: low|medium|high
   --max-issues <n>            Limit output to N most important issues
   --show-context              Show code context around findings (3–5 lines)

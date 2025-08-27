@@ -440,7 +440,7 @@ scanner.printResults(results);
 
 ## Changelog
 
-See `CHANGELOG.md` for release notes (latest: 1.1.0).
+See `CHANGELOG.md` for release notes (latest: 1.1.2).
 
 ## Requirements
 
@@ -539,10 +539,10 @@ These heuristics are conservative and may evolve. Enable/disable explicitly if y
 
 ```bash
 # Try P5 rules only
-ubon check --enable-rule NEXT201,NEXT202,NEXT203,NEXT205,NEXT208,NEXT209
+ubon check --enable-rule NEXT201,NEXT202,NEXT203,NEXT205,NEXT208,NEXT209,NEXT210
 
 # Disable P5 rules
-ubon check --disable-rule NEXT201,NEXT202,NEXT203,NEXT205,NEXT208,NEXT209
+ubon check --disable-rule NEXT201,NEXT202,NEXT203,NEXT205,NEXT208,NEXT209,NEXT210
 ```
 
 What they look for:
@@ -552,3 +552,4 @@ What they look for:
 - NEXT205: API may return sensitive data without auth
 - NEXT208: router.push() to external URL (open-redirect risk)
 - NEXT209: API route missing HTTP method validation
+ - NEXT210: server→client secret bleed via getServerSideProps/getStaticProps props (experimental)

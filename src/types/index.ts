@@ -59,6 +59,7 @@ export interface ScanOptions {
   json?: boolean; // whether JSON output is desired
   color?: 'auto' | 'always' | 'never'; // colorized output mode
   groupBy?: 'category' | 'file' | 'rule' | 'severity'; // how to group results
+  format?: 'human' | 'table'; // output format for human mode
   minSeverity?: 'low' | 'medium' | 'high'; // minimum severity filter
   maxIssues?: number; // limit number of results shown
   showContext?: boolean; // show code context around findings
@@ -68,6 +69,8 @@ export interface ScanOptions {
   ignoreSuppressed?: boolean; // completely ignore suppressed results
   clearCache?: boolean; // clear OSV cache before scanning
   noCache?: boolean; // disable OSV caching
+  // Result cache for performance
+  noResultCache?: boolean; // disable per-file result cache
 }
 
 export interface FixEdit {

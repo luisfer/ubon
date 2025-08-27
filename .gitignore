@@ -82,3 +82,4 @@ examples/**/.nuxt/
 .tmp-*
 .tmp-cli-output.*
 ubon.sarif
+.ubon/
