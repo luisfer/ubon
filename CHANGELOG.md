@@ -140,6 +140,37 @@ This patch focuses on triage-first UX and noise reduction without changing schem
 ### Notes
 - Non-breaking; JSON/SARIF unchanged.
 
+## 1.1.3 — 2025-08-29
+
+### Added
+- **Interactive Mode**: `--interactive` flag for step-by-step issue walkthrough with explanations, context, and fix options
+- **Beautiful CLI Color System**: Lotus-inspired severity bands with enhanced visual triage
+  - Critical: Deep lotus red, High: Coral pink, Medium: Amber, Low: Lotus green
+  - Consistent `🪷` lotus branding throughout all scanner completion messages
+- **Modular Rules Architecture**: New `/src/rules/` structure with category-based organization for better maintainability
+- **Development Scanner**: New DEV001-005 rules specifically for AI-generated code issues
+  - DEV001: TODO/FIXME comments detection
+  - DEV002: "Not implemented" stubs and placeholder functions
+  - DEV003: Placeholder URLs in API endpoints (`localhost`, `example.com`)
+  - DEV004: Hardcoded mock/example data in responses
+  - DEV005: Empty returns or unimplemented functions
+
+### Enhanced
+- **Triage Header**: Beautiful colored severity bands replace basic text output
+- **Success Messages**: Enhanced with lotus theming ("🪷 No issues found! Your app is blooming beautifully! ✨")
+- **Scanner Progress**: All completion messages now use `🪷` lotus emoji for consistent branding
+
+### Technical
+- Made `printResults()` async to support interactive mode
+- Added new `ScanOptions.interactive` property
+- Enhanced `getSeverityBand()` method with lotus-inspired color palette
+- Backward compatibility maintained for all existing features
+
+### Notes
+- Interactive mode provides guided issue resolution perfect for AI-assisted debugging
+- Development scanner addresses the "vibe-coded" app debugging crisis
+- All changes are non-breaking; JSON/SARIF output unchanged
+
 ## 1.1.2 — 2025-08-27
 
 ### Added

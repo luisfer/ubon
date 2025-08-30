@@ -2,13 +2,24 @@
 const fs = require('fs');
 const path = require('path');
 
-// Require compiled RULES from dist; ensure build before running
-const rulesPath = path.join(__dirname, '..', 'dist', 'types', 'rules.js');
-if (!fs.existsSync(rulesPath)) {
-  console.error('dist/types/rules.js not found. Run `npm run build` first.');
+// Try modular rules first, fallback to legacy
+let RULES = {};
+
+const modularRulesPath = path.join(__dirname, '..', 'dist', 'rules', 'index.js');
+const legacyRulesPath = path.join(__dirname, '..', 'dist', 'types', 'rules.js');
+
+if (fs.existsSync(modularRulesPath)) {
+  console.log('Using modular rules system');
+  const { RULES: modularRules } = require(modularRulesPath);
+  RULES = modularRules;
+} else if (fs.existsSync(legacyRulesPath)) {
+  console.log('Using legacy rules system');
+  const { RULES: legacyRules } = require(legacyRulesPath);
+  RULES = legacyRules;
+} else {
+  console.error('No rules found. Run `npm run build` first.');
   process.exit(1);
 }
-const { RULES } = require(rulesPath);
 
 function section(title) {
   return `\n### ${title}\n`;

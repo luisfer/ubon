@@ -13,6 +13,7 @@ import { AstSecurityScanner } from './scanners/ast-security-scanner';
 import { InternalCrawler } from './scanners/internal-crawler';
 import { IacScanner } from './scanners/iac-scanner';
 import { RailsSecurityScanner } from './scanners/rails-security-scanner';
+import { DevelopmentScanner } from './scanners/development-scanner';
 import { glob } from 'glob';
 import { Logger } from './utils/logger';
 import chalk from 'chalk';
@@ -45,6 +46,20 @@ export class UbonScan {
     return this.useColor ? chalk.hex('#c99cb3')(text) : text;
   }
 
+  private getSeverityBand(severity: 'critical' | 'high' | 'medium' | 'low', count: number): string {
+    if (count === 0) return '';
+    
+    const colors = {
+      critical: chalk.hex('#ff4757').bgHex('#ff4757').white, // Deep lotus red
+      high: chalk.hex('#ff6b7d').bgHex('#ff6b7d').white,     // Coral pink  
+      medium: chalk.hex('#ffa502').bgHex('#ffa502').black,   // Amber
+      low: chalk.hex('#7bed9f').bgHex('#7bed9f').black       // Lotus green
+    };
+    
+    const colorFn = this.useColor ? colors[severity] : (text: string) => text;
+    return colorFn(` ${count} ${severity.toUpperCase()} `);
+  }
+
   async diagnose(options: ScanOptions): Promise<ScanResult[]> {
     this.logger.title('Starting Ubon');
     
@@ -72,7 +87,7 @@ export class UbonScan {
       try {
         const results = await scanner.scan(options);
         allResults.push(...results);
-        this.logger.success(`${scanner.name} completed (${results.length} issues found)`);
+        this.logger.success(`🪷 ${scanner.name} completed (${results.length} issues found)`);
       } catch (error) {
         this.logger.error(`${scanner.name} failed: ${error}`);
       }
@@ -84,7 +99,7 @@ export class UbonScan {
       try {
         const linkResults = await this.linkScanner.scan(options);
         allResults.push(...linkResults);
-        this.logger.success(`${this.linkScanner.name} completed (${linkResults.length} issues found)`);
+        this.logger.success(`🪷 ${this.linkScanner.name} completed (${linkResults.length} issues found)`);
       } catch (error) {
         this.logger.error(`${this.linkScanner.name} failed: ${error}`);
       }
@@ -99,7 +114,7 @@ export class UbonScan {
       try {
         const cres = await crawler.scan(options);
         allResults.push(...cres);
-        this.logger.success(`${crawler.name} completed (${cres.length} issues found)`);
+        this.logger.success(`🪷 ${crawler.name} completed (${cres.length} issues found)`);
       } catch (e) {
         this.logger.error(`${crawler.name} failed: ${e}`);
       }
@@ -112,7 +127,7 @@ export class UbonScan {
       try {
         const hres = await hist.scan(options);
         allResults.push(...hres);
-        this.logger.success(`${hist.name} completed (${hres.length} issues found)`);
+        this.logger.success(`🪷 ${hist.name} completed (${hres.length} issues found)`);
       } catch (e) {
         this.logger.error(`${hist.name} failed: ${e}`);
       }
@@ -139,12 +154,17 @@ export class UbonScan {
     }
     // vue/react/next fall through to JS scanners
     // auto/react/next default to JS scanners
-    const jsArr: any[] = [new SecurityScanner(), new AstSecurityScanner(), new AccessibilityScanner(), new EnvScanner(), new IacScanner()];
+    const jsArr: any[] = [new SecurityScanner(), new AstSecurityScanner(), new AccessibilityScanner(), new DevelopmentScanner(), new EnvScanner(), new IacScanner()];
     if (!fast) jsArr.push(new OSVScanner());
     return jsArr;
   }
 
-  printResults(results: ScanResult[], options?: ScanOptions): void {
+  async printResults(results: ScanResult[], options?: ScanOptions): Promise<void> {
+    // Check if interactive mode is requested
+    if (options?.interactive) {
+      await this.runInteractive(results, options);
+      return;
+    }
     // Separate suppressed from active results
     const allResultsWithSuppressions = results;
     const suppressedCount = results.filter(r => r.suppressed).length;
@@ -156,12 +176,12 @@ export class UbonScan {
     });
 
     if (activeResults.length === 0 && suppressedCount === 0) {
-      this.logger.success('No issues found! Your app is looking healthy! 🎉');
+      this.logger.success('🪷 No issues found! Your app is blooming beautifully! ✨');
       return;
     }
 
     if (activeResults.length === 0 && suppressedCount > 0) {
-      this.logger.success(`No active issues found! ${suppressedCount} issues suppressed. 🎉`);
+      this.logger.success(`🪷 No active issues found! ${suppressedCount} issues suppressed. ✨`);
       return;
     }
 
@@ -173,13 +193,20 @@ export class UbonScan {
       this.logger.info(this.colorize(chalk.gray, `Found ${totalActive} issues. Tip: use --max-issues 10 to focus on critical items first.`));
     }
     
-    // Severity-first header
-    const errorCount = filteredResults.filter(r => r.type === 'error').length;
-    const warnCount = filteredResults.filter(r => r.type === 'warning').length;
-    const criticalCount = filteredResults.filter(r => r.severity === 'high').length;
-    const highText = criticalCount > 0 ? this.colorize(chalk.bgRed.white, ` ${criticalCount} CRITICAL `) : '';
+    // Beautiful severity-first header with lotus color bands
+    const criticalCount = filteredResults.filter(r => r.severity === 'high' && r.type === 'error').length;
+    const highCount = filteredResults.filter(r => r.severity === 'high' && r.type === 'warning').length;
+    const mediumCount = filteredResults.filter(r => r.severity === 'medium').length;
+    const lowCount = filteredResults.filter(r => r.severity === 'low').length;
+    
+    const criticalBand = this.getSeverityBand('critical', criticalCount);
+    const highBand = this.getSeverityBand('high', highCount);
+    const mediumBand = this.getSeverityBand('medium', mediumCount);
+    const lowBand = this.getSeverityBand('low', lowCount);
     const suppressedText = suppressedCount > 0 ? this.colorize(chalk.gray, ` ${suppressedCount} suppressed`) : '';
-    console.log(`\n${this.brand('🪷')} ${this.colorize(chalk.bold, 'Triage')}: ${highText} ${this.colorize(chalk.red, errorCount + ' errors')}, ${this.colorize(chalk.yellow, warnCount + ' warnings')}${suppressedText}`);
+    
+    const severityBands = [criticalBand, highBand, mediumBand, lowBand].filter(band => band).join(' ');
+    console.log(`\n${this.brand('🪷')} ${this.colorize(chalk.bold, 'Triage')}: ${severityBands}${suppressedText}`);
 
     if (filteredResults.length !== activeResults.length) {
       console.log(`${this.colorize(chalk.gray, `  (showing ${filteredResults.length} of ${activeResults.length} active issues)`)}`);
@@ -484,6 +511,178 @@ export class UbonScan {
     } catch {
       return results;
     }
+  }
+
+  async runInteractive(results: ScanResult[], options: ScanOptions): Promise<void> {
+    console.log(`\n${this.brand('🪷')} Found ${results.length} issues. Let's walk through them together...\n`);
+    
+    if (results.length === 0) {
+      console.log(`${this.brand('🪷')} Perfect! No issues found. Your app is ready to bloom! ✨\n`);
+      return;
+    }
+
+    // Sort by severity for interactive mode
+    const sortedResults = results.sort((a, b) => {
+      const severityOrder = { high: 3, medium: 2, low: 1 };
+      const typeOrder = { error: 3, warning: 2, info: 1 };
+      
+      const sevDiff = severityOrder[b.severity] - severityOrder[a.severity];
+      if (sevDiff !== 0) return sevDiff;
+      
+      return typeOrder[b.type] - typeOrder[a.type];
+    });
+
+    for (let i = 0; i < sortedResults.length; i++) {
+      const result = sortedResults[i];
+      const choice = await this.presentIssue(result, i + 1, sortedResults.length, options);
+      
+      if (choice === 'quit') {
+        console.log(`\n${this.brand('🪷')} Interactive session ended. Remaining issues can be viewed with normal scan.\n`);
+        break;
+      }
+    }
+
+    console.log(`\n${this.brand('🪷')} Interactive walkthrough complete! ✨\n`);
+  }
+
+  private async presentIssue(result: ScanResult, current: number, total: number, options: ScanOptions): Promise<string> {
+    const severityColor = this.getSeverityColor(result.severity);
+    const typeIcon = result.type === 'error' ? '❌' : '⚠️';
+    
+    // Header with issue info
+    console.log(`┌${'─'.repeat(65)}┐`);
+    console.log(`│ Issue ${current} of ${total} ${' '.repeat(65 - (`Issue ${current} of ${total} `).length)}│`);
+    console.log(`│ ${typeIcon} ${severityColor} - ${result.ruleId} ${' '.repeat(65 - (`${typeIcon} ${result.severity.toUpperCase()} - ${result.ruleId} `).length)}│`);
+    console.log(`│ ${result.message} ${' '.repeat(65 - (result.message.length + 1))}│`);
+    if (result.file) {
+      const location = `${result.file}${result.line ? `:${result.line}` : ''}`;
+      console.log(`│ ${this.colorize(chalk.gray, location)} ${' '.repeat(65 - (location.length + 1))}│`);
+    }
+    console.log(`├${'─'.repeat(65)}┤`);
+    
+    // Show "why it matters" explanation
+    const ruleMeta = require('./types/rules').RULES[result.ruleId];
+    if (ruleMeta?.impact) {
+      console.log(`│ ${this.colorize(chalk.blue, '💡 Why this matters:')} ${' '.repeat(65 - '💡 Why this matters: '.length)}│`);
+      const impact = this.wrapText(ruleMeta.impact, 63);
+      impact.forEach(line => {
+        console.log(`│ ${line} ${' '.repeat(65 - (line.length + 1))}│`);
+      });
+      console.log(`├${'─'.repeat(65)}┤`);
+    }
+    
+    // Show fix suggestion
+    if (result.fix) {
+      console.log(`│ ${this.colorize(chalk.green, '🔧 Suggested fix:')} ${' '.repeat(65 - '🔧 Suggested fix: '.length)}│`);
+      const fix = this.wrapText(result.fix, 63);
+      fix.forEach(line => {
+        console.log(`│ ${line} ${' '.repeat(65 - (line.length + 1))}│`);
+      });
+      console.log(`├${'─'.repeat(65)}┤`);
+    }
+    
+    // Show code context if available
+    if (result.file && result.line) {
+      const context = this.getCodeContext(result.file, result.line);
+      if (context) {
+        console.log(`│ ${this.colorize(chalk.gray, '📋 Code context:')} ${' '.repeat(65 - '📋 Code context: '.length)}│`);
+        context.slice(0, 3).forEach((line, idx) => {
+          const lineNum = (result.line! - 2 + idx).toString().padStart(3);
+          const isTarget = idx === 1; // middle line
+          const marker = isTarget ? this.colorize(chalk.red, '►') : ' ';
+          const displayLine = `${marker} ${lineNum} ${line}`.slice(0, 63);
+          console.log(`│ ${displayLine} ${' '.repeat(65 - (displayLine.length + 1))}│`);
+        });
+        console.log(`├${'─'.repeat(65)}┤`);
+      }
+    }
+    
+    // Action menu
+    console.log(`│ [${this.colorize(chalk.green, 'f')}]ix automatically  [${this.colorize(chalk.yellow, 's')}]kip  [${this.colorize(chalk.blue, 'b')}]aseline  [${this.colorize(chalk.cyan, 'n')}]ext ${' '.repeat(24)}│`);
+    console.log(`│ [${this.colorize(chalk.red, 'q')}]uit  [${this.colorize(chalk.gray, '?')}]help ${' '.repeat(50)}│`);
+    console.log(`└${'─'.repeat(65)}┘`);
+    
+    return await this.promptUserChoice();
+  }
+
+  private getSeverityColor(severity: string): string {
+    const colors: Record<string, string> = {
+      high: this.colorize(chalk.red, 'HIGH'),
+      medium: this.colorize(chalk.yellow, 'MEDIUM'), 
+      low: this.colorize(chalk.green, 'LOW')
+    };
+    return colors[severity] || severity.toUpperCase();
+  }
+
+  private wrapText(text: string, maxWidth: number): string[] {
+    const words = text.split(' ');
+    const lines: string[] = [];
+    let currentLine = '';
+    
+    for (const word of words) {
+      if ((currentLine + word).length <= maxWidth) {
+        currentLine += (currentLine ? ' ' : '') + word;
+      } else {
+        if (currentLine) lines.push(currentLine);
+        currentLine = word;
+      }
+    }
+    if (currentLine) lines.push(currentLine);
+    
+    return lines;
+  }
+
+  private async promptUserChoice(): Promise<string> {
+    return new Promise((resolve) => {
+      const readline = require('readline');
+      const rl = readline.createInterface({
+        input: process.stdin,
+        output: process.stdout
+      });
+      
+      rl.question('Choose an action: ', (answer: string) => {
+        rl.close();
+        const choice = answer.toLowerCase().trim();
+        
+        switch (choice) {
+          case 'f':
+          case 'fix':
+            resolve('fix');
+            break;
+          case 's':
+          case 'skip':
+            resolve('skip');
+            break;
+          case 'b':
+          case 'baseline':
+            resolve('baseline');
+            break;
+          case 'n':
+          case 'next':
+            resolve('next');
+            break;
+          case 'q':
+          case 'quit':
+            resolve('quit');
+            break;
+          case '?':
+          case 'help':
+            console.log('\nAvailable actions:');
+            console.log('  f, fix      - Apply automatic fix if available');
+            console.log('  s, skip     - Skip this issue');
+            console.log('  b, baseline - Add to baseline (suppress)');
+            console.log('  n, next     - Continue to next issue');
+            console.log('  q, quit     - Exit interactive mode');
+            console.log('  ?, help     - Show this help\n');
+            resolve('help');
+            break;
+          default:
+            console.log('Invalid choice. Press ? for help.');
+            resolve('help');
+            break;
+        }
+      });
+    });
   }
 }
 

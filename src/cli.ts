@@ -130,6 +130,7 @@ program
   .option('--no-cache', 'Disable OSV caching for this scan')
   .option('--ai-friendly', 'Optimize output for AI consumption (json + context + explain + grouping + cap)')
   .option('--pr-comment', 'Output a Markdown summary suitable for PR comments')
+  .option('--interactive', 'Walk through issues interactively with explanations and fix options')
   .action(async (options) => {
     const scanner = new UbonScan(options.verbose, options.json, options.color as 'auto' | 'always' | 'never');
     
@@ -169,7 +170,8 @@ program
       showSuppressed: !!options.showSuppressed,
       ignoreSuppressed: !!options.ignoreSuppressed,
       clearCache: !!options.clearCache,
-      noCache: !!options.noCache
+      noCache: !!options.noCache,
+      interactive: !!options.interactive
     };
     const scanOptions = mergeOptions(config, cliOptions);
 
@@ -220,7 +222,7 @@ program
         }
       } else {
         // Human-readable output
-        scanner.printResults(results, scanOptions);
+        await scanner.printResults(results, scanOptions);
       }
 
       if (options.sarif) {
@@ -345,6 +347,7 @@ program
   .option('--clear-cache', 'Clear OSV vulnerability cache before scanning')
   .option('--no-cache', 'Disable OSV caching for this scan')
   .option('--pr-comment', 'Output a Markdown summary suitable for PR comments')
+  .option('--interactive', 'Walk through issues interactively with explanations and fix options')
   .action(async (options) => {
     const scanner = new UbonScan(options.verbose, options.json, options.color as 'auto' | 'always' | 'never');
     
@@ -383,7 +386,8 @@ program
       showSuppressed: !!options.showSuppressed,
       ignoreSuppressed: !!options.ignoreSuppressed,
       clearCache: !!options.clearCache,
-      noCache: !!options.noCache
+      noCache: !!options.noCache,
+      interactive: !!options.interactive
     };
     const scanOptions = mergeOptions(config, cliOptions);
 
@@ -418,7 +422,7 @@ program
         }
       } else {
         // Human-readable output
-        scanner.printResults(results, scanOptions);
+        await scanner.printResults(results, scanOptions);
       }
       if (options.sarif) {
         const sarif = toSarif(results, options.directory);

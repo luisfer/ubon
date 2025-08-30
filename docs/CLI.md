@@ -46,6 +46,7 @@ Options:
   --format <mode>             Output format (human mode): human|table (default: human)
   --ai-friendly               AI preset: json + context + explain + severity + cap 15
   --pr-comment                Output Markdown summary for PR comments
+  --interactive               Walk through issues interactively with explanations and fix options
   --no-result-cache           Disable per-file result cache (skip reuse between runs)
   --min-severity <level>      Minimum severity to include: low|medium|high
   --max-issues <n>            Limit output to N most important issues
@@ -92,8 +93,12 @@ ubon check --format table --group-by severity --show-confidence
 ```
  
 # Experimental P5 Next.js rules (enable/disable)
-ubon check --enable-rule NEXT201,NEXT202,NEXT203,NEXT205,NEXT208,NEXT209
-ubon check --disable-rule NEXT201,NEXT202,NEXT203,NEXT205,NEXT208,NEXT209
+ubon check --enable-rule NEXT201,NEXT202,NEXT203,NEXT205,NEXT208,NEXT209,NEXT210
+ubon check --disable-rule NEXT201,NEXT202,NEXT203,NEXT205,NEXT208,NEXT209,NEXT210
+
+# Development placeholder detection (DEV001-005)
+ubon check --enable-rule DEV001,DEV002,DEV003,DEV004,DEV005
+# Great for AI-generated code with TODO/FIXME, "Not implemented", mock data
 ```
 
 #### ubon check
@@ -263,7 +268,7 @@ ubon init --profile auto
 
 Options:
 - `--profile auto|react|next|python|vue` – override auto-detection
-- `--interactive` – reserved for future interactive prompts
+- `--interactive` – Walk through issues interactively with explanations and fix options
 
 Next.js monorepo example (profile + baseline):
 

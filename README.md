@@ -287,6 +287,13 @@ Example:
 
 CLI flags override config values.
 
+## Highlights in v1.1.3
+
+- **Interactive Mode**: `--interactive` for guided issue resolution with explanations and fix options
+- **Beautiful CLI**: Lotus-inspired severity bands and enhanced `🪷` branding throughout
+- **Development Scanner**: DEV001-005 rules for catching AI-generated placeholder code and incomplete implementations
+- **Modular Rules**: New architecture with category-based organization for maintainability
+
 ## Highlights in v1.1.0
 
 - Colorized, branded output with lotus (🪷); control via `--color auto|always|never`

@@ -8,6 +8,7 @@
 | Next.js Routing/Structure (experimental) | missing 404/error pages, method validation, external router.push, server→client secret bleed | NEXT201–NEXT210 (opt-in via enable/disable) |
 | Security (Python) | exec/eval, subprocess(shell=True), yaml.load, pickle, requests verify=False, DEBUG=True | PYSEC001–PYSEC010, PYNET001 |
 | Rails (experimental) | SQLi in where/find_by_sql, system/backticks, YAML.load, html_safe/raw, mass assignment | RAILS001–005 |
+| Development (placeholder detection) | TODO/FIXME comments, "Not implemented" stubs, placeholder URLs, mock data, empty returns | DEV001–005 |
 | Accessibility | <img> missing alt, inputs without labels, clickable divs without roles | A11Y001, A11Y004–005 |
 | Links & Resources | External link reachability with timeouts; optional internal crawling | LINK00x |
 | Dependency & Supply Chain | OSV.dev advisories for npm and PyPI | OSV001 |
@@ -15,6 +16,8 @@
 
 ### Developer Experience
 
+- **Interactive Mode**: `--interactive` for step-by-step issue walkthrough with explanations and fix options
+- **Beautiful CLI**: Lotus-inspired severity bands with enhanced visual triage (`🪷` branding throughout)
 - Colorized, branded output with lotus (🪷): `--color auto|always|never`
 - Result organization: `--group-by file|rule|severity|category`, `--min-severity`, `--max-issues`
 - Compact output: `--format table` for skimmable triage

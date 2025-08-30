@@ -6,6 +6,11 @@
 - COOKIE002: JWT token exposed in client-side cookie without security flags ([docs](https://owasp.org/www-community/controls/SecureCookieAttributes))
 - COOKIE003: Sensitive data returned in JSON response (potential token leak)
 - COOKIE004: Cookie used without domain/path restrictions
+- DEV001: Function contains TODO/FIXME comments ([docs](https://docs.ubon.dev/rules/DEV001))
+- DEV002: Function throws "Not implemented" or contains stub code ([docs](https://docs.ubon.dev/rules/DEV002))
+- DEV003: API endpoints using placeholder URLs ([docs](https://docs.ubon.dev/rules/DEV003))
+- DEV004: Hardcoded mock/example data in API responses ([docs](https://docs.ubon.dev/rules/DEV004))
+- DEV005: Function returns null or empty objects without implementation ([docs](https://docs.ubon.dev/rules/DEV005))
 - JSNET001: HTTP request without timeout/retry policy ([docs](https://developer.mozilla.org/docs/Web/API/AbortController))
 - LOG001: Potential secret logged to console/logger ([docs](https://cheatsheetseries.owasp.org/cheatsheets/Logging_Cheat_Sheet.html))
 - OSV001: Vulnerable dependency detected
@@ -41,6 +46,7 @@
 - NEXT009: Unsafe redirect in Next.js API route ([docs](https://owasp.org/www-community/attacks/Unvalidated_Redirects_and_Forwards_Cheat_Sheet))
 - NEXT010: CORS configuration too permissive ([docs](https://developer.mozilla.org/docs/Web/HTTP/CORS))
 - NEXT011: Environment variable leaked in client-side code ([docs](https://nextjs.org/docs/app/building-your-application/configuring/environment-variables#bundling-environment-variables-for-the-browser))
+- NEXT210: Server secret serialized to client props (leak risk) ([docs](https://nextjs.org/docs/pages/building-your-application/data-fetching/get-server-side-props#caveats))
 
 ### Accessibility
 - A11Y001: Image without alt attribute ([docs](https://webaim.org/techniques/alttext/))

@@ -1,6 +1,6 @@
 export interface ScanResult {
   type: 'error' | 'warning' | 'info';
-  category: 'security' | 'links' | 'performance' | 'accessibility' | 'seo';
+  category: 'security' | 'links' | 'performance' | 'accessibility' | 'seo' | 'development';
   message: string;
   file?: string;
   line?: number;
@@ -71,6 +71,8 @@ export interface ScanOptions {
   noCache?: boolean; // disable OSV caching
   // Result cache for performance
   noResultCache?: boolean; // disable per-file result cache
+  // Interactive mode
+  interactive?: boolean; // walk through issues interactively
 }
 
 export interface FixEdit {
