@@ -1,3 +1,13 @@
+## 1.1.5 — 2025-09-18
+
+### Fixed
+- **Documentation Packaging**: Corrected npm package to include complete integration guide (GUIDE.md) and updated README
+- **GitHub Release**: Fixed v1.1.4 release to point to correct commit with all changes
+
+### Notes
+- This is a documentation fix for v1.1.4 - no functional changes
+- All v1.1.4 features work correctly, this adds missing documentation files to npm package
+
 ## 1.1.4 — 2025-09-18
 
 ### Added

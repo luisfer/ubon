@@ -541,7 +541,7 @@ ubon check --focus-security --explain --show-context
 
 ## Version Information
 
-- **Current Version**: 1.1.4
+- **Current Version**: 1.1.5
 - **Schema Version**: 1.0.0
 - **Node.js Requirement**: 16.0.0+
 - **Last Updated**: 2025-09-18
