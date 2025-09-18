@@ -1,3 +1,16 @@
+## 1.1.6 — 2025-09-18
+
+### Fixed
+- **Documentation Completeness**: Updated all documentation files to accurately reflect current capabilities
+  - Added missing `ubon guide` command to CLI.md documentation  
+  - Updated FEATURES.md with contextual guidance and guide command features
+  - Added missing Rails security rules (RAILS001-005) to RULES.md documentation
+  - Ensured 100% accuracy between implemented features and their documentation
+
+### Notes
+- This is a documentation accuracy release ensuring all docs reflect actual codebase capabilities
+- No functional changes - all existing features continue to work as expected
+
 ## 1.1.5 — 2025-09-18
 
 ### Fixed

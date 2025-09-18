@@ -18,6 +18,8 @@
 
 - **Interactive Mode**: `--interactive` for step-by-step issue walkthrough with explanations and fix options
 - **Beautiful CLI**: Lotus-inspired severity bands with enhanced visual triage (`🪷` branding throughout)
+- **Smart Contextual Guidance**: Post-scan intelligent suggestions based on results analysis (critical issues, fix patterns, next steps)
+- **Integration Guide**: `ubon guide` command displays comprehensive developer and AI agent guide location
 - Colorized, branded output with lotus (🪷): `--color auto|always|never`
 - Result organization: `--group-by file|rule|severity|category`, `--min-severity`, `--max-issues`
 - Compact output: `--format table` for skimmable triage

@@ -258,6 +258,16 @@ Options:
 - `--mode fast|full` (default: fast) – fast skips network checks
 - `--fail-on error|warning` – block commit on errors or warnings
 
+### guide
+
+Show integration guide for developers and AI agents.
+
+```
+ubon guide
+```
+
+Displays the location of the comprehensive integration guide (GUIDE.md) with examples, troubleshooting, and complete rule catalog for developers and AI agents.
+
 ### init
 
 Analyze the repository and generate `ubon.config.json` with recommended defaults.

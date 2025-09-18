@@ -93,6 +93,13 @@
 - GHA001: Secrets may be echoed in GitHub Actions workflow
 
 ### Rails (experimental)
+- RAILS001: SQL injection via string interpolation in ActiveRecord queries
+- RAILS002: Unsafe shell command execution (system/backticks)
+- RAILS003: Unsafe YAML.load() usage (code injection risk)
+- RAILS004: Unescaped output via html_safe or raw
+- RAILS005: Mass assignment vulnerability (missing strong params)
+
+### Next.js Routing/Structure (experimental)
 - NEXT201: Missing 404/not-found page ([docs](https://nextjs.org/docs/app/api-reference/file-conventions/not-found))
 - NEXT202: Missing error boundary page ([docs](https://nextjs.org/docs/app/building-your-application/routing/error-handling))
 - NEXT203: Missing _document.tsx while using next/head or next/script ([docs](https://nextjs.org/docs/pages/building-your-application/routing/custom-document))
