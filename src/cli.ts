@@ -78,12 +78,12 @@ const program = new Command();
 
 program
   .name('ubon')
-  .description('Ubon 🪷 — peace of mind for vibe-coded apps')
+  .description('Ubon 🪷 — peace of mind for vibe-coded apps\n  • Run "ubon guide" for integration documentation\n  • Try "ubon scan --interactive" for guided debugging')
   .version((pkg as any).version);
 
 program
   .command('scan')
-  .description('Scan your React/Next.js application for issues')
+  .description('Full scan with link checking (try --interactive for guided debugging)')
   .option('-d, --directory <path>', 'Directory to scan', process.cwd())
   .option('-p, --port <number>', 'Development server port for link checking', '3000')
   .option('--skip-build', 'Skip link checking (only run static analysis)')
@@ -306,7 +306,7 @@ program
 
 program
   .command('check')
-  .description('Quick health check (static analysis only)')
+  .description('Quick health check (static analysis only, try --ai-friendly for AI assistants)')
   .option('-d, --directory <path>', 'Directory to scan', process.cwd())
   .option('-v, --verbose', 'Enable verbose output')
   .option('--fail-on <level>', 'Fail on: none|warning|error', 'error')
@@ -509,6 +509,56 @@ program
       console.log('💡 Use --cleanup to remove expired entries');
     } else {
       console.log('Use --clear, --cleanup, or --info');
+    }
+  });
+
+program
+  .command('guide')
+  .description('Show integration guide for developers and AI agents')
+  .action(async () => {
+    const { join } = await import('path');
+    const { existsSync } = await import('fs');
+    
+    // Try to find the guide file
+    const guidePaths = [
+      join(__dirname, '..', 'GUIDE.md'),
+      join(process.cwd(), 'node_modules', 'ubon', 'GUIDE.md'),
+      join(process.cwd(), 'GUIDE.md')
+    ];
+    
+    let guidePath = null;
+    for (const path of guidePaths) {
+      if (existsSync(path)) {
+        guidePath = path;
+        break;
+      }
+    }
+    
+    if (guidePath) {
+      console.log(`🪷 Ubon Integration Guide location:`);
+      console.log(`📍 ${guidePath}`);
+      console.log('');
+      console.log('💡 Quick commands:');
+      console.log('   ubon check --json          # Quick analysis');
+      console.log('   ubon scan --interactive    # Guided debugging');  
+      console.log('   ubon check --apply-fixes   # Auto-fix issues');
+      console.log('');
+      console.log('🔗 Online: https://github.com/luisfer/ubon/blob/main/GUIDE.md');
+    } else {
+      console.log('🪷 Ubon Integration Guide');
+      console.log('');
+      console.log('💡 Essential commands:');
+      console.log('   ubon check --json          # Quick static analysis');
+      console.log('   ubon scan --interactive    # Guided issue walkthrough');
+      console.log('   ubon check --apply-fixes   # Apply safe auto-fixes');
+      console.log('   ubon check --focus-critical --focus-security  # Security focus');
+      console.log('');
+      console.log('🤖 AI workflow:');
+      console.log('   1. Run: ubon check --ai-friendly');
+      console.log('   2. Share output with AI assistant');
+      console.log('   3. Ask: "Help me fix these issues, starting with high severity"');
+      console.log('');
+      console.log('🔗 Full guide: https://github.com/luisfer/ubon/blob/main/GUIDE.md');
     }
   });
 

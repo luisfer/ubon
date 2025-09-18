@@ -1,3 +1,36 @@
+## 1.1.4 — 2025-09-18
+
+### Added
+- **Smart Contextual Guidance**: Intelligent post-scan suggestions based on results
+  - Suggests `--interactive` mode for critical issues
+  - Recommends `--focus-critical` for high-severity findings
+  - Points to `--apply-fixes` when auto-fixable issues found
+  - Guides AI workflow with specific copy-paste instructions
+- **`ubon guide` Command**: New CLI command to access integration documentation
+  - Shows guide file location and quick command examples
+  - Provides essential workflows for developers and AI agents
+- **Enhanced Help Text**: Improved CLI descriptions promoting key features
+  - Main help mentions guide command and interactive mode
+  - Command descriptions highlight AI-friendly options
+
+### Enhanced
+- **Integration Guide**: Renamed from `AI_AGENT_GUIDE.md` to `GUIDE.md` for universal appeal
+  - Added real JSON/SARIF/CLI output examples
+  - Enhanced troubleshooting section with common issues
+  - Added framework-specific integration patterns
+  - Comprehensive rule catalog with confidence levels
+  - Performance optimization guidance for large codebases
+
+### Technical
+- Smart guidance skips display in JSON mode and interactive mode
+- Guide command intelligently locates documentation file
+- All contextual suggestions use consistent lotus branding
+
+### Notes
+- This release focuses on user experience improvements
+- Makes Ubon much more discoverable and intuitive for new users
+- Provides better integration patterns for AI assistants
+
 ## 1.0.0 — 2025-08-23
 -
 ## 1.0.1 — 2025-08-23

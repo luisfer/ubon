@@ -291,6 +291,7 @@ export class UbonScan {
 
     this.logger.separator();
     this.printSummary(results);
+    this.printContextualGuidance(results, options);
   }
 
   private groupByCategory(results: ScanResult[]): Record<string, ScanResult[]> {
@@ -422,6 +423,70 @@ export class UbonScan {
       this.logger.error('Critical issues found that should be fixed immediately');
     } else {
       this.logger.success('No critical issues found');
+    }
+  }
+
+  private printContextualGuidance(results: ScanResult[], options?: ScanOptions): void {
+    // Skip guidance in JSON mode or interactive mode
+    if (options?.json || options?.interactive) return;
+
+    const activeResults = results.filter(r => !r.suppressed);
+    const totalIssues = activeResults.length;
+    const highSeverityIssues = activeResults.filter(r => r.severity === 'high').length;
+    const criticalErrors = activeResults.filter(r => r.type === 'error' && r.severity === 'high').length;
+    const lowConfidenceIssues = activeResults.filter(r => (r.confidence ?? 1) < 0.8).length;
+    const suppressedCount = results.filter(r => r.suppressed).length;
+
+    const suggestions: string[] = [];
+
+    // No issues found
+    if (totalIssues === 0) {
+      if (suppressedCount > 0) {
+        suggestions.push(`${this.brand('🪷')} All issues suppressed. Use ${this.colorize(chalk.cyan, '--show-suppressed')} to review.`);
+      } else {
+        suggestions.push(`${this.brand('🪷')} No issues found! For complete analysis: ${this.colorize(chalk.cyan, 'ubon scan')}`);
+      }
+    } else {
+      // Critical issues found
+      if (criticalErrors > 0) {
+        suggestions.push(`${this.colorize(chalk.red, '🚨')} Critical issues need immediate attention! Try: ${this.colorize(chalk.cyan, 'ubon scan --interactive')}`);
+      } else if (highSeverityIssues > 0) {
+        suggestions.push(`${this.colorize(chalk.yellow, '⚠️')} High severity issues found. Focus first: ${this.colorize(chalk.cyan, 'ubon check --focus-critical')}`);
+      }
+
+      // Too many issues
+      if (totalIssues > 20) {
+        suggestions.push(`${this.colorize(chalk.blue, '💡')} Found ${totalIssues} issues. Focus on most critical: ${this.colorize(chalk.cyan, 'ubon check --max-issues 5 --group-by severity')}`);
+      }
+
+      // Low confidence suggestions
+      if (lowConfidenceIssues > totalIssues * 0.5) {
+        suggestions.push(`${this.colorize(chalk.blue, '💡')} Many low-confidence findings. Try: ${this.colorize(chalk.cyan, 'ubon check --min-confidence 0.9')}`);
+      }
+
+      // AI workflow suggestion
+      if (totalIssues > 0 && totalIssues <= 15) {
+        suggestions.push(`${this.colorize(chalk.green, '🤖')} Share with AI: Copy output and ask "Help me fix these ${totalIssues} issues, starting with high severity"`);
+      }
+
+      // Auto-fix suggestion
+      const fixableIssues = activeResults.filter(r => r.fixEdits && r.fixEdits.length > 0).length;
+      if (fixableIssues > 0) {
+        suggestions.push(`${this.colorize(chalk.green, '🔧')} ${fixableIssues} issues can be auto-fixed: ${this.colorize(chalk.cyan, 'ubon check --apply-fixes')}`);
+      }
+    }
+
+    // Always show guide for first-time users or when there are issues
+    if (totalIssues > 0 || Math.random() < 0.3) { // 30% chance to show guide when no issues
+      suggestions.push(`${this.colorize(chalk.blue, '📖')} New to Ubon? See: ${this.colorize(chalk.cyan, 'ubon guide')}`);
+    }
+
+    // Print suggestions
+    if (suggestions.length > 0) {
+      console.log('');
+      suggestions.forEach(suggestion => {
+        console.log(`${suggestion}`);
+      });
     }
   }
 
