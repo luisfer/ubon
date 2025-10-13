@@ -6,13 +6,14 @@
 - COOKIE002: JWT token exposed in client-side cookie without security flags ([docs](https://owasp.org/www-community/controls/SecureCookieAttributes))
 - COOKIE003: Sensitive data returned in JSON response (potential token leak)
 - COOKIE004: Cookie used without domain/path restrictions
-- DEV001: Function contains TODO/FIXME comments ([docs](https://docs.ubon.dev/rules/DEV001))
-- DEV002: Function throws "Not implemented" or contains stub code ([docs](https://docs.ubon.dev/rules/DEV002))
-- DEV003: API endpoints using placeholder URLs ([docs](https://docs.ubon.dev/rules/DEV003))
-- DEV004: Hardcoded mock/example data in API responses ([docs](https://docs.ubon.dev/rules/DEV004))
-- DEV005: Function returns null or empty objects without implementation ([docs](https://docs.ubon.dev/rules/DEV005))
 - JSNET001: HTTP request without timeout/retry policy ([docs](https://developer.mozilla.org/docs/Web/API/AbortController))
 - LOG001: Potential secret logged to console/logger ([docs](https://cheatsheetseries.owasp.org/cheatsheets/Logging_Cheat_Sheet.html))
+- LOVABLE001: Supabase table accessed without RLS policy validation ([docs](https://supabase.com/docs/guides/auth/row-level-security))
+- LOVABLE002: Supabase credentials hardcoded in source code ([docs](https://vitejs.dev/guide/env-and-mode.html))
+- LOVABLE003: Anonymous authentication enabled without RLS policy validation ([docs](https://supabase.com/docs/guides/auth/auth-anonymous))
+- LOVABLE004: Potential SQL injection in Supabase query - uses string interpolation ([docs](https://supabase.com/docs/reference/javascript/using-filters))
+- LOVABLE005: Weak RLS policy pattern detected ([docs](https://supabase.com/docs/guides/auth/row-level-security#policies))
+- LOVABLE006: Supabase storage access without proper validation ([docs](https://supabase.com/docs/guides/storage/security/access-control))
 - OSV001: Vulnerable dependency detected
 - SEC001: Potential API key or secret token exposed ([docs](https://cheatsheetseries.owasp.org/cheatsheets/Secrets_Management_Cheat_Sheet.html))
 - SEC002: Supabase URL hardcoded (should use env var)
@@ -33,6 +34,10 @@
 - SEC017: dangerouslySetInnerHTML usage (XSS risk) ([docs](https://react.dev/reference/react-dom/components/common#dangerously-setting-the-inner-html))
 - SEC018: High-entropy string literal (possible secret) ([docs](https://owasp.org/Top10/A02_2021-Cryptographic_Failures))
 - SEC019: React component injection via createElement
+- TAILWIND001: Dynamic className with unvalidated input - may allow CSS injection ([docs](https://tailwindcss.com/docs/content-configuration#dynamic-class-names))
+- VITE001: Environment variable without VITE_ prefix may expose secrets to client ([docs](https://vitejs.dev/guide/env-and-mode.html#env-variables))
+- VITE002: Development-only code without production fallback ([docs](https://vitejs.dev/guide/env-and-mode.html#modes))
+- VITE003: Unsafe dynamic import with user input - potential path traversal ([docs](https://vitejs.dev/guide/features.html#dynamic-import))
 
 ### Next.js
 - NEXT001: next/link used without anchor or child text (legacyBehavior)
@@ -47,22 +52,6 @@
 - NEXT010: CORS configuration too permissive ([docs](https://developer.mozilla.org/docs/Web/HTTP/CORS))
 - NEXT011: Environment variable leaked in client-side code ([docs](https://nextjs.org/docs/app/building-your-application/configuring/environment-variables#bundling-environment-variables-for-the-browser))
 - NEXT210: Server secret serialized to client props (leak risk) ([docs](https://nextjs.org/docs/pages/building-your-application/data-fetching/get-server-side-props#caveats))
-
-### Lovable / Supabase Security
-- LOVABLE001: Supabase table access without RLS policy validation ([docs](https://supabase.com/docs/guides/auth/row-level-security))
-- LOVABLE002: Supabase credentials hardcoded in source code ([docs](https://vitejs.dev/guide/env-and-mode.html))
-- LOVABLE003: Anonymous authentication enabled without RLS policy validation ([docs](https://supabase.com/docs/guides/auth/auth-anonymous))
-- LOVABLE004: Potential SQL injection in Supabase query - uses string interpolation ([docs](https://supabase.com/docs/reference/javascript/using-filters))
-- LOVABLE005: Weak RLS policy pattern detected - may be overly permissive ([docs](https://supabase.com/docs/guides/auth/row-level-security))
-- LOVABLE006: Supabase storage access without proper validation ([docs](https://supabase.com/docs/guides/storage/security/access-control))
-
-### Vite Security
-- VITE001: Environment variable without VITE_ prefix may expose secrets to client ([docs](https://vitejs.dev/guide/env-and-mode.html#env-variables))
-- VITE002: Development-only code without production fallback ([docs](https://vitejs.dev/guide/env-and-mode.html#modes))
-- VITE003: Unsafe dynamic import with user input - potential path traversal ([docs](https://vitejs.dev/guide/features.html#dynamic-import))
-
-### React/Tailwind Security
-- TAILWIND001: Dynamic className with unvalidated input - may allow CSS injection ([docs](https://tailwindcss.com/docs/content-configuration#dynamic-class-names))
 
 ### Accessibility
 - A11Y001: Image without alt attribute ([docs](https://webaim.org/techniques/alttext/))
@@ -109,13 +98,6 @@
 - GHA001: Secrets may be echoed in GitHub Actions workflow
 
 ### Rails (experimental)
-- RAILS001: SQL injection via string interpolation in ActiveRecord queries
-- RAILS002: Unsafe shell command execution (system/backticks)
-- RAILS003: Unsafe YAML.load() usage (code injection risk)
-- RAILS004: Unescaped output via html_safe or raw
-- RAILS005: Mass assignment vulnerability (missing strong params)
-
-### Next.js Routing/Structure (experimental)
 - NEXT201: Missing 404/not-found page ([docs](https://nextjs.org/docs/app/api-reference/file-conventions/not-found))
 - NEXT202: Missing error boundary page ([docs](https://nextjs.org/docs/app/building-your-application/routing/error-handling))
 - NEXT203: Missing _document.tsx while using next/head or next/script ([docs](https://nextjs.org/docs/pages/building-your-application/routing/custom-document))
