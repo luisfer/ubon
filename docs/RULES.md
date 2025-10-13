@@ -48,6 +48,22 @@
 - NEXT011: Environment variable leaked in client-side code ([docs](https://nextjs.org/docs/app/building-your-application/configuring/environment-variables#bundling-environment-variables-for-the-browser))
 - NEXT210: Server secret serialized to client props (leak risk) ([docs](https://nextjs.org/docs/pages/building-your-application/data-fetching/get-server-side-props#caveats))
 
+### Lovable / Supabase Security
+- LOVABLE001: Supabase table access without RLS policy validation ([docs](https://supabase.com/docs/guides/auth/row-level-security))
+- LOVABLE002: Supabase credentials hardcoded in source code ([docs](https://vitejs.dev/guide/env-and-mode.html))
+- LOVABLE003: Anonymous authentication enabled without RLS policy validation ([docs](https://supabase.com/docs/guides/auth/auth-anonymous))
+- LOVABLE004: Potential SQL injection in Supabase query - uses string interpolation ([docs](https://supabase.com/docs/reference/javascript/using-filters))
+- LOVABLE005: Weak RLS policy pattern detected - may be overly permissive ([docs](https://supabase.com/docs/guides/auth/row-level-security))
+- LOVABLE006: Supabase storage access without proper validation ([docs](https://supabase.com/docs/guides/storage/security/access-control))
+
+### Vite Security
+- VITE001: Environment variable without VITE_ prefix may expose secrets to client ([docs](https://vitejs.dev/guide/env-and-mode.html#env-variables))
+- VITE002: Development-only code without production fallback ([docs](https://vitejs.dev/guide/env-and-mode.html#modes))
+- VITE003: Unsafe dynamic import with user input - potential path traversal ([docs](https://vitejs.dev/guide/features.html#dynamic-import))
+
+### React/Tailwind Security
+- TAILWIND001: Dynamic className with unvalidated input - may allow CSS injection ([docs](https://tailwindcss.com/docs/content-configuration#dynamic-class-names))
+
 ### Accessibility
 - A11Y001: Image without alt attribute ([docs](https://webaim.org/techniques/alttext/))
 - A11Y002: Input without label or aria-label ([docs](https://web.dev/labels-and-text-alternatives/))

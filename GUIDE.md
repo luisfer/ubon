@@ -46,7 +46,7 @@ ubon check --update-baseline
 ```json
 {
   "schemaVersion": "1.0.0",
-  "toolVersion": "1.1.3",
+  "toolVersion": "1.2.0",
   "summary": {
     "total": 3,
     "errors": 1,
@@ -120,7 +120,7 @@ ubon check --update-baseline
       "tool": {
         "driver": {
           "name": "Ubon",
-          "version": "1.1.3",
+          "version": "1.2.0",
           "informationUri": "https://github.com/luisfer/ubon"
         }
       },

@@ -37,7 +37,7 @@ export interface ScanOptions {
   changedFiles?: string[]; // limit scanning to these relative file paths
   gitChangedSince?: string; // use git diff --name-only <ref> to populate changedFiles
   // Profile selection
-  profile?: 'auto' | 'react' | 'next' | 'python' | 'vue' | 'rails';
+  profile?: 'auto' | 'react' | 'next' | 'python' | 'vue' | 'rails' | 'lovable';
   // History scanning
   gitHistoryDepth?: number; // number of commits to search for secrets
   // Internal crawler (opt-in)

@@ -7,7 +7,9 @@
 | Confidence scores | Yes (`--show-confidence`) | No | No |
 | Secrets (heuristics + patterns) | Yes | No | No |
 | Insecure cookies/redirects/CORS | Yes | No | No |
-| Client env leaks (Next.js) | Yes | No | No |
+| Client env leaks (Next.js/Vite) | Yes | No | No |
+| Supabase RLS validation | Yes | No | No |
+| Supabase key exposure | Yes | Limited | No |
 | Accessibility basics | Yes | Via plugins | No |
 | Broken links (external) | Yes | No | No |
 | Dependency advisories | OSV (optional) | No | Yes |

@@ -2,6 +2,9 @@ import { Rule, RuleMeta } from './types';
 import { securityRules } from './security';
 import { accessibilityRules } from './accessibility';
 import { developmentRules } from './development';
+import { lovableRules } from './lovable';
+import { viteRules } from './vite';
+import { reactRules } from './react';
 
 // Import existing rules for backward compatibility
 import { RULES as LEGACY_RULES } from '../types/rules';
@@ -10,7 +13,10 @@ import { RULES as LEGACY_RULES } from '../types/rules';
 const allRuleModules = {
   ...securityRules,
   ...accessibilityRules,
-  ...developmentRules
+  ...developmentRules,
+  ...lovableRules,
+  ...viteRules,
+  ...reactRules
 };
 
 // Create rules registry (compatible with existing RULES interface)

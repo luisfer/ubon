@@ -1,7 +1,7 @@
 {
   "name": "ubon",
-  "version": "1.1.6",
-  "description": "Security scanner for AI-generated React/Next.js and Python apps. Catches hardcoded secrets, accessibility issues, and vulnerabilities that traditional linters miss.",
+  "version": "1.2.0",
+  "description": "Security scanner for AI-generated apps (React, Next.js, Vite, Lovable, Python). Catches hardcoded secrets, Supabase misconfigurations, accessibility issues, and vulnerabilities that traditional linters miss.",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "bin": {
@@ -14,11 +14,10 @@
     "start": "node dist/cli.js",
     "test": "jest",
     "preversion": "node scripts/check-changelog.js",
-    "prepublishOnly": "npm run build && npm run rules:gen"
-    ,"test:watch": "jest --watch",
+    "prepublishOnly": "npm run build && npm run rules:gen",
+    "test:watch": "jest --watch",
     "lint": "eslint 'src/**/*.ts'",
-    "lint:fix": "eslint 'src/**/*.ts' --fix",
-    "prepublishOnly": "npm run build"
+    "lint:fix": "eslint 'src/**/*.ts' --fix"
   },
   "keywords": [
     "security",
@@ -50,7 +49,10 @@
     "cursor",
     "windsurf",
     "lovable",
-    "replit"
+    "replit",
+    "vite",
+    "tailwind",
+    "rls"
   ],
   "author": "Luisfer Romero Calero <luisfer.romero.calero@gmail.com>",
   "license": "MIT",

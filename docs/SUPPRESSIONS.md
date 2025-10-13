@@ -18,7 +18,7 @@ Block comment:
 const token = 'eyJ...';
 ```
 
-- `RULEID` is the rule identifier, e.g. `SEC016`, `A11Y001`, `NEXT007`.
+- `RULEID` is the rule identifier, e.g. `SEC016`, `A11Y001`, `LOVABLE001`, `VITE001`, `TAILWIND001`.
 - The optional reason is free text and will be shown in human output when `--show-suppressed` is enabled.
 
 ## CLI controls

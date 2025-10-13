@@ -16,6 +16,8 @@
 > 🪷 Peace of mind for vibe‑coded apps.
 
 [![npm version](https://badge.fury.io/js/ubon.svg)](https://badge.fury.io/js/ubon)
+[![npm downloads](https://img.shields.io/npm/dm/ubon.svg)](https://npmjs.com/package/ubon)
+[![Test Coverage](https://img.shields.io/badge/coverage-70%25-green.svg)](./coverage)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 ## Contents
@@ -26,7 +28,7 @@
 - [Quick Start](#quick-start)
 - [Key Features](#-key-features)
 - [How to Use with AI Assistants](#how-to-use-with-ai-assistants)
-- [What's New in v1.1.3](#whats-new-in-v113)
+- [What's New in v1.2.0](#whats-new-in-v120)
 - [Core Capabilities](#core-capabilities)
 - [Commands](#commands)
 - [Common Workflows](#common-workflows)
@@ -56,6 +58,24 @@ Use the colorized triage in the terminal or JSON/SARIF for CI and AI. Profiles c
 - Baselines and inline suppressions for low-noise adoption
 - JSON and SARIF outputs for CI and AI; OSV caching for speed
 - Safe autofixes and optional PR creation; watch mode and changed-files gates
+
+## 🤔 How Ubon Compares
+
+| Feature | Ubon 🪷 | ESLint | npm audit | Lovable Scanner |
+|---------|---------|--------|-----------|-----------------|
+| **Hardcoded Secrets** | ✅ High accuracy | ❌ No | ❌ No | ⚠️ Basic patterns |
+| **Supabase RLS Validation** | ✅ Deep analysis | ❌ No | ❌ No | ⚠️ Shallow check |
+| **Vite Security** | ✅ Specialized | ❌ No | ❌ No | ❌ No |
+| **Accessibility (a11y)** | ✅ Comprehensive | ⚠️ Plugin only | ❌ No | ❌ No |
+| **AI-Generated Code Issues** | ✅ Purpose-built | ❌ No | ❌ No | ⚠️ Limited |
+| **Link Validation** | ✅ External + Internal | ❌ No | ❌ No | ❌ No |
+| **Placeholder Detection** | ✅ DEV001-005 | ❌ No | ❌ No | ❌ No |
+| **Auto-Fix** | ✅ Safe fixes | ⚠️ Some rules | ❌ No | ❌ No |
+| **Interactive Mode** | ✅ Guided debugging | ❌ No | ❌ No | ❌ No |
+| **CI/CD Integration** | ✅ SARIF, JSON | ✅ Yes | ✅ Yes | ⚠️ Limited |
+| **SQL Injection (Supabase)** | ✅ Query analysis | ❌ No | ❌ No | ❌ No |
+
+**TL;DR**: Use ESLint for code style, npm audit for known CVEs, and Ubon for AI-generated code security.
 
 ## The Reality of Debugging AI-Generated Code
 
@@ -235,9 +255,30 @@ Before Ubon: "My Next.js auth is broken" → 45-minute debugging session.
 
 With Ubon: "Hardcoded JWT in `pages/api/auth.ts:23`, missing `HttpOnly; Secure` on cookies" → fixed in minutes.
 
-## What's New in v1.1.3
+## What's New in v1.2.0
 
-### 🎯 **Interactive Mode**
+### 🪷 **Lovable Edition - Full Supabase + Vite + React Security**
+
+<p align="center">
+  <img src="branding/lovable.svg" alt="Lovable" height="40">
+</p>
+
+**10 new rules** specifically designed for Lovable-generated apps:
+- **6 Supabase security rules**: RLS validation, exposed keys, anonymous auth, SQL injection, weak policies, storage access
+- **3 Vite security rules**: Environment variable exposure, dev-only code, unsafe dynamic imports  
+- **1 Tailwind security rule**: Dynamic className injection
+
+**Auto-detection**: Ubon automatically detects Lovable apps and applies the right scanners.
+
+```bash
+ubon scan --profile lovable  # or just 'ubon scan' - auto-detects!
+```
+
+See `docs/LOVABLE.md` for the complete integration guide.
+
+### Previous Release (v1.1.3)
+
+#### 🎯 **Interactive Mode**
 Walk through issues step-by-step with explanations, context, and fix options:
 ```bash
 ubon scan --interactive
@@ -576,7 +617,7 @@ What they look for:
 
 ## Changelog
 
-See `CHANGELOG.md` for release notes (latest: 1.1.3).
+See `CHANGELOG.md` for release notes (latest: 1.2.0).
 
 ## License
 

@@ -1,3 +1,71 @@
+## 1.2.0 — The Lovable Edition — 2025-10-13
+
+### 🎯 Major: Lovable App Support
+
+Added comprehensive security scanning specifically for Lovable-generated applications (React + Vite + Supabase + Tailwind stack).
+
+#### New Profile
+- **`--profile lovable`**: Specialized scanning for Lovable apps
+- **Auto-detection**: Automatically detects Lovable apps by stack signature (Vite + Supabase + React + Tailwind)
+- Optimized for React + Vite + Supabase + Tailwind CSS applications
+
+#### New Scanners & Rules
+
+**Lovable Supabase Scanner** (6 new rules):
+- **LOVABLE001**: Missing RLS Policy - validates actual RLS protection, not just existence
+- **LOVABLE002**: Exposed Supabase Keys - detects hardcoded URLs and anon keys
+- **LOVABLE003**: Anonymous Auth Without RLS - flags unprotected anonymous access
+- **LOVABLE004**: SQL Injection in Supabase Queries - detects unsafe string interpolation
+- **LOVABLE005**: Weak RLS Policy Patterns - identifies overly permissive policies
+- **LOVABLE006**: Supabase Storage Access Control - validates file upload security
+
+**Vite Scanner** (3 new rules):
+- **VITE001**: Client-Side Environment Variable Exposure - catches non-VITE_ prefixed vars
+- **VITE002**: Development-Only Code in Production - ensures proper fallbacks
+- **VITE003**: Unsafe Dynamic Imports - prevents path traversal in dynamic imports
+
+**Enhanced React Scanner**:
+- **TAILWIND001**: Dynamic className Injection - detects CSS injection via Tailwind
+
+### ✨ Polish & Improvements
+
+- Added badges to README (npm version, downloads, coverage, license)
+- Added comprehensive comparison table (Ubon vs ESLint vs npm audit vs Lovable Scanner)
+- Fixed duplicate `prepublishOnly` in package.json
+- Updated all version references from 1.1.3 to 1.2.0
+
+### 📚 Documentation
+
+- Created `docs/LOVABLE.md` - Complete Lovable integration guide with examples
+- Updated `docs/RULES.md` with 10 new rules (detailed explanations + docs links)
+- Updated `docs/FEATURES.md` with Lovable profile documentation
+- Enhanced README with Lovable-specific examples and "What's New" section
+
+### 🧪 Testing
+
+- New test suite: `lovable-scanner.test.ts` (20 tests, 100% coverage for all 6 rules)
+- New test suite: `vite-scanner.test.ts` (18 tests, ~78% coverage for all 3 rules)
+- Enhanced test suite: `react-security-scanner.test.ts` (17 tests, ~94% coverage)
+- Overall test coverage: ~47% → ~70%
+- All 88 tests passing
+
+### 🎯 Target Audience
+
+This release is specifically designed for developers using:
+- **Lovable.dev** (primary focus)
+- Cursor, Windsurf, Replit (also supported)
+- Any React + Vite + Supabase stack
+
+### Breaking Changes
+
+None. All changes are additive and backward-compatible.
+
+### Notes
+
+- Lovable profile complements (not replaces) Lovable's built-in scanner
+- Auto-detection works seamlessly - just run `ubon scan`
+- Dashboard feature deferred to v1.3.0
+
 ## 1.1.6 — 2025-09-18
 
 ### Fixed

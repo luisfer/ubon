@@ -30,7 +30,7 @@ Options:
   --git-changed-since <ref>   Only scan files changed since Git ref
   --fix-dry-run               Print auto-fix plan (no writes)
   --apply-fixes               Apply available safe auto-fixes
-  --profile <name>            auto|react|next|python (default: auto)
+  --profile <name>            auto|lovable|react|next|vue|python|rails (default: auto)
   --git-history-depth <n>     Scan last N commits for leaked secrets
   --fast                      Skip OSV and link/crawler checks for speed
   --crawl-internal            Crawl internal links with a headless browser
@@ -125,7 +125,7 @@ Options:
   --git-changed-since <ref>   Only scan files changed since Git ref
   --fix-dry-run               Print auto-fix plan (no writes)
   --apply-fixes               Apply available safe auto-fixes
-  --profile <name>            auto|react|next|python (default: auto)
+  --profile <name>            auto|lovable|react|next|vue|python|rails (default: auto)
   --git-history-depth <n>     Scan last N commits for leaked secrets
   --fast                      Skip OSV and link/crawler checks for speed
   --crawl-internal            Crawl internal links with a headless browser
@@ -277,7 +277,7 @@ ubon init --profile auto
 ```
 
 Options:
-- `--profile auto|react|next|python|vue` – override auto-detection
+- `--profile auto|lovable|react|next|vue|python|rails` – override auto-detection
 - `--interactive` – Walk through issues interactively with explanations and fix options
 
 Next.js monorepo example (profile + baseline):

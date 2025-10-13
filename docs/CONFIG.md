@@ -20,7 +20,7 @@ CLI flags override config values.
   "useBaseline": true,
   "changedFiles": ["src/a.ts"],
   "gitChangedSince": "origin/main",
-  "profile": "auto",                // auto|react|next|python
+  "profile": "auto",                // auto|lovable|react|next|vue|python|rails
   "gitHistoryDepth": 20
 }
 ```
@@ -30,4 +30,28 @@ Precedence:
 2) ubon.config.(json|js)
 3) package.json: "ubon"
 
+### Example: Lovable App Configuration
+
+For Lovable-generated apps (React + Vite + Supabase):
+
+```json
+{
+  "profile": "lovable",
+  "minConfidence": 0.8,
+  "failOn": "error",
+  "disabledRules": ["DEV001", "DEV002"],  // Allow TODOs in development
+  "enabledRules": ["LOVABLE*", "VITE*", "TAILWIND001"],  // Focus on Lovable-specific rules
+  "useBaseline": true
+}
+```
+
+Or let auto-detection handle it:
+
+```json
+{
+  "profile": "auto",  // Auto-detects Lovable apps
+  "minConfidence": 0.85,
+  "failOn": "warning"
+}
+```
 

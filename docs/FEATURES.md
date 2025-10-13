@@ -36,7 +36,18 @@
 
 ### Profiles
 
-- auto (detects), react/next, vue, python, rails (experimental)
+- **auto** (detects project type automatically)
+- **lovable** (React + Vite + Supabase + Tailwind - auto-detected)
+  - 6 Supabase security rules (RLS, keys, auth, SQL injection, policies, storage)
+  - 3 Vite security rules (env vars, dev-only code, unsafe imports)
+  - 1 Tailwind security rule (className injection)
+  - Auto-detection checks for: vite.config + @supabase/supabase-js + React + Tailwind
+- **react/next** (React and Next.js applications)
+- **vue** (Vue.js applications)
+- **python** (Python/Flask/Django applications)
+- **rails** (Ruby on Rails - experimental)
+
+See `docs/LOVABLE.md` for Lovable-specific integration guide.
 
 ### Outputs and Integration
 
