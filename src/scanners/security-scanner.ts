@@ -1,160 +1,45 @@
 import { glob } from 'glob';
 import { readFileSync } from 'fs';
 import { Scanner, ScanResult, ScanOptions } from '../types';
-import { RULES } from '../types/rules';
+import { RULES, getRule } from '../rules';
 import { extractQuotedLiterals, shannonEntropy } from '../utils/entropy';
 import { ResultCache } from '../utils/result-cache';
 
 export class SecurityScanner implements Scanner {
   name = 'Security Scanner';
 
-  private readonly patterns = [
-    // API Keys and Secrets
-    {
-      ruleId: 'SEC001',
-      confidence: 0.9,
-      pattern: /(['"`])(?:sk-|pk_test_|pk_live_|rk_live_|rk_test_).+?\1/gi,
-      message: 'Potential API key or secret token exposed',
-      severity: 'high' as const,
-      fix: 'Move sensitive keys to environment variables'
-    },
-    // Supabase specific patterns
-    {
-      ruleId: 'SEC002',
-      confidence: 0.8,
-      pattern: /(['"`])https:\/\/[a-zA-Z0-9]+\.supabase\.co\1/gi,
-      message: 'Supabase URL hardcoded (should use env var)',
-      severity: 'medium' as const,
-      fix: 'Use NEXT_PUBLIC_SUPABASE_URL environment variable'
-    },
-    {
-      ruleId: 'SEC003',
-      confidence: 0.95,
-      pattern: /(['"`])eyJ[A-Za-z0-9_-]*\.[A-Za-z0-9_-]*\.[A-Za-z0-9_-]*\1/gi,
-      message: 'Supabase anon key hardcoded (JWT token pattern)',
-      severity: 'high' as const,
-      fix: 'Use NEXT_PUBLIC_SUPABASE_ANON_KEY environment variable'
-    },
-    {
-      ruleId: 'SEC004',
-      confidence: 0.8,
-      pattern: /supabaseUrl\s*[:=]\s*['"`][^'"`]+['"`]/gi,
-      message: 'Supabase URL hardcoded in variable',
-      severity: 'medium' as const,
-      fix: 'Use process.env.NEXT_PUBLIC_SUPABASE_URL'
-    },
-    {
-      ruleId: 'SEC005',
-      confidence: 0.9,
-      pattern: /supabaseKey\s*[:=]\s*['"`][^'"`]+['"`]/gi,
-      message: 'Supabase key hardcoded in variable',
-      severity: 'high' as const,
-      fix: 'Use process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY'
-    },
-    // Database credentials
-    {
-      ruleId: 'SEC006',
-      confidence: 0.85,
-      pattern: /password\s*[:=]\s*['"`][^'"`]+['"`]/gi,
-      message: 'Hardcoded password detected',
-      severity: 'high' as const,
-      fix: 'Use environment variables for passwords'
-    },
-    {
-      ruleId: 'SEC007',
-      confidence: 0.85,
-      pattern: /DATABASE_URL\s*[:=]\s*['"`][^'"`]+['"`]/gi,
-      message: 'Database URL hardcoded',
-      severity: 'high' as const,
-      fix: 'Use environment variable for database connection'
-    },
-    // Environment variable fallbacks
-    {
-      ruleId: 'SEC008',
-      confidence: 0.75,
-      pattern: /process\.env\.\w+\s*\|\|\s*['"`][^'"`]+['"`]/gi,
-      message: 'Environment variable with hardcoded fallback',
-      severity: 'medium' as const,
-      fix: 'Remove hardcoded fallback values'
-    },
-    // Common service keys
-    {
-      ruleId: 'SEC009',
-      confidence: 0.95,
-      pattern: /(['"`])(?:AKIA[0-9A-Z]{16})\1/gi,
-      message: 'AWS Access Key ID exposed',
-      severity: 'high' as const,
-      fix: 'Move AWS credentials to environment variables'
-    },
-    {
-      ruleId: 'SEC010',
-      confidence: 0.9,
-      pattern: /(['"`])(?:ya29\.|1\/\/[0-9A-Za-z_-]+)\1/gi,
-      message: 'Google OAuth token exposed',
-      severity: 'high' as const,
-      fix: 'Use secure token storage'
-    },
-    {
-      ruleId: 'SEC011',
-      confidence: 0.95,
-      pattern: /(['"`])(?:gh[pousr]_[A-Za-z0-9_]{36,})\1/gi,
-      message: 'GitHub token exposed',
-      severity: 'high' as const,
-      fix: 'Use environment variables for GitHub tokens'
-    },
-    // Stripe keys
-    {
-      ruleId: 'SEC012',
-      confidence: 0.95,
-      pattern: /(['"`])(?:sk_live_[a-zA-Z0-9]{99})\1/gi,
-      message: 'Stripe live secret key exposed',
-      severity: 'high' as const,
-      fix: 'CRITICAL: Move Stripe live keys to secure environment'
-    },
-    {
-      ruleId: 'SEC013',
-      confidence: 0.9,
-      pattern: /(['"`])(?:pk_live_[a-zA-Z0-9]{99})\1/gi,
-      message: 'Stripe live publishable key exposed',
-      severity: 'medium' as const,
-      fix: 'Use environment variable for Stripe keys'
-    },
-    // OpenAI / AI service keys
-    {
-      ruleId: 'SEC014',
-      confidence: 0.95,
-      pattern: /(['"`])(?:sk-[a-zA-Z0-9]{48})\1/gi,
-      message: 'OpenAI API key exposed',
-      severity: 'high' as const,
-      fix: 'Use OPENAI_API_KEY environment variable'
-    },
-    // Console logging
-    {
-      ruleId: 'SEC015',
-      confidence: 0.6,
-      pattern: /console\.(log|debug|info|warn|error)\(/gi,
-      message: 'Console statement found (may leak sensitive info)',
-      severity: 'low' as const,
-      fix: 'Remove console statements before production'
-    },
-    // Security risks
-    {
-      ruleId: 'SEC016',
-      confidence: 0.9,
-      pattern: /eval\s*\(/gi,
-      message: 'Use of eval() detected (security risk)',
-      severity: 'high' as const,
-      fix: 'Replace eval() with safer alternatives'
-    },
-    {
-      ruleId: 'SEC017',
-      confidence: 0.8,
-      pattern: /dangerouslySetInnerHTML/gi,
-      message: 'dangerouslySetInnerHTML usage (XSS risk)',
-      severity: 'medium' as const,
-      fix: 'Sanitize HTML content or use safer alternatives'
-    }
+  // Rule IDs that have been migrated to modular rules with patterns
+  private readonly modularRuleIds = [
+    'SEC001', 'SEC002', 'SEC003', 'SEC004', 'SEC005', 'SEC006', 'SEC007',
+    'SEC008', 'SEC009', 'SEC010', 'SEC011', 'SEC012', 'SEC013', 'SEC014',
+    'SEC015', 'SEC016', 'SEC017'
   ];
+
+  // Confidence reasons for each rule
+  private readonly confidenceReasons: Record<string, string> = {
+    'SEC001': 'Pattern matches known API key prefixes (sk-, pk_test_, etc.)',
+    'SEC002': 'URL matches Supabase project pattern',
+    'SEC003': 'String matches JWT token structure (three base64 segments)',
+    'SEC004': 'Pattern matches Firebase config keys',
+    'SEC005': 'Pattern matches Stripe key prefixes',
+    'SEC006': 'Variable name contains "password" with non-empty string value',
+    'SEC007': 'Pattern matches private key header',
+    'SEC008': 'Environment variable with hardcoded fallback string',
+    'SEC009': 'Pattern matches AWS Access Key ID format (AKIA...)',
+    'SEC010': 'Pattern matches Slack webhook URL structure',
+    'SEC011': 'Pattern matches GitHub token prefixes (ghp_, gho_, etc.)',
+    'SEC012': 'Pattern matches Twilio Account SID format',
+    'SEC013': 'Pattern matches SendGrid API key format',
+    'SEC014': 'Pattern matches OpenAI API key format (sk-...)',
+    'SEC015': 'Console statement detected in production code',
+    'SEC016': 'Direct eval() call detected - code execution risk',
+    'SEC017': 'dangerouslySetInnerHTML usage - XSS risk if content unsanitized',
+    'SEC018': 'High Shannon entropy suggests random/secret data',
+    'NEXT201': 'Missing 404/not-found page in Next.js app',
+    'NEXT202': 'Missing error boundary in Next.js app',
+    'JSNET001': 'HTTP request without timeout can hang indefinitely',
+    'COOKIE001': 'Cookie missing security attributes (HttpOnly, Secure, SameSite)'
+  };
 
   async scan(options: ScanOptions): Promise<ScanResult[]> {
     const results: ScanResult[] = [];
@@ -163,9 +48,12 @@ export class SecurityScanner implements Scanner {
       cwd: options.directory,
       ignore: ['node_modules/**', 'dist/**', 'build/**', '.next/**', 'examples/**']
     });
-    const signature = `sec:1:profile:${options.profile || 'auto'}`;
+    const signature = `sec:2:profile:${options.profile || 'auto'}`;
     const resultCache = options.noResultCache ? null : new ResultCache(options.directory, signature);
     let processed = 0;
+
+    // Load modular rules
+    const modularRules = this.modularRuleIds.map(id => getRule(id)).filter(Boolean);
 
     // Project-level Next.js structure presence flags (for P5 experimental rules)
     const hasAppDir = files.some(f => /^app\//.test(f));
@@ -196,95 +84,102 @@ export class SecurityScanner implements Scanner {
         const lines = content.split('\n');
         processed++;
         if (options.verbose && processed % 25 === 0) {
-          // Periodic progress indicator for large repos
           console.log('🪷', `Scanning... (${processed}/${files.length} files)`);
         }
-        const isAppRouter = /(^|\/)app\//.test(file) || hasAppDir;
+        const fileExt = file.split('.').pop()?.toLowerCase() || '';
 
         let ubonDisableAll = false;
         lines.forEach((line, index) => {
-          // Inline suppressions
           if (/ubon-disable-file/.test(line)) { ubonDisableAll = true; }
-          if (ubonDisableAll) return;
-          const disableNext = /ubon-disable-next-line\s+([A-Z0-9_,\s-]+)/.exec(line);
-          const prevDisable = index > 0 ? /ubon-disable-next-line\s+([A-Z0-9_,\s-]+)/.exec(lines[index - 1]) : null;
-          this.patterns.forEach((patternDef, patternIndex) => {
-            const { pattern, message, severity, fix } = patternDef as any;
-            const defaultConfidenceBySeverity: Record<'high' | 'medium' | 'low', number> = {
-              high: 0.9,
-              medium: 0.8,
-              low: 0.6
-            };
-            const ruleId: string = (patternDef as any).ruleId || `SEC${String(patternIndex + 1).padStart(3, '0')}`;
-            const sev: 'high' | 'medium' | 'low' = severity as 'high' | 'medium' | 'low';
-            const confidence: number = (patternDef as any).confidence ?? defaultConfidenceBySeverity[sev];
-            // Skip lines that are comments or inside pattern definitions
-            if (line.trim().startsWith('//') || 
-                line.trim().startsWith('*') ||
-                line.includes('pattern:') ||
-                line.includes('message:') ||
-                line.includes('severity:') ||
-                line.includes('fix:') ||
-                file.includes('security-scanner.ts')) {
-              return;
-            }
-            
-            // Skip console logs in logger files (intentional)
-            if (message.includes('Console statement') && file.includes('logger')) {
-              return;
-            }
-            
-            const m = line.match(pattern);
-            if (m) {
-              const disabledList = new Set<string>([
-                ...(disableNext && disableNext[1] ? disableNext[1].split(/[,\s]+/).filter(Boolean) : []),
-                ...(prevDisable && prevDisable[1] ? prevDisable[1].split(/[,\s]+/).filter(Boolean) : [])
-              ]);
-              if (disabledList.has(ruleId)) {
-                return;
-              }
-              const fixEdits = [] as any[];
-              if (ruleId === 'SEC008') {
-                // Remove hardcoded fallback: process.env.X || 'fallback' -> process.env.X
-                const replacement = line.replace(/(process\.env\.\w+)\s*\|\|\s*['"][^'"`]+['"]/g, '$1');
-                if (replacement !== line) {
-                  fixEdits.push({
+        });
+        if (ubonDisableAll) continue;
+
+        // Run modular rules with patterns
+        for (const rule of modularRules) {
+          if (!rule) continue;
+          if (rule.impl.fileTypes && !rule.impl.fileTypes.includes(fileExt)) continue;
+          if (rule.impl.skipPatterns?.some(p => p.test(file))) continue;
+
+          if (rule.impl.patterns) {
+            for (const pattern of rule.impl.patterns) {
+              lines.forEach((line, index) => {
+                // Skip comments and pattern definitions
+                if (line.trim().startsWith('//') || 
+                    line.trim().startsWith('*') ||
+                    line.includes('pattern:') ||
+                    line.includes('message:') ||
+                    line.includes('severity:') ||
+                    line.includes('fix:') ||
+                    file.includes('security-scanner.ts') ||
+                    file.includes('/rules/security/')) {
+                  return;
+                }
+
+                // Skip console logs in logger files (intentional)
+                if (pattern.ruleId === 'SEC015' && file.includes('logger')) {
+                  return;
+                }
+
+                // Check inline suppressions
+                const disableNext = /ubon-disable-next-line\s+([A-Z0-9_,\s-]+)/.exec(line);
+                const prevDisable = index > 0 ? /ubon-disable-next-line\s+([A-Z0-9_,\s-]+)/.exec(lines[index - 1]) : null;
+                const disabledList = new Set<string>([
+                  ...(disableNext && disableNext[1] ? disableNext[1].split(/[,\s]+/).filter(Boolean) : []),
+                  ...(prevDisable && prevDisable[1] ? prevDisable[1].split(/[,\s]+/).filter(Boolean) : [])
+                ]);
+                if (disabledList.has(pattern.ruleId)) return;
+
+                const m = line.match(pattern.pattern);
+                if (m) {
+                  const fixEdits: any[] = [];
+                  
+                  // Auto-fix for SEC008: Remove hardcoded fallback
+                  if (pattern.ruleId === 'SEC008') {
+                    const replacement = line.replace(/(process\.env\.\w+)\s*\|\|\s*['"][^'"`]+['"]/g, '$1');
+                    if (replacement !== line) {
+                      fixEdits.push({
+                        file,
+                        startLine: index + 1,
+                        startColumn: 1,
+                        endLine: index + 1,
+                        endColumn: Math.max(1, line.length),
+                        replacement
+                      });
+                    }
+                  }
+                  
+                  // Auto-fix for SEC015: Remove console statement
+                  if (pattern.ruleId === 'SEC015') {
+                    fixEdits.push({
+                      file,
+                      startLine: index + 1,
+                      startColumn: 1,
+                      endLine: index + 1,
+                      endColumn: Math.max(1, line.length),
+                      replacement: ''
+                    });
+                  }
+
+                  results.push({
+                    type: pattern.severity === 'high' ? 'error' : 'warning',
+                    category: 'security',
+                    message: pattern.message,
                     file,
-                    startLine: index + 1,
-                    startColumn: 1,
-                    endLine: index + 1,
-                    endColumn: Math.max(1, line.length),
-                    replacement
+                    line: index + 1,
+                    range: { startLine: index + 1, startColumn: 1, endLine: index + 1, endColumn: Math.max(1, line.length) },
+                    match: m[0]?.slice(0, 200),
+                    severity: pattern.severity,
+                    ruleId: pattern.ruleId,
+                    confidence: pattern.confidence,
+                    confidenceReason: this.confidenceReasons[pattern.ruleId] || 'Pattern match detected',
+                    fix: pattern.fix,
+                    ...(fixEdits.length ? { fixEdits } : {})
                   });
                 }
-              }
-              if (ruleId === 'SEC015') {
-                fixEdits.push({
-                  file,
-                  startLine: index + 1,
-                  startColumn: 1,
-                  endLine: index + 1,
-                  endColumn: Math.max(1, line.length),
-                  replacement: ''
-                });
-              }
-              results.push({
-                type: severity === 'high' ? 'error' : 'warning',
-                category: 'security',
-                message,
-                file,
-                line: index + 1,
-                range: { startLine: index + 1, startColumn: 1, endLine: index + 1, endColumn: Math.max(1, line.length) },
-                match: m[0]?.slice(0, 200),
-                severity,
-                ruleId,
-                confidence,
-                fix,
-                ...(fixEdits.length ? { fixEdits } : {})
               });
             }
-          });
-        });
+          }
+        }
 
         // Project-level Next.js structure checks (emit once per project)
         if (/^(pages|app)\//.test(file)) {
@@ -292,11 +187,11 @@ export class SecurityScanner implements Scanner {
           if (!emittedP5_404) {
             if (hasAppDir && !hasNotFoundApp) {
               const meta = RULES.NEXT201;
-              results.push({ type: 'warning', category: meta.category, message: meta.message, file, severity: meta.severity, ruleId: meta.id, confidence: 0.5, fix: meta.fix });
+              results.push({ type: 'warning', category: meta.category, message: meta.message, file, severity: meta.severity, ruleId: meta.id, confidence: 0.5, confidenceReason: this.confidenceReasons['NEXT201'], fix: meta.fix });
               emittedP5_404 = true;
             } else if (hasPagesDir && !has404Pages) {
               const meta = RULES.NEXT201;
-              results.push({ type: 'warning', category: meta.category, message: meta.message, file, severity: meta.severity, ruleId: meta.id, confidence: 0.5, fix: meta.fix });
+              results.push({ type: 'warning', category: meta.category, message: meta.message, file, severity: meta.severity, ruleId: meta.id, confidence: 0.5, confidenceReason: this.confidenceReasons['NEXT201'], fix: meta.fix });
               emittedP5_404 = true;
             }
           }
@@ -304,21 +199,22 @@ export class SecurityScanner implements Scanner {
           if (!emittedP5_error) {
             if (hasAppDir && !hasErrorApp) {
               const meta = RULES.NEXT202;
-              results.push({ type: 'warning', category: meta.category, message: meta.message, file, severity: meta.severity, ruleId: meta.id, confidence: 0.5, fix: meta.fix });
+              results.push({ type: 'warning', category: meta.category, message: meta.message, file, severity: meta.severity, ruleId: meta.id, confidence: 0.5, confidenceReason: this.confidenceReasons['NEXT202'], fix: meta.fix });
               emittedP5_error = true;
             } else if (hasPagesDir && !hasErrorPages) {
               const meta = RULES.NEXT202;
-              results.push({ type: 'warning', category: meta.category, message: meta.message, file, severity: meta.severity, ruleId: meta.id, confidence: 0.5, fix: meta.fix });
+              results.push({ type: 'warning', category: meta.category, message: meta.message, file, severity: meta.severity, ruleId: meta.id, confidence: 0.5, confidenceReason: this.confidenceReasons['NEXT202'], fix: meta.fix });
               emittedP5_error = true;
             }
           }
           // _document for Pages Router only when code hints custom head/script usage
           if (!emittedP5_document && hasPagesDir && /from\s+['"]next\/(head|script)['"]/.test(content) && !hasDocumentPages) {
             const meta = RULES.NEXT203;
-            results.push({ type: 'warning', category: meta.category, message: meta.message, file, severity: meta.severity, ruleId: meta.id, confidence: 0.5, fix: meta.fix });
+            results.push({ type: 'warning', category: meta.category, message: meta.message, file, severity: meta.severity, ruleId: meta.id, confidence: 0.5, confidenceReason: 'Custom head/script usage detected without _document.tsx', fix: meta.fix });
             emittedP5_document = true;
           }
         }
+
         // JS HTTP timeout/retry policy checks
         lines.forEach((line, index) => {
           // axios without timeout
@@ -335,6 +231,7 @@ export class SecurityScanner implements Scanner {
               ruleId: meta.id,
               match: line.slice(0, 200),
               confidence: 0.7,
+              confidenceReason: 'axios call without timeout option - requests can hang indefinitely',
               fix: meta.fix
             });
           }
@@ -361,6 +258,7 @@ export class SecurityScanner implements Scanner {
               ruleId: meta.id,
               match: line.slice(0, 200),
               confidence: 0.6,
+              confidenceReason: 'fetch() without AbortController signal - lower confidence as signal may be added elsewhere',
               fix: 'Use AbortController with a timeout to cancel long fetches',
               fixEdits
             });
@@ -395,12 +293,14 @@ export class SecurityScanner implements Scanner {
                 ruleId: meta.id,
                 match: line.slice(0, 200),
                 confidence: 0.8,
+                confidenceReason: this.confidenceReasons['COOKIE001'],
                 fix: meta.fix,
                 fixEdits
               });
             }
           }
         });
+
         // Entropy-based secret detection (context-aware, reduced noise)
         lines.forEach((line, index) => {
           const toks = extractQuotedLiterals(line).filter(s => s.length >= 16);
@@ -427,6 +327,7 @@ export class SecurityScanner implements Scanner {
             if (!looksLikeSecret && !isDotEnvFile) continue;
 
             const meta = RULES.SEC018;
+            const entropyConfidence = looksLikeSecret ? 0.9 : 0.8;
             results.push({
               type: meta.severity === 'high' ? 'error' : 'warning',
               category: meta.category,
@@ -437,7 +338,10 @@ export class SecurityScanner implements Scanner {
               severity: meta.severity,
               ruleId: meta.id,
               match: tok.slice(0, 200),
-              confidence: looksLikeSecret ? 0.9 : 0.8,
+              confidence: entropyConfidence,
+              confidenceReason: looksLikeSecret 
+                ? 'High entropy + matches known secret pattern (sk-, AKIA, etc.)' 
+                : 'High entropy string in .env file - likely a secret',
               fix: meta.fix
             });
           }
@@ -471,6 +375,7 @@ export class SecurityScanner implements Scanner {
               severity: meta.severity,
               ruleId: meta.id,
               confidence: 0.8,
+              confidenceReason: 'Console statement contains string matching secret pattern',
               fix: meta.fix,
               fixEdits
             });
@@ -505,10 +410,8 @@ export class SecurityScanner implements Scanner {
         }
 
         // Experimental P5: Server -> Client secret bleed (NEXT210)
-        // Heuristic: in Pages Router SSR functions, detect reading env/secret var and returning it via props
         if (/\bexport\s+async\s+function\s+get(ServerSideProps|StaticProps)\b|\bexport\s+const\s+get(ServerSideProps|StaticProps)\b/.test(content)) {
           const readsSecret = /(process\.env\.(?!NEXT_PUBLIC_)[A-Z0-9_]+|secret|apiKey|token)/.test(content);
-          // Roughly detect props return shape with suspect keys
           const returnsPropsWithSensitive = /return\s*\{\s*props\s*:\s*\{[\s\S]*\b(secret|token|apiKey|password|auth|key)\b/.test(content);
           if (readsSecret && returnsPropsWithSensitive) {
             const meta = RULES.NEXT210;
@@ -698,11 +601,14 @@ export class SecurityScanner implements Scanner {
             });
           }
         });
+
         // store per-file results for this file only
         const fileResults = results.filter(r => r.file === file);
         resultCache?.set(file, contentHash, fileResults);
       } catch (error) {
-        // Skip files that can't be read
+        if (options.verbose) {
+          console.error(`🪷 SecurityScanner: failed to read ${file}:`, error);
+        }
       }
     }
     resultCache?.save();

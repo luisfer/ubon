@@ -1,5 +1,40 @@
 ## Rules Glossary
 
+### Confidence Scale
+
+Each finding includes a confidence score (0.0-1.0) indicating how likely it is to be a true positive:
+
+| Score | Level | Meaning |
+|-------|-------|---------|
+| 0.9-1.0 | Very High | AST-confirmed or exact pattern match. Almost certainly a real issue. |
+| 0.8-0.9 | High | Strong pattern match with context. Very likely a real issue. |
+| 0.7-0.8 | Medium | Pattern match that may need verification. Likely a real issue. |
+| 0.5-0.7 | Lower | Heuristic detection. Review recommended before acting. |
+
+Use `--min-confidence 0.8` to filter out lower-confidence findings, or `--detailed` to see all findings including noisy ones.
+
+Each finding also includes a `confidenceReason` field explaining why that confidence level was assigned.
+
+---
+
+### Vibe Code Detection (v2.0.0)
+
+Rules for detecting common AI-generated code issues:
+
+- VIBE001: Import from non-existent package (possible hallucination) — detects imports from modules not in package.json
+- VIBE002: Repeated code block detected (possible copy-paste artifact) — identifies duplicated 5+ line blocks
+- VIBE003: Incomplete implementation detected (placeholder or stub) — catches "Not implemented" errors, placeholder strings, TODO stubs
+- VIBE004: Exported symbol appears unused in the codebase — finds exports never imported elsewhere
+
+### Development
+
+Rules for catching common development issues:
+
+- DEV001: TODO/FIXME comments detected
+- DEV002: "Not implemented" stubs and placeholder functions
+- DEV003: Placeholder URLs in API endpoints (`localhost`, `example.com`)
+- DEV004: Hardcoded mock/example data in responses
+- DEV005: Empty returns or unimplemented functions
 
 ### Security (JS/TS)
 - COOKIE001: Set-Cookie missing HttpOnly/Secure/SameSite ([docs](https://owasp.org/www-community/controls/SecureCookieAttributes))

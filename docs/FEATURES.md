@@ -4,6 +4,7 @@
 
 | Area | Examples | Notes |
 |---|---|---|
+| **Vibe Code Detection (v2.0)** | Hallucinated imports, copy-paste artifacts, incomplete implementations, orphaned exports | VIBE001–004 |
 | Security (JS/TS/Next) | Secrets (OpenAI/Stripe/AWS/GitHub), Supabase URL/keys, eval/innerHTML, React injection, JWT/cookies, open redirects, CORS, client env leaks | SEC001–SEC019, NEXT007–NEXT011, COOKIE001–004, LOG001, JSNET001 |
 | Next.js Routing/Structure (experimental) | missing 404/error pages, method validation, external router.push, server→client secret bleed | NEXT201–NEXT210 (opt-in via enable/disable) |
 | Security (Python) | exec/eval, subprocess(shell=True), yaml.load, pickle, requests verify=False, DEBUG=True | PYSEC001–PYSEC010, PYNET001 |
@@ -17,6 +18,8 @@
 ### Developer Experience
 
 - **Interactive Mode**: `--interactive` for step-by-step issue walkthrough with explanations and fix options
+- **Rule Explorer**: `ubon explain <rule>` shows detailed info, examples, and suppression syntax for any rule
+- **Security Posture Score**: 0-100 score with visual bar showing overall codebase health
 - **Beautiful CLI**: Lotus-inspired severity bands with enhanced visual triage (`🪷` branding throughout)
 - **Smart Contextual Guidance**: Post-scan intelligent suggestions based on results analysis (critical issues, fix patterns, next steps)
 - **Integration Guide**: `ubon guide` command displays comprehensive developer and AI agent guide location
@@ -24,11 +27,12 @@
 - Result organization: `--group-by file|rule|severity|category`, `--min-severity`, `--max-issues`
 - Compact output: `--format table` for skimmable triage
 - Deep context and explanations: `--show-context`, `--explain`
-- Confidence scores: `--show-confidence` (or `--verbose`)
+- Confidence scores with reasons: `--show-confidence` (each finding includes `confidenceReason`)
 - Inline suppressions with reasons: `// ubon-disable-next-line RULEID [reason]`
 - Baselines: `--update-baseline`, `--baseline`, `--no-baseline`
 - Fast loops: `--watch --fast`, `--git-changed-since`, `--changed-files`
 - Safe autofixes: A11Y (alts/roles), cookie flags, secret-log redaction, env fallback cleanup, fetch AbortController signal
+- Fix preview: `--preview-fixes` shows diff-like preview before applying changes
 - OSV caching with TTL: `--clear-cache`, `--no-cache`, `ubon cache --info|--clear|--cleanup`
 - Result cache (per-file): speeds up repeat scans; disable with `--no-result-cache`
 - CI gates: `--fail-on`, `--base-sha`, SARIF output

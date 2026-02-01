@@ -2,21 +2,22 @@ import { Rule, RuleMeta } from './types';
 import { securityRules } from './security';
 import { accessibilityRules } from './accessibility';
 import { developmentRules } from './development';
+import { linksRules } from './links';
 import { lovableRules } from './lovable';
 import { viteRules } from './vite';
 import { reactRules } from './react';
-
-// Import existing rules for backward compatibility
-import { RULES as LEGACY_RULES } from '../types/rules';
+import { vibeRules } from './vibe';
 
 // Combine all modular rules from different categories
 const allRuleModules = {
   ...securityRules,
   ...accessibilityRules,
   ...developmentRules,
+  ...linksRules,
   ...lovableRules,
   ...viteRules,
-  ...reactRules
+  ...reactRules,
+  ...vibeRules
 };
 
 // Create rules registry (compatible with existing RULES interface)
@@ -28,21 +29,6 @@ for (const [id, rule] of Object.entries(allRuleModules)) {
   const typedRule = rule as Rule;
   RULES[id] = typedRule.meta;
   RULE_IMPLEMENTATIONS[id] = typedRule;
-}
-
-// Add legacy rules that haven't been migrated yet
-for (const [id, meta] of Object.entries(LEGACY_RULES)) {
-  if (!RULES[id]) {
-    RULES[id] = meta;
-    // Create a minimal rule implementation for legacy rules
-    RULE_IMPLEMENTATIONS[id] = {
-      meta,
-      impl: {
-        // Legacy rules will use the existing scanner logic
-        fileTypes: ['js', 'jsx', 'ts', 'tsx', 'vue', 'py', 'rb', 'html', 'env']
-      }
-    };
-  }
 }
 
 // Helper functions

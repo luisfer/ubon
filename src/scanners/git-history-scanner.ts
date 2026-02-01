@@ -1,7 +1,7 @@
 import { Scanner, ScanResult, ScanOptions } from '../types';
 import { getRecentCommitHashes } from '../utils/git';
 import { execSync } from 'child_process';
-import { RULES } from '../types/rules';
+import { RULES } from '../rules';
 import { shannonEntropy } from '../utils/entropy';
 
 export class GitHistoryScanner implements Scanner {

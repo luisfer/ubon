@@ -1,5 +1,5 @@
 import { ScanResult } from '../types';
-import { RULES } from '../types/rules';
+import { RULES } from '../rules';
 import pkg from '../../package.json';
 
 interface SarifLog {

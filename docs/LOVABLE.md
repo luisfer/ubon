@@ -314,7 +314,7 @@ const { data } = await supabase.from('public_posts').select('*');
 
 Or create a `.ubon.baseline.json`:
 ```bash
-ubon scan --create-baseline
+ubon check --update-baseline
 ```
 
 ## Getting Help
@@ -325,5 +325,5 @@ ubon scan --create-baseline
 
 ## Changelog
 
-See `CHANGELOG.md` for v1.2.0 release notes.
+See `CHANGELOG.md` for release notes.
 

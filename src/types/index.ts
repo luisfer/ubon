@@ -8,6 +8,7 @@ export interface ScanResult {
   severity: 'high' | 'medium' | 'low';
   ruleId: string;
   confidence: number; // 0.0 - 1.0 likelihood this is a true issue
+  confidenceReason?: string; // explanation of why this confidence level was assigned
   match?: string; // the matched snippet used for fingerprinting
   fingerprint?: string; // Stable fingerprint for suppression/baseline
   fix?: string;

@@ -1,5 +1,5 @@
 import { Scanner, ScanOptions, ScanResult } from '../types';
-import { RULES } from '../types/rules';
+import { RULES } from '../rules';
 
 export class InternalCrawler implements Scanner {
   name = 'Internal Crawler';

@@ -29,6 +29,7 @@ Options:
   --changed-files <...>       Only scan these files (relative paths)
   --git-changed-since <ref>   Only scan files changed since Git ref
   --fix-dry-run               Print auto-fix plan (no writes)
+  --preview-fixes             Show diff-like preview of fixes without applying
   --apply-fixes               Apply available safe auto-fixes
   --profile <name>            auto|lovable|react|next|vue|python|rails (default: auto)
   --git-history-depth <n>     Scan last N commits for leaked secrets
@@ -47,6 +48,8 @@ Options:
   --ai-friendly               AI preset: json + context + explain + severity + cap 15
   --pr-comment                Output Markdown summary for PR comments
   --interactive               Walk through issues interactively with explanations and fix options
+  --watch                     Re-run scan on file changes
+  --create-pr                 Create a PR with auto-fixes applied
   --no-result-cache           Disable per-file result cache (skip reuse between runs)
   --min-severity <level>      Minimum severity to include: low|medium|high
   --max-issues <n>            Limit output to N most important issues
@@ -267,6 +270,30 @@ ubon guide
 ```
 
 Displays the location of the comprehensive integration guide (GUIDE.md) with examples, troubleshooting, and complete rule catalog for developers and AI agents.
+
+### explain
+
+Show detailed information about a specific rule.
+
+```
+ubon explain <ruleId>
+```
+
+Examples:
+
+```
+ubon explain SEC001    # API key detection
+ubon explain VIBE003   # Incomplete implementations
+ubon explain A11Y001   # Image alt attributes
+```
+
+Output includes:
+- Rule description and severity
+- Fix recommendation
+- Confidence scale explanation
+- Detection patterns (if applicable)
+- Example code that triggers the rule
+- Suppression syntax
 
 ### init
 

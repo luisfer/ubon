@@ -24,6 +24,7 @@ export interface DetectionResult {
   line: number;
   match?: string;
   confidence?: number;
+  confidenceReason?: string;
   fixEdits?: Array<{
     file: string;
     startLine: number;

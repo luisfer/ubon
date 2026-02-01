@@ -1,7 +1,7 @@
 {
   "name": "ubon",
-  "version": "1.2.0",
-  "description": "Security scanner for AI-generated apps (React, Next.js, Vite, Lovable, Python). Catches hardcoded secrets, Supabase misconfigurations, accessibility issues, and vulnerabilities that traditional linters miss.",
+  "version": "2.0.0",
+  "description": "Security scanner for AI-generated apps (React, Next.js, Vite, Lovable, Python, Cursor). Catches hardcoded secrets, hallucinated imports, copy-paste artifacts, accessibility issues, and vulnerabilities that traditional linters miss.",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "bin": {
@@ -69,14 +69,17 @@
     "README.md",
     "GUIDE.md",
     "LICENSE",
-    "CHANGELOG.md"
+    "CHANGELOG.md",
+    "docs/CURSOR.md"
   ],
   "dependencies": {
     "chalk": "^4.1.2",
     "chokidar": "^3.6.0",
     "commander": "^11.1.0",
     "glob": "^10.3.10",
-    "typescript": "^5.3.3"
+    "typescript": "^5.3.3",
+    "vscode-languageserver": "^9.0.1",
+    "vscode-languageserver-textdocument": "^1.0.12"
   },
   "optionalDependencies": {
     "puppeteer": "^23.6.0"

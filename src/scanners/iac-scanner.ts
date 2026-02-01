@@ -1,7 +1,7 @@
 import { glob } from 'glob';
 import { readFileSync } from 'fs';
 import { Scanner, ScanOptions, ScanResult } from '../types';
-import { RULES } from '../types/rules';
+import { RULES } from '../rules';
 
 export class IacScanner implements Scanner {
   name = 'IaC Scanner';

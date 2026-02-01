@@ -2,7 +2,7 @@
 
 Start here:
 
-- **Lovable Integration Guide**: `docs/LOVABLE.md` ⭐ NEW in v1.2.0
+- **Lovable Integration Guide**: `docs/LOVABLE.md`
 - CLI reference: `docs/CLI.md`
 - Features & checks: `docs/FEATURES.md`
 - Rules glossary: `docs/RULES.md`

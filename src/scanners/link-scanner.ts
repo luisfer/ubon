@@ -1,5 +1,5 @@
 import { Scanner, ScanResult, ScanOptions } from '../types';
-import { RULES } from '../types/rules';
+import { RULES } from '../rules';
 import { glob } from 'glob';
 import { readFileSync } from 'fs';
 import https from 'https';
@@ -64,6 +64,7 @@ export class LinkScanner implements Scanner {
               severity: meta.severity,
               ruleId: meta.id,
               confidence: 0.8,
+              confidenceReason: status ? `HTTP ${status} response received` : 'Request timed out - URL may be unreachable',
               fix: meta.fix
             });
           }
@@ -73,7 +74,7 @@ export class LinkScanner implements Scanner {
     if (results.length === 0) {
       // keep the informative suggestion about puppeteer for internal crawling
       const meta = RULES.LINK001;
-      results.push({ type: 'info', category: meta.category, message: meta.message, ruleId: meta.id, severity: meta.severity, fix: meta.fix, confidence: 0.6 });
+      results.push({ type: 'info', category: meta.category, message: meta.message, ruleId: meta.id, severity: meta.severity, fix: meta.fix, confidence: 0.6, confidenceReason: 'Suggestion to add internal link checking' });
     }
     return results;
   }

@@ -1,0 +1,69 @@
+---
+description: Guidelines for developing Ubon itself
+globs: ["src/**/*.ts", "src/**/*.tsx"]
+---
+
+# Ubon Development Guidelines
+
+## Architecture
+
+- **Rules**: `src/rules/<category>/<RULEID>.ts` - Each rule is a separate file
+- **Scanners**: `src/scanners/*.ts` - Extend `BaseScanner` for new scanners
+- **CLI**: `src/cli.ts` + `src/cli/shared.ts` - Command definitions and shared logic
+- **Types**: `src/types/index.ts` - Core interfaces
+
+## Adding a New Rule
+
+1. Create `src/rules/<category>/<RULEID>.ts`:
+```typescript
+import { Rule } from '../types';
+
+const rule: Rule = {
+  meta: {
+    id: 'RULEID',
+    category: 'security', // or 'development', 'accessibility'
+    severity: 'high', // 'high' | 'medium' | 'low'
+    message: 'Human-readable description',
+    fix: 'How to fix this',
+    impact: 'Why this matters'
+  },
+  impl: {
+    patterns: [{
+      ruleId: 'RULEID',
+      confidence: 0.9,
+      pattern: /your-regex/gi,
+      message: 'Same as meta.message',
+      severity: 'high',
+      fix: 'Same as meta.fix'
+    }],
+    fileTypes: ['js', 'jsx', 'ts', 'tsx']
+  }
+};
+
+export default rule;
+```
+
+2. Add to `src/rules/<category>/index.ts`
+3. Add tests to `src/__tests__/`
+
+## Code Style
+
+- No fluff in documentation or comments
+- Factual, direct messages
+- Include `confidenceReason` when confidence varies
+- Use `BaseScanner` utilities for file iteration and caching
+
+## Testing
+
+```bash
+npm test                    # Run all tests
+npm test -- --watch         # Watch mode
+npm test -- security-rules  # Run specific test file
+```
+
+## Before Committing
+
+```bash
+ubon check --focus-critical  # Self-scan for issues
+npm test                     # Ensure tests pass
+```

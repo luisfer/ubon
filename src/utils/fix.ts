@@ -12,6 +12,14 @@ export interface ApplyFixesResult {
   appliedEditCount: number;
 }
 
+export interface FixPreview {
+  file: string;
+  ruleId: string;
+  line: number;
+  before: string;
+  after: string;
+}
+
 export function collectFixEdits(results: ScanResult[]): FileEdits[] {
   const map = new Map<string, FixEdit[]>();
   for (const r of results) {
@@ -79,4 +87,89 @@ function positionToIndex(line: number, column: number, lineStarts: number[]): nu
   return lineStart + Math.max(0, column - 1);
 }
 
+/**
+ * Generate a preview of fixes without applying them
+ */
+export function previewFixes(results: ScanResult[], directory: string): FixPreview[] {
+  const previews: FixPreview[] = [];
+  const filesWithEdits = collectFixEdits(results);
 
+  for (const { filePath, edits } of filesWithEdits) {
+    try {
+      const abs = join(directory, filePath);
+      const content = readFileSync(abs, 'utf-8');
+      const lines = content.split('\n');
+
+      for (const edit of edits) {
+        const lineIndex = edit.startLine - 1;
+        if (lineIndex < 0 || lineIndex >= lines.length) continue;
+
+        const beforeLine = lines[lineIndex];
+        
+        // Find the result that generated this edit
+        const result = results.find(r => 
+          r.fixEdits?.some(e => 
+            e.file === edit.file && 
+            e.startLine === edit.startLine
+          )
+        );
+
+        // Compute what the line would look like after the fix
+        let afterLine = beforeLine;
+        if (edit.startLine === edit.endLine) {
+          // Single-line edit
+          const startCol = Math.max(0, edit.startColumn - 1);
+          const endCol = Math.max(startCol, edit.endColumn - 1);
+          afterLine = beforeLine.slice(0, startCol) + edit.replacement + beforeLine.slice(endCol);
+        } else {
+          // Multi-line edit - show just the replacement
+          afterLine = edit.replacement.split('\n')[0] || '(multi-line change)';
+        }
+
+        previews.push({
+          file: filePath,
+          ruleId: result?.ruleId || 'unknown',
+          line: edit.startLine,
+          before: beforeLine.trim(),
+          after: afterLine.trim()
+        });
+      }
+    } catch {
+      // Skip files that can't be read
+    }
+  }
+
+  return previews;
+}
+
+/**
+ * Print fix previews in a diff-like format
+ */
+export function printFixPreviews(previews: FixPreview[]): void {
+  if (previews.length === 0) {
+    console.log('No auto-fixable issues found.');
+    return;
+  }
+
+  console.log(`\n🔧 Fix Preview (${previews.length} changes)\n`);
+  console.log('The following changes would be applied:\n');
+
+  // Group by file
+  const byFile = new Map<string, FixPreview[]>();
+  for (const p of previews) {
+    if (!byFile.has(p.file)) byFile.set(p.file, []);
+    byFile.get(p.file)!.push(p);
+  }
+
+  for (const [file, filePreview] of byFile) {
+    console.log(`📄 ${file}`);
+    for (const p of filePreview) {
+      console.log(`  Line ${p.line} [${p.ruleId}]:`);
+      console.log(`  - ${p.before}`);
+      console.log(`  + ${p.after}`);
+      console.log('');
+    }
+  }
+
+  console.log('Run with --apply-fixes to apply these changes.');
+}

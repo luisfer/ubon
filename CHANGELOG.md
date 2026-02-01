@@ -1,3 +1,75 @@
+## 2.0.0 — The Vibe Code Edition — 2026-02-01
+
+### 🎯 Major: Vibe Code Detection
+
+Added comprehensive detection for common AI-generated code issues, plus architectural improvements and Cursor integration.
+
+#### New Rules: Vibe Code Detection (VIBE001-004)
+
+- **VIBE001**: Hallucinated imports — detects imports from packages not in package.json
+- **VIBE002**: Copy-paste artifacts — identifies repeated code blocks suggesting copy-paste without adaptation
+- **VIBE003**: Incomplete implementations — catches placeholder strings, "Not implemented" errors, TODO stubs
+- **VIBE004**: Orphaned exports — finds exported symbols never imported elsewhere
+
+#### New Scanner
+
+- **VibeScanner**: Cross-file analysis for AI-generated code patterns
+  - Package.json dependency validation
+  - Repeated block detection
+  - Export/import graph analysis
+
+### ✨ New Features
+
+- **Security Posture Score**: 0-100 score with visual bar in human output
+- **`--preview-fixes`**: Diff-like preview of auto-fixes before applying
+- **`confidenceReason`**: Every finding now explains its confidence level
+- **`ubon explain <rule>`**: New command to get detailed info about any rule
+- **Cursor Integration**: `docs/CURSOR.md` guide and `.cursor/rules/` for Cursor users
+- **All scanners exported**: Use any scanner programmatically via `import { VibeScanner } from 'ubon'`
+
+### 🏗️ Architecture Improvements
+
+- **Modular Security Rules**: SEC001-SEC017 migrated to individual files in `src/rules/security/`
+- **SecurityScanner Refactor**: Now uses rule registry instead of hardcoded patterns
+- **BaseScanner Caching**: Result caching utilities available to all scanners
+- **CLI Refactor**: Shared logic extracted to `src/cli/shared.ts`
+- **All scanners exported**: 15 scanners now available for programmatic use
+- **Removed dead code**: Deleted empty `src/rules/registry.ts`
+
+### 🐛 Bug Fixes
+
+- Watch mode now debounces rapid file changes to prevent overlapping scans
+- Scanners log file read errors when `--verbose` is enabled
+- `--no-result-cache` flag now available on `check` command
+- Fixed VIBE001 import detection regex for `from 'module'` syntax
+- Fixed LSP server TextDocumentSyncKind import
+
+### 📚 Documentation
+
+- `docs/CURSOR.md`: Complete Cursor integration guide
+- `.cursor/rules/ubon-development.mdc`: Cursor rules for Ubon contributors
+- Updated `docs/RULES.md` with VIBE rules and confidence scale
+- Updated `docs/CLI.md` with all flags including `--preview-fixes`, `--watch`, `explain` command
+- Documented confidence scale (0.5-1.0) with explanations
+
+### 🧪 Testing
+
+- New test suite for SEC001-SEC017 modular rules
+- Fixed regex lastIndex issues in security rules tests
+- VibeScanner test coverage
+
+### Breaking Changes
+
+None. All changes are additive and backward-compatible.
+
+### Notes
+
+- Vibe rules enabled by default in `auto` profile
+- Security posture score only appears in human output (JSON/SARIF unchanged)
+- Cursor integration is optional but recommended for AI-assisted development
+
+---
+
 ## 1.2.0 — The Lovable Edition — 2025-10-13
 
 ### 🎯 Major: Lovable App Support

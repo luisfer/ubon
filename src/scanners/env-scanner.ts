@@ -71,6 +71,7 @@ export class EnvScanner implements Scanner {
             file,
             ruleId: 'ENV001',
             confidence: 0.9,
+            confidenceReason: '.env file found but not listed in .gitignore',
             severity: 'high',
             fix: 'Add .env files to .gitignore to prevent accidental commits'
           });
@@ -90,6 +91,7 @@ export class EnvScanner implements Scanner {
                 range: { startLine: index + 1, startColumn: 1, endLine: index + 1, endColumn: Math.max(1, line.length) },
                 ruleId: `ENV${String(envIndex + 2).padStart(3, '0')}`,
                 confidence: 0.85,
+                confidenceReason: 'Pattern matches known secret format in .env file',
                 match: m[0]?.slice(0, 200),
                 severity,
                 fix
@@ -107,6 +109,7 @@ export class EnvScanner implements Scanner {
             file,
             ruleId: 'ENV005',
             confidence: 0.8,
+            confidenceReason: 'File contains supabase.co URL or JWT-like token (eyJ...)',
             severity: 'medium',
             fix: 'Ensure this .env file is not committed to version control'
           });

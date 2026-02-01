@@ -17,10 +17,11 @@ import { DevelopmentScanner } from './scanners/development-scanner';
 import { LovableSupabaseScanner } from './scanners/lovable-supabase-scanner';
 import { ViteScanner } from './scanners/vite-scanner';
 import { ReactSecurityScanner } from './scanners/react-security-scanner';
+import { VibeScanner } from './scanners/vibe-scanner';
 import { glob } from 'glob';
 import { Logger } from './utils/logger';
 import chalk from 'chalk';
-import { RULES } from './types/rules';
+import { RULES } from './rules';
 import { applySuppressions, filterSuppressedResults } from './utils/suppressions';
 
 export class UbonScan {
@@ -109,17 +110,20 @@ export class UbonScan {
     }
     const allResults: ScanResult[] = [];
 
-    // Run static file scanners
-    for (const scanner of this.scanners) {
+    // Run static file scanners in parallel
+    const scannerRuns = this.scanners.map(async (scanner) => {
       this.logger.info(`Running ${scanner.name}...`);
       try {
         const results = await scanner.scan(options);
-        allResults.push(...results);
         this.logger.success(`🪷 ${scanner.name} completed (${results.length} issues found)`);
+        return results;
       } catch (error) {
         this.logger.error(`${scanner.name} failed: ${error}`);
+        return [];
       }
-    }
+    });
+    const scannerResults = await Promise.all(scannerRuns);
+    scannerResults.forEach((results) => allResults.push(...results));
 
     // Fast mode skips link and OSV scanners
     if (!options.fast) {
@@ -193,6 +197,7 @@ export class UbonScan {
         new AstSecurityScanner(),        // AST-based analysis
         new AccessibilityScanner(),      // a11y checks
         new DevelopmentScanner(),        // TODOs, placeholders
+        new VibeScanner(),               // AI-generated code patterns
         new EnvScanner(),                // Environment variables
         new IacScanner()                 // Infrastructure as code
       ];
@@ -202,7 +207,7 @@ export class UbonScan {
 
     // vue/react/next fall through to JS scanners
     // auto/react/next default to JS scanners
-    const jsArr: any[] = [new SecurityScanner(), new AstSecurityScanner(), new AccessibilityScanner(), new DevelopmentScanner(), new EnvScanner(), new IacScanner()];
+    const jsArr: any[] = [new SecurityScanner(), new AstSecurityScanner(), new AccessibilityScanner(), new DevelopmentScanner(), new VibeScanner(), new EnvScanner(), new IacScanner()];
     if (!fast) jsArr.push(new OSVScanner());
     return jsArr;
   }
@@ -467,11 +472,63 @@ export class UbonScan {
     
     console.log(`\n${this.brand('🪷')} ${this.colorize(chalk.bold, 'Summary')}: ${this.colorize(chalk.red, errors + ' errors')}, ${this.colorize(chalk.yellow, warnings + ' warnings')}`);
     
+    // Security posture score
+    const posture = this.calculateSecurityPosture(results);
+    const postureColor = posture.score >= 80 ? chalk.green : posture.score >= 60 ? chalk.yellow : chalk.red;
+    const postureBar = this.renderPostureBar(posture.score);
+    console.log(`${this.brand('🪷')} ${this.colorize(chalk.bold, 'Security Posture')}: ${this.colorize(postureColor, posture.score + '/100')} ${postureBar}`);
+    console.log(`   ${this.colorize(chalk.gray, posture.summary)}`);
+    
     if (errors > 0) {
       this.logger.error('Critical issues found that should be fixed immediately');
     } else {
       this.logger.success('No critical issues found');
     }
+  }
+
+  private calculateSecurityPosture(results: ScanResult[]): { score: number; summary: string } {
+    // Start with perfect score, deduct based on findings
+    let score = 100;
+    
+    const securityResults = results.filter(r => r.category === 'security');
+    const highSeverity = securityResults.filter(r => r.severity === 'high').length;
+    const mediumSeverity = securityResults.filter(r => r.severity === 'medium').length;
+    const lowSeverity = securityResults.filter(r => r.severity === 'low').length;
+    
+    // Deductions: high = -15, medium = -5, low = -1
+    score -= highSeverity * 15;
+    score -= mediumSeverity * 5;
+    score -= lowSeverity * 1;
+    
+    // Cap at 0
+    score = Math.max(0, score);
+    
+    // Generate summary
+    let summary: string;
+    if (score >= 90) {
+      summary = 'Excellent! Your codebase has strong security practices.';
+    } else if (score >= 70) {
+      summary = 'Good security posture with some areas for improvement.';
+    } else if (score >= 50) {
+      summary = 'Moderate risk. Address high-severity issues first.';
+    } else if (score >= 30) {
+      summary = 'Significant security concerns. Immediate attention needed.';
+    } else {
+      summary = 'Critical security issues detected. Do not deploy until resolved.';
+    }
+    
+    return { score, summary };
+  }
+
+  private renderPostureBar(score: number): string {
+    const width = 20;
+    const filled = Math.round((score / 100) * width);
+    const empty = width - filled;
+    
+    const filledChar = this.useColor ? chalk.green('█') : '█';
+    const emptyChar = this.useColor ? chalk.gray('░') : '░';
+    
+    return `[${filledChar.repeat(filled)}${emptyChar.repeat(empty)}]`;
   }
 
   private printContextualGuidance(results: ScanResult[], options?: ScanOptions): void {
@@ -674,7 +731,7 @@ export class UbonScan {
     console.log(`├${'─'.repeat(65)}┤`);
     
     // Show "why it matters" explanation
-    const ruleMeta = require('./types/rules').RULES[result.ruleId];
+    const ruleMeta = RULES[result.ruleId];
     if (ruleMeta?.impact) {
       console.log(`│ ${this.colorize(chalk.blue, '💡 Why this matters:')} ${' '.repeat(65 - '💡 Why this matters: '.length)}│`);
       const impact = this.wrapText(ruleMeta.impact, 63);
@@ -801,6 +858,17 @@ export class UbonScan {
 
 export * from './types';
 export { SecurityScanner } from './scanners/security-scanner';
+export { AstSecurityScanner } from './scanners/ast-security-scanner';
 export { LinkScanner } from './scanners/link-scanner';
 export { AccessibilityScanner } from './scanners/accessibility-scanner';
+export { DevelopmentScanner } from './scanners/development-scanner';
 export { EnvScanner } from './scanners/env-scanner';
+export { IacScanner } from './scanners/iac-scanner';
+export { OSVScanner } from './scanners/osv-scanner';
+export { ViteScanner } from './scanners/vite-scanner';
+export { ReactSecurityScanner } from './scanners/react-security-scanner';
+export { RailsSecurityScanner } from './scanners/rails-security-scanner';
+export { PythonSecurityScanner } from './scanners/python-security-scanner';
+export { LovableSupabaseScanner } from './scanners/lovable-supabase-scanner';
+export { VibeScanner } from './scanners/vibe-scanner';
+export { BaseScanner } from './scanners/base-scanner';

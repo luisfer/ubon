@@ -46,7 +46,7 @@ ubon check --update-baseline
 ```json
 {
   "schemaVersion": "1.0.0",
-  "toolVersion": "1.2.0",
+  "toolVersion": "2.0.0",
   "summary": {
     "total": 3,
     "errors": 1,
@@ -120,7 +120,7 @@ ubon check --update-baseline
       "tool": {
         "driver": {
           "name": "Ubon",
-          "version": "1.2.0",
+          "version": "2.0.0",
           "informationUri": "https://github.com/luisfer/ubon"
         }
       },
@@ -541,10 +541,10 @@ ubon check --focus-security --explain --show-context
 
 ## Version Information
 
-- **Current Version**: 1.1.5
+- **Current Version**: 2.0.0
 - **Schema Version**: 1.0.0
 - **Node.js Requirement**: 16.0.0+
-- **Last Updated**: 2025-09-18
+- **Last Updated**: 2026-02-01
 
 ## Quick Reference
 
