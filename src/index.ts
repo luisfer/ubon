@@ -125,8 +125,8 @@ export class UbonScan {
     const scannerResults = await Promise.all(scannerRuns);
     scannerResults.forEach((results) => allResults.push(...results));
 
-    // Fast mode skips link and OSV scanners
-    if (!options.fast) {
+    // Fast mode and skip-build mode skip link checks
+    if (!options.fast && !options.skipBuild) {
       this.logger.info(`Running ${this.linkScanner.name}...`);
       try {
         const linkResults = await this.linkScanner.scan(options);
@@ -135,12 +135,14 @@ export class UbonScan {
       } catch (error) {
         this.logger.error(`${this.linkScanner.name} failed: ${error}`);
       }
-    } else {
+    } else if (options.fast) {
       this.logger.info('⚡ Fast mode: Skipping external link checks');
+    } else if (options.skipBuild) {
+      this.logger.info('⚡ Skip-build mode: Skipping external link checks');
     }
 
     // Internal crawler (opt-in)
-    if (options.crawlInternal && !options.fast) {
+    if (options.crawlInternal && !options.fast && !options.skipBuild) {
       const crawler = new InternalCrawler();
       this.logger.info(`Running ${crawler.name}...`);
       try {

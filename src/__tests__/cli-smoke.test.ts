@@ -46,6 +46,14 @@ describe('CLI smoke', () => {
       expect(f === 'src/pages/index.tsx').toBe(true);
     }
   });
+
+  (hasDist ? it : it.skip)('scan --skip-build skips link checks', () => {
+    const res = run(['scan', '--directory', 'examples/nextjs-security-demo', '--json', '--skip-build', '--fail-on', 'none']);
+    expect(res.status === 0 || res.status === 1).toBe(true);
+    const obj = JSON.parse(res.stdout.trim());
+    const hasLinkFindings = (obj.issues || []).some((x: any) => x.category === 'links' || String(x.ruleId || '').startsWith('LINK'));
+    expect(hasLinkFindings).toBe(false);
+  });
 });
 
 
