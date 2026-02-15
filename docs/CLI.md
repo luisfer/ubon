@@ -25,6 +25,7 @@ Options:
   --update-baseline           Update baseline with current findings and exit
   --no-baseline               Do not apply baseline filtering
   --json                      Output results as JSON
+  --scorecard                 Include machine-readable quality scorecard in JSON output
   --output <path>             Write JSON output to file
   --sarif <path>              Write SARIF 2.1.0 report to path
   --changed-files <...>       Only scan these files (relative paths)
@@ -126,6 +127,7 @@ Options:
   --update-baseline           Update baseline with current findings and exit
   --no-baseline               Do not apply baseline filtering
   --json                      Output results as JSON
+  --scorecard                 Include machine-readable quality scorecard in JSON output
   --output <path>             Write JSON output to file
   --sarif <path>              Write SARIF 2.1.0 report to path
   --changed-files <...>       Only scan these files (relative paths)

@@ -26,6 +26,7 @@ const addCommonOptions = (cmd: Command): Command => {
     .option('--update-baseline', 'Update baseline with current findings and exit')
     .option('--no-baseline', 'Do not apply baseline filtering')
     .option('--json', 'Output results as JSON (for AI agents)')
+    .option('--scorecard', 'Include machine-readable quality scorecard in JSON output')
     .option('--sarif <path>', 'Write results as SARIF 2.1.0 to given path')
     .option('--output <path>', 'Write JSON output to file')
     .option('--changed-files <paths...>', 'Limit scanning to these files (relative paths)')

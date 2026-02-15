@@ -54,6 +54,14 @@ describe('CLI smoke', () => {
     const hasLinkFindings = (obj.issues || []).some((x: any) => x.category === 'links' || String(x.ruleId || '').startsWith('LINK'));
     expect(hasLinkFindings).toBe(false);
   });
+
+  (hasDist ? it : it.skip)('includes scorecard in JSON output when requested', () => {
+    const res = run(['check', '--directory', 'examples/nextjs-security-demo', '--json', '--scorecard', '--fail-on', 'none']);
+    expect(res.status === 0 || res.status === 1).toBe(true);
+    const obj = JSON.parse(res.stdout.trim());
+    expect(obj.scorecard).toBeTruthy();
+    expect(typeof obj.scorecard.securityPosture).toBe('number');
+  });
 });
 
 
