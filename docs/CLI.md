@@ -32,6 +32,7 @@ Options:
   --fix-dry-run               Print auto-fix plan (no writes)
   --preview-fixes             Show diff-like preview of fixes without applying
   --apply-fixes               Apply available safe auto-fixes
+  --fix-level <level>         Fix safety level: safe|review|aggressive (default: safe)
   --profile <name>            auto|lovable|react|next|vue|python|rails (default: auto)
   --git-history-depth <n>     Scan last N commits for leaked secrets
   --fast                      Skip OSV and link/crawler checks for speed
@@ -131,6 +132,7 @@ Options:
   --git-changed-since <ref>   Only scan files changed since Git ref
   --fix-dry-run               Print auto-fix plan (no writes)
   --apply-fixes               Apply available safe auto-fixes
+  --fix-level <level>         Fix safety level: safe|review|aggressive (default: safe)
   --profile <name>            auto|lovable|react|next|vue|python|rails (default: auto)
   --git-history-depth <n>     Scan last N commits for leaked secrets
   --fast                      Skip OSV and link/crawler checks for speed
@@ -169,6 +171,10 @@ ubon check --fix-dry-run
 
 # Apply safe autofixes
 ubon check --apply-fixes
+
+# Expand fix scope when needed
+ubon check --apply-fixes --fix-level review
+ubon check --apply-fixes --fix-level aggressive
 
 # Notes:
 # - A11Y: add alt to <img>, aria-label to <input>, button roles on clickable divs, convert <a> (no href) to <button>

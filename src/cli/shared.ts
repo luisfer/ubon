@@ -3,7 +3,7 @@ import { ScanResult, ScanOptions } from '../types';
 import { toSarif } from '../utils/sarif';
 import { getChangedFilesSince, createBranchCommitPush, tryOpenPullRequest, ensureGitRepo } from '../utils/git';
 import { loadConfig, mergeOptions } from '../utils/config';
-import { applyFixes, previewFixes, printFixPreviews } from '../utils/fix';
+import { applyFixes, previewFixes, printFixPreviews, FixLevel } from '../utils/fix';
 import pkg from '../../package.json';
 
 export function renderPrMarkdown(results: ScanResult[]): string {
@@ -115,6 +115,7 @@ export interface CliOptions {
   noCache?: boolean;
   noResultCache?: boolean;
   allowJsConfig?: boolean;
+  fixLevel?: string;
   policy?: string;
   aiFriendly?: boolean;
   prComment?: boolean;
@@ -251,9 +252,14 @@ export async function handleFixes(
   results: ScanResult[],
   options: CliOptions
 ): Promise<void> {
+  const fixLevel: FixLevel =
+    options.fixLevel === 'review' || options.fixLevel === 'aggressive' || options.fixLevel === 'safe'
+      ? options.fixLevel
+      : 'safe';
+
   // Handle preview-fixes first (read-only)
   if (options.previewFixes) {
-    const previews = previewFixes(results, options.directory);
+    const previews = previewFixes(results, options.directory, fixLevel);
     printFixPreviews(previews);
     return;
   }
@@ -261,7 +267,7 @@ export async function handleFixes(
   if (!options.fixDryRun && !options.applyFixes) return;
 
   const dryRun = !!options.fixDryRun && !options.applyFixes;
-  const { changedFiles, appliedEditCount } = applyFixes(results, options.directory, dryRun);
+  const { changedFiles, appliedEditCount } = applyFixes(results, options.directory, dryRun, fixLevel);
   
   if (dryRun) {
     console.log(JSON.stringify({ fixPlan: { files: changedFiles, edits: appliedEditCount } }, null, 2));

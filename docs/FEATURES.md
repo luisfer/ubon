@@ -33,7 +33,8 @@
 - Fast loops: `--watch --fast`, `--git-changed-since`, `--changed-files`
 - Low-noise defaults: skips test fixtures and coverage artifacts unless `--detailed` is enabled
 - Policy presets: `--policy startup|strict-prod|regulated|ai-prototype` for opinionated scan posture
-- Safe autofixes: A11Y (alts/roles), cookie flags, secret-log redaction, env fallback cleanup, fetch AbortController signal
+- Autofix safety tiers: `--fix-level safe|review|aggressive`
+- Safe autofixes include A11Y (alts/roles), cookie flags, secret-log redaction, env fallback cleanup, fetch AbortController signal
 - Fix preview: `--preview-fixes` shows diff-like preview before applying changes
 - OSV caching with TTL: `--clear-cache`, `--no-cache`, `ubon cache --info|--clear|--cleanup`
 - Result cache (per-file): speeds up repeat scans; disable with `--no-result-cache`

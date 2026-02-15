@@ -33,6 +33,7 @@ const addCommonOptions = (cmd: Command): Command => {
     .option('--fix-dry-run', 'Compute and print auto-fix plan without writing files')
     .option('--preview-fixes', 'Show diff-like preview of fixes without applying')
     .option('--apply-fixes', 'Apply available safe auto-fixes to the codebase')
+    .option('--fix-level <level>', 'Fix safety level: safe|review|aggressive', 'safe')
     .option('--profile <name>', 'Scan profile: auto|lovable|react|next|vue|python|rails', 'auto')
     .option('--git-history-depth <n>', 'Scan last N commits for leaked secrets')
     .option('--fast', 'Skip expensive checks (OSV, links) for faster results')
