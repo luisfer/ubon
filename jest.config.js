@@ -1,4 +1,4 @@
-module.exports = {
+const config = {
   preset: 'ts-jest',
   testEnvironment: 'node',
   roots: ['<rootDir>/src'],
@@ -9,12 +9,17 @@ module.exports = {
   collectCoverage: true,
   coverageDirectory: 'coverage',
   coverageReporters: ['text', 'lcov', 'html'],
-  coverageThreshold: {
+};
+
+if (process.env.CI === 'true' || process.env.UBON_ENFORCE_COVERAGE === '1') {
+  config.coverageThreshold = {
     global: {
       statements: 50,
       branches: 35,
       functions: 45,
       lines: 50,
     },
-  },
-};
+  };
+}
+
+module.exports = config;

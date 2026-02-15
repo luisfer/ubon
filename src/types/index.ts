@@ -74,6 +74,8 @@ export interface ScanOptions {
   noResultCache?: boolean; // disable per-file result cache
   // Interactive mode
   interactive?: boolean; // walk through issues interactively
+  // Opinionated policy bundles
+  policy?: 'startup' | 'strict-prod' | 'regulated' | 'ai-prototype';
 }
 
 export interface FixEdit {

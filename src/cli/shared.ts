@@ -115,6 +115,7 @@ export interface CliOptions {
   noCache?: boolean;
   noResultCache?: boolean;
   allowJsConfig?: boolean;
+  policy?: string;
   aiFriendly?: boolean;
   prComment?: boolean;
   interactive?: boolean;
@@ -162,7 +163,8 @@ export function buildScanOptions(options: CliOptions, defaults: Partial<ScanOpti
     clearCache: !!options.clearCache,
     noCache: !!options.noCache,
     noResultCache: !!options.noResultCache,
-    interactive: !!options.interactive
+    interactive: !!options.interactive,
+    policy: options.policy as ScanOptions['policy']
   };
   return mergeOptions(config, cliOptions);
 }
@@ -173,6 +175,36 @@ export function applyAiFriendlyPreset(scanOptions: ScanOptions, forceJson: boole
   if (typeof scanOptions.explain === 'undefined') (scanOptions as any).explain = true;
   if (typeof scanOptions.groupBy === 'undefined') (scanOptions as any).groupBy = 'severity';
   if (!scanOptions.maxIssues) (scanOptions as any).maxIssues = 15;
+}
+
+export function applyPolicyPreset(scanOptions: ScanOptions): void {
+  const policy = scanOptions.policy;
+  if (!policy) return;
+
+  switch (policy) {
+    case 'startup':
+      if (typeof scanOptions.fast === 'undefined') (scanOptions as any).fast = true;
+      if (typeof scanOptions.minConfidence !== 'number') (scanOptions as any).minConfidence = 0.8;
+      break;
+    case 'strict-prod':
+      (scanOptions as any).fast = false;
+      (scanOptions as any).detailed = true;
+      if (typeof scanOptions.minConfidence !== 'number') (scanOptions as any).minConfidence = 0.75;
+      break;
+    case 'regulated':
+      (scanOptions as any).fast = false;
+      (scanOptions as any).detailed = true;
+      (scanOptions as any).focusSecurity = true;
+      (scanOptions as any).showContext = true;
+      (scanOptions as any).explain = true;
+      if (typeof scanOptions.minConfidence !== 'number') (scanOptions as any).minConfidence = 0.7;
+      break;
+    case 'ai-prototype':
+      if (typeof scanOptions.fast === 'undefined') (scanOptions as any).fast = true;
+      if (typeof scanOptions.minConfidence !== 'number') (scanOptions as any).minConfidence = 0.85;
+      if (!scanOptions.maxIssues) (scanOptions as any).maxIssues = 20;
+      break;
+  }
 }
 
 export async function outputResults(
@@ -279,6 +311,7 @@ export async function runScanCommand(
 ): Promise<void> {
   const scanner = new UbonScan(options.verbose, options.json, options.color as 'auto' | 'always' | 'never');
   const scanOptions = buildScanOptions(options, defaults);
+  applyPolicyPreset(scanOptions);
 
   if (options.aiFriendly) {
     applyAiFriendlyPreset(scanOptions, true);
@@ -342,6 +375,7 @@ export async function runScanCommand(
 export async function runCheckCommand(options: CliOptions): Promise<void> {
   const scanner = new UbonScan(options.verbose, options.json, options.color as 'auto' | 'always' | 'never');
   const scanOptions = buildScanOptions(options, { skipBuild: true, fast: true });
+  applyPolicyPreset(scanOptions);
 
   try {
     if (scanOptions.gitChangedSince && (!scanOptions.changedFiles || scanOptions.changedFiles.length === 0)) {

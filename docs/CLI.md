@@ -52,6 +52,7 @@ Options:
   --create-pr                 Create a PR with auto-fixes applied
   --no-result-cache           Disable per-file result cache (skip reuse between runs)
   --allow-js-config           Allow executable ubon.config.js (off by default)
+  --policy <name>             Policy preset: startup|strict-prod|regulated|ai-prototype
   --min-severity <level>      Minimum severity to include: low|medium|high
   --max-issues <n>            Limit output to N most important issues
   --show-context              Show code context around findings (3–5 lines)
@@ -63,6 +64,7 @@ Options:
   --no-cache                  Disable OSV caching for this run
   --no-result-cache           Disable per-file result cache (skip reuse between runs)
   --allow-js-config           Allow executable ubon.config.js (off by default)
+  --policy <name>             Policy preset: startup|strict-prod|regulated|ai-prototype
 ```
 
 Examples:
