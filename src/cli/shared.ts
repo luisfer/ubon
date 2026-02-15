@@ -224,6 +224,13 @@ export async function outputResults(
     const md = renderPrMarkdown(results);
     console.log(md);
   } else if (options.json) {
+    const runMetrics = options.scorecard ? scanner.getLastRunMetrics() : null;
+    const scorecard = options.scorecard
+      ? {
+          ...generateScorecard(results),
+          ...(runMetrics ? { runtime: runMetrics } : {})
+        }
+      : undefined;
     const payload = {
       schemaVersion: '1.0.0',
       toolVersion: (pkg as any).version,
@@ -235,7 +242,7 @@ export async function outputResults(
       },
       issues: results.map(r => ({ ...r, match: redact(r.match) })),
       recommendations: generateRecommendations(results),
-      ...(options.scorecard ? { scorecard: generateScorecard(results) } : {})
+      ...(scorecard ? { scorecard } : {})
     };
     if (options.output) {
       const fs = await import('fs');

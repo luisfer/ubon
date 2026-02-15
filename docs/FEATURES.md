@@ -33,7 +33,7 @@
 - Fast loops: `--watch --fast`, `--git-changed-since`, `--changed-files`
 - Low-noise defaults: skips test fixtures and coverage artifacts unless `--detailed` is enabled
 - Policy presets: `--policy startup|strict-prod|regulated|ai-prototype` for opinionated scan posture
-- CI-ready scorecard: `--scorecard` emits machine-readable quality/security metrics in JSON mode
+- CI-ready scorecard: `--scorecard` emits machine-readable quality/security metrics in JSON mode (includes runtime timings)
 - Autofix safety tiers: `--fix-level safe|review|aggressive`
 - Safe autofixes include A11Y (alts/roles), cookie flags, secret-log redaction, env fallback cleanup, fetch AbortController signal
 - Fix preview: `--preview-fixes` shows diff-like preview before applying changes

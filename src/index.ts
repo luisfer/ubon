@@ -10,12 +10,20 @@ import { RULES } from './rules';
 import { applySuppressions, filterSuppressedResults } from './utils/suppressions';
 import { createLinkScanner, detectProfile, resolveScanners } from './core/scanner-selection';
 
+export interface RunMetrics {
+  profile: string;
+  totalDurationMs: number;
+  scannerDurationsMs: Record<string, number>;
+  findings: number;
+}
+
 export class UbonScan {
   private scanners: any[] = [];
 
   private linkScanner = createLinkScanner();
   private logger: Logger;
   private useColor: boolean;
+  private lastRunMetrics: RunMetrics | null = null;
 
   constructor(verbose: boolean = false, silent: boolean = false, colorMode: 'auto' | 'always' | 'never' = 'auto') {
     this.logger = new Logger(verbose, silent, colorMode);
@@ -50,8 +58,14 @@ export class UbonScan {
     return colorFn(` ${count} ${severity.toUpperCase()} `);
   }
 
+  getLastRunMetrics(): RunMetrics | null {
+    return this.lastRunMetrics;
+  }
+
   async diagnose(options: ScanOptions): Promise<ScanResult[]> {
     this.logger.title('Starting Ubon');
+    const startedAt = Date.now();
+    const scannerDurationsMs: Record<string, number> = {};
     const profile = await detectProfile(options);
     this.scanners = resolveScanners(profile as any, options.fast);
 
@@ -67,27 +81,33 @@ export class UbonScan {
     // Run static file scanners in parallel
     const scannerRuns = this.scanners.map(async (scanner) => {
       this.logger.info(`Running ${scanner.name}...`);
+      const scanStartedAt = Date.now();
       try {
         const results = await scanner.scan(options);
         this.logger.success(`🪷 ${scanner.name} completed (${results.length} issues found)`);
-        return results;
+        return { name: scanner.name, results };
       } catch (error) {
         this.logger.error(`${scanner.name} failed: ${error}`);
-        return [];
+        return { name: scanner.name, results: [] };
+      } finally {
+        scannerDurationsMs[scanner.name] = Date.now() - scanStartedAt;
       }
     });
     const scannerResults = await Promise.all(scannerRuns);
-    scannerResults.forEach((results) => allResults.push(...results));
+    scannerResults.forEach(({ results }) => allResults.push(...results));
 
     // Fast mode and skip-build mode skip link checks
     if (!options.fast && !options.skipBuild) {
       this.logger.info(`Running ${this.linkScanner.name}...`);
+      const linkStartedAt = Date.now();
       try {
         const linkResults = await this.linkScanner.scan(options);
         allResults.push(...linkResults);
         this.logger.success(`🪷 ${this.linkScanner.name} completed (${linkResults.length} issues found)`);
       } catch (error) {
         this.logger.error(`${this.linkScanner.name} failed: ${error}`);
+      } finally {
+        scannerDurationsMs[this.linkScanner.name] = Date.now() - linkStartedAt;
       }
     } else if (options.fast) {
       this.logger.info('⚡ Fast mode: Skipping external link checks');
@@ -99,12 +119,15 @@ export class UbonScan {
     if (options.crawlInternal && !options.fast && !options.skipBuild) {
       const crawler = new InternalCrawler();
       this.logger.info(`Running ${crawler.name}...`);
+      const crawlStartedAt = Date.now();
       try {
         const cres = await crawler.scan(options);
         allResults.push(...cres);
         this.logger.success(`🪷 ${crawler.name} completed (${cres.length} issues found)`);
       } catch (e) {
         this.logger.error(`${crawler.name} failed: ${e}`);
+      } finally {
+        scannerDurationsMs[crawler.name] = Date.now() - crawlStartedAt;
       }
     }
 
@@ -112,12 +135,15 @@ export class UbonScan {
     if (options.gitHistoryDepth && options.gitHistoryDepth > 0) {
       const hist = new GitHistoryScanner();
       this.logger.info(`Running ${hist.name}...`);
+      const historyStartedAt = Date.now();
       try {
         const hres = await hist.scan(options);
         allResults.push(...hres);
         this.logger.success(`🪷 ${hist.name} completed (${hres.length} issues found)`);
       } catch (e) {
         this.logger.error(`${hist.name} failed: ${e}`);
+      } finally {
+        scannerDurationsMs[hist.name] = Date.now() - historyStartedAt;
       }
     }
 
@@ -126,7 +152,14 @@ export class UbonScan {
     const withSuppressions = applySuppressions(withFingerprints);
     const afterBaseline = await this.applyBaseline(withSuppressions, options);
     const finalResults = this.applyFocusFilters(afterBaseline, options);
-    return this.sortResults(finalResults);
+    const sortedResults = this.sortResults(finalResults);
+    this.lastRunMetrics = {
+      profile: profile || 'auto',
+      totalDurationMs: Date.now() - startedAt,
+      scannerDurationsMs,
+      findings: sortedResults.length
+    };
+    return sortedResults;
   }
 
   async printResults(results: ScanResult[], options?: ScanOptions): Promise<void> {

@@ -61,6 +61,8 @@ describe('CLI smoke', () => {
     const obj = JSON.parse(res.stdout.trim());
     expect(obj.scorecard).toBeTruthy();
     expect(typeof obj.scorecard.securityPosture).toBe('number');
+    expect(obj.scorecard.runtime).toBeTruthy();
+    expect(typeof obj.scorecard.runtime.totalDurationMs).toBe('number');
   });
 
   (hasDist ? it : it.skip)('fails fast on invalid --fix-level', () => {
