@@ -22,6 +22,13 @@ export interface FixPreview {
 
 export type FixLevel = 'safe' | 'review' | 'aggressive';
 
+export function parseFixLevel(input?: string): FixLevel {
+  if (!input || input === 'safe') return 'safe';
+  if (input === 'review') return 'review';
+  if (input === 'aggressive') return 'aggressive';
+  throw new Error(`Unknown fix level "${input}". Supported levels: safe, review, aggressive`);
+}
+
 function isFixAllowed(result: ScanResult, level: FixLevel): boolean {
   const confidence = result.confidence ?? 0;
   if (level === 'aggressive') return true;

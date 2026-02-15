@@ -1,4 +1,4 @@
-import { collectFixEdits } from '../utils/fix';
+import { collectFixEdits, parseFixLevel } from '../utils/fix';
 import { ScanResult } from '../types';
 
 function makeResult(ruleId: string, severity: 'high' | 'medium' | 'low', confidence: number): ScanResult {
@@ -50,5 +50,13 @@ describe('fix safety levels', () => {
     const aggressive = collectFixEdits(results, 'aggressive');
     const totalEdits = aggressive.reduce((sum, f) => sum + f.edits.length, 0);
     expect(totalEdits).toBe(6);
+  });
+
+  it('parses valid fix levels and rejects invalid ones', () => {
+    expect(parseFixLevel()).toBe('safe');
+    expect(parseFixLevel('safe')).toBe('safe');
+    expect(parseFixLevel('review')).toBe('review');
+    expect(parseFixLevel('aggressive')).toBe('aggressive');
+    expect(() => parseFixLevel('unknown')).toThrow(/Unknown fix level/);
   });
 });

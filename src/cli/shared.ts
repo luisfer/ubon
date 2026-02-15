@@ -3,7 +3,7 @@ import { ScanResult, ScanOptions } from '../types';
 import { toSarif } from '../utils/sarif';
 import { getChangedFilesSince, createBranchCommitPush, tryOpenPullRequest, ensureGitRepo } from '../utils/git';
 import { loadConfig, mergeOptions } from '../utils/config';
-import { applyFixes, previewFixes, printFixPreviews, FixLevel } from '../utils/fix';
+import { applyFixes, previewFixes, printFixPreviews, FixLevel, parseFixLevel } from '../utils/fix';
 import { generateScorecard } from '../utils/scorecard';
 import pkg from '../../package.json';
 
@@ -259,10 +259,7 @@ export async function handleFixes(
   results: ScanResult[],
   options: CliOptions
 ): Promise<void> {
-  const fixLevel: FixLevel =
-    options.fixLevel === 'review' || options.fixLevel === 'aggressive' || options.fixLevel === 'safe'
-      ? options.fixLevel
-      : 'safe';
+  const fixLevel: FixLevel = parseFixLevel(options.fixLevel);
 
   // Handle preview-fixes first (read-only)
   if (options.previewFixes) {

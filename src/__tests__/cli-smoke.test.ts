@@ -62,6 +62,13 @@ describe('CLI smoke', () => {
     expect(obj.scorecard).toBeTruthy();
     expect(typeof obj.scorecard.securityPosture).toBe('number');
   });
+
+  (hasDist ? it : it.skip)('fails fast on invalid --fix-level', () => {
+    const res = run(['check', '--directory', 'examples/nextjs-security-demo', '--json', '--preview-fixes', '--fix-level', 'invalid-level']);
+    expect(res.status).toBe(1);
+    const combinedOutput = `${res.stdout}\n${res.stderr}`;
+    expect(combinedOutput).toContain('Unknown fix level');
+  });
 });
 
 
