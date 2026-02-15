@@ -95,7 +95,7 @@ export class SecurityScanner implements Scanner {
         const fileExt = file.split('.').pop()?.toLowerCase() || '';
 
         let ubonDisableAll = false;
-        lines.forEach((line, index) => {
+        lines.forEach((line) => {
           if (/ubon-disable-file/.test(line)) { ubonDisableAll = true; }
         });
         if (ubonDisableAll) continue;

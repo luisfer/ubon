@@ -165,11 +165,10 @@ export class UbonScan {
   async printResults(results: ScanResult[], options?: ScanOptions): Promise<void> {
     // Check if interactive mode is requested
     if (options?.interactive) {
-      await this.runInteractive(results, options);
+      await this.runInteractive(results);
       return;
     }
     // Separate suppressed from active results
-    const allResultsWithSuppressions = results;
     const suppressedCount = results.filter(r => r.suppressed).length;
     
     // Apply suppression filtering
@@ -633,7 +632,7 @@ export class UbonScan {
     }
   }
 
-  async runInteractive(results: ScanResult[], options: ScanOptions): Promise<void> {
+  async runInteractive(results: ScanResult[]): Promise<void> {
     console.log(`\n${this.brand('🪷')} Found ${results.length} issues. Let's walk through them together...\n`);
     
     if (results.length === 0) {
@@ -654,7 +653,7 @@ export class UbonScan {
 
     for (let i = 0; i < sortedResults.length; i++) {
       const result = sortedResults[i];
-      const choice = await this.presentIssue(result, i + 1, sortedResults.length, options);
+      const choice = await this.presentIssue(result, i + 1, sortedResults.length);
       
       if (choice === 'quit') {
         console.log(`\n${this.brand('🪷')} Interactive session ended. Remaining issues can be viewed with normal scan.\n`);
@@ -665,7 +664,7 @@ export class UbonScan {
     console.log(`\n${this.brand('🪷')} Interactive walkthrough complete! ✨\n`);
   }
 
-  private async presentIssue(result: ScanResult, current: number, total: number, options: ScanOptions): Promise<string> {
+  private async presentIssue(result: ScanResult, current: number, total: number): Promise<string> {
     const severityColor = this.getSeverityColor(result.severity);
     const typeIcon = result.type === 'error' ? '❌' : '⚠️';
     
