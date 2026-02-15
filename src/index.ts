@@ -2,32 +2,18 @@ import { ScanOptions, ScanResult } from './types';
 import { createHash } from 'crypto';
 import { existsSync, readFileSync, writeFileSync } from 'fs';
 import { join } from 'path';
-import { SecurityScanner } from './scanners/security-scanner';
-import { LinkScanner } from './scanners/link-scanner';
-import { AccessibilityScanner } from './scanners/accessibility-scanner';
-import { EnvScanner } from './scanners/env-scanner';
-import { PythonSecurityScanner } from './scanners/python-security-scanner';
-import { OSVScanner } from './scanners/osv-scanner';
 import { GitHistoryScanner } from './scanners/git-history-scanner';
-import { AstSecurityScanner } from './scanners/ast-security-scanner';
 import { InternalCrawler } from './scanners/internal-crawler';
-import { IacScanner } from './scanners/iac-scanner';
-import { RailsSecurityScanner } from './scanners/rails-security-scanner';
-import { DevelopmentScanner } from './scanners/development-scanner';
-import { LovableSupabaseScanner } from './scanners/lovable-supabase-scanner';
-import { ViteScanner } from './scanners/vite-scanner';
-import { ReactSecurityScanner } from './scanners/react-security-scanner';
-import { VibeScanner } from './scanners/vibe-scanner';
-import { glob } from 'glob';
 import { Logger } from './utils/logger';
 import chalk from 'chalk';
 import { RULES } from './rules';
 import { applySuppressions, filterSuppressedResults } from './utils/suppressions';
+import { createLinkScanner, detectProfile, resolveScanners } from './core/scanner-selection';
 
 export class UbonScan {
   private scanners: any[] = [];
 
-  private linkScanner = new LinkScanner();
+  private linkScanner = createLinkScanner();
   private logger: Logger;
   private useColor: boolean;
 
@@ -66,40 +52,8 @@ export class UbonScan {
 
   async diagnose(options: ScanOptions): Promise<ScanResult[]> {
     this.logger.title('Starting Ubon');
-
-    // Auto-detect profile if needed
-    let profile = options.profile || 'auto';
-    if (profile === 'auto') {
-      // Check for Lovable app (Vite + Supabase + React + Tailwind)
-      const hasVite = existsSync(join(options.directory, 'vite.config.ts')) ||
-                      existsSync(join(options.directory, 'vite.config.js'));
-
-      if (hasVite) {
-        try {
-          const packageJson = JSON.parse(readFileSync(join(options.directory, 'package.json'), 'utf-8'));
-          const hasSupabase = packageJson.dependencies?.['@supabase/supabase-js'] ||
-                             packageJson.devDependencies?.['@supabase/supabase-js'] ||
-                             existsSync(join(options.directory, 'supabase'));
-          const hasReact = packageJson.dependencies?.['react'];
-          const hasTailwind = packageJson.dependencies?.['tailwindcss'] ||
-                             packageJson.devDependencies?.['tailwindcss'];
-
-          if (hasSupabase && hasReact && hasTailwind) {
-            profile = 'lovable';
-          }
-        } catch (e) {
-          // If package.json doesn't exist or can't be read, continue with auto-detection
-        }
-      }
-
-      // Check for Python if not Lovable
-      if (profile === 'auto') {
-        const py = await glob('**/*.py', { cwd: options.directory, ignore: ['.venv/**', 'venv/**', 'node_modules/**', 'dist/**', 'build/**', '.next/**', 'examples/**'] });
-        if (py.length > 0) profile = 'python';
-      }
-    }
-    // Select scanners based on profile
-    this.scanners = this.resolveScanners(profile as any, options.fast);
+    const profile = await detectProfile(options);
+    this.scanners = resolveScanners(profile as any, options.fast);
 
     // Runtime, non-persistent defaults for human-friendly noise reduction
     if (!options.json && options.profile !== 'python') {
@@ -173,45 +127,6 @@ export class UbonScan {
     const afterBaseline = await this.applyBaseline(withSuppressions, options);
     const finalResults = this.applyFocusFilters(afterBaseline, options);
     return this.sortResults(finalResults);
-  }
-
-  private resolveScanners(profile: ScanOptions['profile'], fast?: boolean): any[] {
-    const p = profile || 'auto';
-
-    if (p === 'python') {
-      const arr: any[] = [new PythonSecurityScanner(), new EnvScanner()];
-      if (!fast) arr.push(new OSVScanner());
-      return arr;
-    }
-
-    if (p === 'rails') {
-      const arr: any[] = [new RailsSecurityScanner()];
-      return arr;
-    }
-
-    if (p === 'lovable') {
-      // Lovable profile: React + Vite + Supabase + Tailwind
-      const arr: any[] = [
-        new LovableSupabaseScanner(),   // Supabase-specific security
-        new ViteScanner(),               // Vite-specific security
-        new ReactSecurityScanner(),      // React/Tailwind security
-        new SecurityScanner(),           // General JS security
-        new AstSecurityScanner(),        // AST-based analysis
-        new AccessibilityScanner(),      // a11y checks
-        new DevelopmentScanner(),        // TODOs, placeholders
-        new VibeScanner(),               // AI-generated code patterns
-        new EnvScanner(),                // Environment variables
-        new IacScanner()                 // Infrastructure as code
-      ];
-      if (!fast) arr.push(new OSVScanner());
-      return arr;
-    }
-
-    // vue/react/next fall through to JS scanners
-    // auto/react/next default to JS scanners
-    const jsArr: any[] = [new SecurityScanner(), new AstSecurityScanner(), new AccessibilityScanner(), new DevelopmentScanner(), new VibeScanner(), new EnvScanner(), new IacScanner()];
-    if (!fast) jsArr.push(new OSVScanner());
-    return jsArr;
   }
 
   async printResults(results: ScanResult[], options?: ScanOptions): Promise<void> {
