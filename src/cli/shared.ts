@@ -181,6 +181,10 @@ export function applyAiFriendlyPreset(scanOptions: ScanOptions, forceJson: boole
 export function applyPolicyPreset(scanOptions: ScanOptions): void {
   const policy = scanOptions.policy;
   if (!policy) return;
+  const supportedPolicies = new Set(['startup', 'strict-prod', 'regulated', 'ai-prototype']);
+  if (!supportedPolicies.has(policy)) {
+    throw new Error(`Unknown policy "${policy}". Supported policies: startup, strict-prod, regulated, ai-prototype`);
+  }
 
   switch (policy) {
     case 'startup':

@@ -35,4 +35,9 @@ describe('CLI option defaults', () => {
     expect(options.showContext).toBe(true);
     expect(options.explain).toBe(true);
   });
+
+  it('throws on unknown policy names', () => {
+    const options = buildScanOptions({ directory: tempDir, policy: 'unknown-policy' });
+    expect(() => applyPolicyPreset(options)).toThrow(/Unknown policy/);
+  });
 });
