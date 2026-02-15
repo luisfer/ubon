@@ -1,6 +1,6 @@
 import { glob } from 'glob';
 import { readFileSync } from 'fs';
-import { Scanner, ScanOptions, ScanResult } from '../types';
+import { Scanner, ScanOptions, ScanResult, ScannerRunStats } from '../types';
 import { ResultCache } from '../utils/result-cache';
 
 export interface FileContext {
@@ -14,9 +14,31 @@ export abstract class BaseScanner implements Scanner {
   abstract name: string;
   abstract scan(options: ScanOptions): Promise<ScanResult[]>;
   protected resultCache: ResultCache | null = null;
+  protected lastRunStats: ScannerRunStats | null = null;
 
   protected initCache(options: ScanOptions, signature: string): void {
     this.resultCache = options.noResultCache ? null : new ResultCache(options.directory, signature);
+  }
+
+  protected beginRunStats(): void {
+    this.lastRunStats = {
+      filesScanned: 0,
+      filesReadErrors: 0,
+      findings: 0
+    };
+  }
+
+  protected finalizeRunStats(findings: number): void {
+    if (!this.lastRunStats) return;
+    this.lastRunStats.findings = findings;
+    const cacheStats = this.resultCache?.getStats();
+    if (cacheStats) {
+      this.lastRunStats.cache = cacheStats;
+    }
+  }
+
+  getLastRunStats(): ScannerRunStats | null {
+    return this.lastRunStats;
   }
 
   protected getCached(file: string, contentHash: string): ScanResult[] | null {
@@ -40,9 +62,15 @@ export abstract class BaseScanner implements Scanner {
     for (const file of files) {
       try {
         const content = readFileSync(`${options.directory}/${file}`, 'utf-8');
+        if (this.lastRunStats) {
+          this.lastRunStats.filesScanned++;
+        }
         const contentHash = ResultCache.hashContent(content);
         yield { file, content, lines: content.split('\n'), contentHash };
       } catch (error) {
+        if (this.lastRunStats) {
+          this.lastRunStats.filesReadErrors++;
+        }
         if (options.verbose) {
           console.error(`🪷 ${this.name}: failed to read ${file}:`, error);
         }

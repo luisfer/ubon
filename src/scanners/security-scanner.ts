@@ -1,6 +1,6 @@
 import { glob } from 'glob';
 import { readFileSync } from 'fs';
-import { Scanner, ScanResult, ScanOptions } from '../types';
+import { Scanner, ScanResult, ScanOptions, ScannerRunStats } from '../types';
 import { RULES, getRule } from '../rules';
 import { ResultCache } from '../utils/result-cache';
 import { runNetworkAndCookieChecks } from './security/executors/network-cookie-executor';
@@ -10,6 +10,7 @@ import { runNextRuntimeChecks } from './security/executors/next-runtime-executor
 
 export class SecurityScanner implements Scanner {
   name = 'Security Scanner';
+  private lastRunStats: ScannerRunStats | null = null;
 
   // Rule IDs that have been migrated to modular rules with patterns
   private readonly modularRuleIds = [
@@ -44,8 +45,14 @@ export class SecurityScanner implements Scanner {
     'COOKIE001': 'Cookie missing security attributes (HttpOnly, Secure, SameSite)'
   };
 
+  getLastRunStats(): ScannerRunStats | null {
+    return this.lastRunStats;
+  }
+
   async scan(options: ScanOptions): Promise<ScanResult[]> {
     const results: ScanResult[] = [];
+    let filesScanned = 0;
+    let filesReadErrors = 0;
     const ignorePatterns = ['node_modules/**', 'dist/**', 'build/**', '.next/**', 'examples/**', 'coverage/**', '.git/**', '.tmp*/**', 'tmp/**'];
     if (!options.detailed) {
       ignorePatterns.push('**/__tests__/**', '**/*.test.{js,jsx,ts,tsx}', '**/*.spec.{js,jsx,ts,tsx}');
@@ -78,6 +85,7 @@ export class SecurityScanner implements Scanner {
     for (const file of files) {
       try {
         const content = readFileSync(`${options.directory}/${file}`, 'utf-8');
+        filesScanned++;
         const contentHash = ResultCache.hashContent(content);
         const cached = resultCache?.get(file, contentHash);
         if (cached) {
@@ -233,11 +241,19 @@ export class SecurityScanner implements Scanner {
         const fileResults = results.filter(r => r.file === file);
         resultCache?.set(file, contentHash, fileResults);
       } catch (error) {
+        filesReadErrors++;
         if (options.verbose) {
           console.error(`🪷 SecurityScanner: failed to read ${file}:`, error);
         }
       }
     }
+    const cacheStats = resultCache?.getStats();
+    this.lastRunStats = {
+      filesScanned,
+      filesReadErrors,
+      findings: results.length,
+      ...(cacheStats ? { cache: cacheStats } : {})
+    };
     resultCache?.save();
     return results;
   }

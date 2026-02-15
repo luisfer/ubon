@@ -1,7 +1,7 @@
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'fs';
 import { join } from 'path';
 import { createHash } from 'crypto';
-import { ScanResult } from '../types';
+import { CacheRunStats, ScanResult } from '../types';
 
 export interface CachedFileEntry {
   hash: string;
@@ -16,6 +16,8 @@ export interface ResultCacheData {
 export class ResultCache {
   private cachePath: string;
   private data: ResultCacheData;
+  private hits = 0;
+  private misses = 0;
 
   constructor(private directory: string, signature: string) {
     const cacheDir = join(directory, '.ubon');
@@ -50,8 +52,16 @@ export class ResultCache {
 
   get(file: string, contentHash: string): ScanResult[] | null {
     const entry = this.data.files[file];
-    if (!entry) return null;
-    return entry.hash === contentHash ? entry.results : null;
+    if (!entry) {
+      this.misses++;
+      return null;
+    }
+    if (entry.hash === contentHash) {
+      this.hits++;
+      return entry.results;
+    }
+    this.misses++;
+    return null;
   }
 
   set(file: string, contentHash: string, results: ScanResult[]): void {
@@ -61,6 +71,15 @@ export class ResultCache {
   clear(): void {
     this.data.files = {};
     this.save();
+  }
+
+  getStats(): CacheRunStats {
+    const total = this.hits + this.misses;
+    return {
+      hits: this.hits,
+      misses: this.misses,
+      hitRate: total > 0 ? this.hits / total : 0
+    };
   }
 }
 

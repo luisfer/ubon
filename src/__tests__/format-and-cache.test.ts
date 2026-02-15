@@ -45,6 +45,20 @@ describe('output format: table', () => {
 });
 
 describe('result cache reuse', () => {
+  it('tracks cache hit and miss stats', () => {
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'ubon-cache-stats-'));
+    const cache = new ResultCache(tmp, 'test:stats');
+
+    expect(cache.get('a.ts', 'hash-1')).toBeNull(); // miss
+    cache.set('a.ts', 'hash-1', []);
+    expect(cache.get('a.ts', 'hash-1')).toEqual([]); // hit
+
+    const stats = cache.getStats();
+    expect(stats.hits).toBe(1);
+    expect(stats.misses).toBe(1);
+    expect(stats.hitRate).toBe(0.5);
+  });
+
   it('reuses cached results on second run (calls get, avoids set)', async () => {
     const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'ubon-cache-test-'));
     const jsPath = path.join(tmp, 'a.js');

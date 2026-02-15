@@ -8,6 +8,7 @@ export class DevelopmentScanner extends BaseScanner {
 
   async scan(options: ScanOptions): Promise<ScanResult[]> {
     const results: ScanResult[] = [];
+    this.beginRunStats();
     const rules = this.ruleIds.map((id) => getRule(id)).filter(Boolean);
     const ignorePatterns = ['node_modules/**', 'dist/**', 'build/**', '.next/**'];
     if (!options.detailed) {
@@ -76,6 +77,7 @@ export class DevelopmentScanner extends BaseScanner {
       }
     }
 
+    this.finalizeRunStats(results.length);
     return results;
   }
 }

@@ -204,7 +204,7 @@ Exit codes:
 JSON schema highlights:
 - schemaVersion, toolVersion
 - ruleId, category, severity, match, range, fingerprint, fix, fixEdits, helpUri
-- optional scorecard payload via `--scorecard` (severity/type/category totals + runtime metrics)
+- optional scorecard payload via `--scorecard` (severity/type/category totals + runtime metrics, including per-scanner timings and scanner stats when available)
 - secrets are redacted in match; fingerprints remain stable
 
 ### Baseline workflows

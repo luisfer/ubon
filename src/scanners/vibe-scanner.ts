@@ -42,6 +42,7 @@ export class VibeScanner extends BaseScanner {
 
   async scan(options: ScanOptions): Promise<ScanResult[]> {
     const results: ScanResult[] = [];
+    this.beginRunStats();
     this.initCache(options, 'vibe:1');
     const ignorePatterns = this.buildIgnorePatterns(options);
 
@@ -80,6 +81,7 @@ export class VibeScanner extends BaseScanner {
     results.push(...this.detectOrphanedExports());
 
     this.saveCache();
+    this.finalizeRunStats(results.length);
     return results;
   }
 

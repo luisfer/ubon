@@ -1,4 +1,4 @@
-import { ScanOptions, ScanResult } from './types';
+import { ScanOptions, ScanResult, ScannerRunStats } from './types';
 import { createHash } from 'crypto';
 import { existsSync, readFileSync, writeFileSync } from 'fs';
 import { join } from 'path';
@@ -14,6 +14,7 @@ export interface RunMetrics {
   profile: string;
   totalDurationMs: number;
   scannerDurationsMs: Record<string, number>;
+  scannerStats?: Record<string, ScannerRunStats>;
   findings: number;
 }
 
@@ -66,6 +67,7 @@ export class UbonScan {
     this.logger.title('Starting Ubon');
     const startedAt = Date.now();
     const scannerDurationsMs: Record<string, number> = {};
+    const scannerStats: Record<string, ScannerRunStats> = {};
     const profile = await detectProfile(options);
     this.scanners = resolveScanners(profile as any, options.fast);
 
@@ -84,6 +86,10 @@ export class UbonScan {
       const scanStartedAt = Date.now();
       try {
         const results = await scanner.scan(options);
+        const scannerRunStats = typeof scanner.getLastRunStats === 'function' ? scanner.getLastRunStats() : null;
+        if (scannerRunStats) {
+          scannerStats[scanner.name] = scannerRunStats;
+        }
         this.logger.success(`🪷 ${scanner.name} completed (${results.length} issues found)`);
         return { name: scanner.name, results };
       } catch (error) {
@@ -157,6 +163,7 @@ export class UbonScan {
       profile: profile || 'auto',
       totalDurationMs: Date.now() - startedAt,
       scannerDurationsMs,
+      ...(Object.keys(scannerStats).length ? { scannerStats } : {}),
       findings: sortedResults.length
     };
     return sortedResults;
