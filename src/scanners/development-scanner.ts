@@ -49,7 +49,12 @@ export class DevelopmentScanner extends BaseScanner {
         if (rule.impl.patterns) {
           for (const pattern of rule.impl.patterns) {
             ctx.lines.forEach((line, index) => {
-              if (line.trim().startsWith('//') || line.trim().startsWith('*')) return;
+              const trimmed = line.trim();
+              const isCommentLine = trimmed.startsWith('//') || trimmed.startsWith('*');
+              if (isCommentLine && pattern.ruleId !== 'DEV001') return;
+              const isRuleDefinitionContext = ctx.file.includes('/rules/') &&
+                /(pattern:\s*\/|message:\s*['"`]|fix:\s*['"`]|id:\s*['"`]|severity:\s*['"`])/.test(line);
+              if (isRuleDefinitionContext) return;
               if (this.isSuppressed(ctx.lines, index, pattern.ruleId)) return;
               const match = line.match(pattern.pattern);
               if (!match) return;
