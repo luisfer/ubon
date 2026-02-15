@@ -15,6 +15,7 @@ Options:
   -d, --directory <path>      Directory to scan (default: current)
   -p, --port <number>         Development server port (for future internal crawling)
   --skip-build                Skip link checking (static analysis only)
+  --base-sha <ref>            In CI, only fail on findings in files changed since base ref
   -v, --verbose               Enable verbose output
   --fail-on <level>           none|warning|error (default: error)
   --min-confidence <n>        Minimum confidence threshold (0.0-1.0)
@@ -62,9 +63,6 @@ Options:
   --ignore-suppressed         Completely ignore suppressed results
   --clear-cache               Clear OSV cache before scanning
   --no-cache                  Disable OSV caching for this run
-  --no-result-cache           Disable per-file result cache (skip reuse between runs)
-  --allow-js-config           Allow executable ubon.config.js (off by default)
-  --policy <name>             Policy preset: startup|strict-prod|regulated|ai-prototype
 ```
 
 Examples:
@@ -140,17 +138,28 @@ Options:
   --crawl-start-url <url>     Starting URL for internal crawl
   --crawl-depth <n>           Max crawl depth (default: 2)
   --crawl-timeout <ms>        Per-page timeout in ms (default: 10000)
+  --detailed                  Show all findings including lower-confidence/noisy ones
+  --focus-critical            Only show critical (high severity) issues
+  --focus-security            Only show security issues (hide a11y/links/etc)
+  --focus-new                 Only show issues not in baseline
   --group-by <mode>           Group results: category|file|rule|severity (default: category)
   --format <mode>             Output format (human mode): human|table (default: human)
   --color <mode>              Colorize output: auto|always|never (default: auto)
+  --pr-comment                Output a Markdown summary suitable for PR comments
+  --interactive               Walk through issues interactively with explanations and fix options
   --min-severity <level>      Minimum severity to include: low|medium|high
   --max-issues <n>            Limit output to N most important issues
   --show-context              Show code context around findings (3–5 lines)
   --explain                   Show "why it matters" explanations
+  --show-confidence           Show per-finding confidence in human output
   --show-suppressed           Include suppressed results in output
   --ignore-suppressed         Completely ignore suppressed results
   --clear-cache               Clear OSV cache before scanning
   --no-cache                  Disable OSV caching for this run
+  --preview-fixes             Show diff-like preview of fixes without applying
+  --no-result-cache           Disable per-file result cache (skip reuse between runs)
+  --allow-js-config           Allow executable ubon.config.js (off by default)
+  --policy <name>             Policy preset: startup|strict-prod|regulated|ai-prototype
 
 Fixes:
 
