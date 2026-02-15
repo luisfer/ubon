@@ -51,6 +51,7 @@ Options:
   --watch                     Re-run scan on file changes
   --create-pr                 Create a PR with auto-fixes applied
   --no-result-cache           Disable per-file result cache (skip reuse between runs)
+  --allow-js-config           Allow executable ubon.config.js (off by default)
   --min-severity <level>      Minimum severity to include: low|medium|high
   --max-issues <n>            Limit output to N most important issues
   --show-context              Show code context around findings (3–5 lines)
@@ -60,6 +61,8 @@ Options:
   --ignore-suppressed         Completely ignore suppressed results
   --clear-cache               Clear OSV cache before scanning
   --no-cache                  Disable OSV caching for this run
+  --no-result-cache           Disable per-file result cache (skip reuse between runs)
+  --allow-js-config           Allow executable ubon.config.js (off by default)
 ```
 
 Examples:

@@ -1,5 +1,5 @@
 import { existsSync, writeFileSync } from 'fs';
-import { execSync } from 'child_process';
+import { spawnSync } from 'child_process';
 
 export interface HookOptions {
   mode?: 'fast' | 'full';
@@ -20,15 +20,17 @@ export function installPreCommitHooks(options: HookOptions): void {
   writeFileSync('.pre-commit-config.yaml', yaml);
   console.log('✅ Created .pre-commit-config.yaml');
 
-  try {
-    execSync('pre-commit --version', { stdio: 'ignore' });
-  } catch {
+  const version = spawnSync('pre-commit', ['--version'], { stdio: 'ignore' });
+  if (version.error || version.status !== 0) {
     console.log('⚠️  pre-commit not installed. Install with: pip install pre-commit');
     console.log('Then run: pre-commit install');
     return;
   }
 
-  execSync('pre-commit install', { stdio: 'inherit' });
+  const install = spawnSync('pre-commit', ['install'], { stdio: 'inherit' });
+  if (install.error || install.status !== 0) {
+    throw new Error('Failed to install pre-commit hooks');
+  }
   console.log('✅ Ubon pre-commit hooks installed successfully');
 }
 

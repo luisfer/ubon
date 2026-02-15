@@ -114,6 +114,7 @@ export interface CliOptions {
   clearCache?: boolean;
   noCache?: boolean;
   noResultCache?: boolean;
+  allowJsConfig?: boolean;
   aiFriendly?: boolean;
   prComment?: boolean;
   interactive?: boolean;
@@ -123,7 +124,7 @@ export interface CliOptions {
 }
 
 export function buildScanOptions(options: CliOptions, defaults: Partial<ScanOptions> = {}): ScanOptions {
-  const config = loadConfig(options.directory);
+  const config = loadConfig(options.directory, { allowJsConfig: !!options.allowJsConfig });
   const cliOptions: Partial<ScanOptions> = {
     directory: options.directory,
     port: options.port ? parseInt(options.port) : undefined,

@@ -57,6 +57,7 @@ const addCommonOptions = (cmd: Command): Command => {
     .option('--clear-cache', 'Clear OSV vulnerability cache before scanning')
     .option('--no-cache', 'Disable OSV caching for this scan')
     .option('--no-result-cache', 'Disable per-file result caching')
+    .option('--allow-js-config', 'Allow loading executable ubon.config.js (disabled by default for safety)')
     .option('--pr-comment', 'Output a Markdown summary suitable for PR comments')
     .option('--interactive', 'Walk through issues interactively with explanations and fix options');
 };

@@ -2,7 +2,11 @@ import { existsSync, readFileSync } from 'fs';
 import { join } from 'path';
 import { ScanOptions } from '../types';
 
-export function loadConfig(directory: string): Partial<ScanOptions> {
+export interface LoadConfigOptions {
+  allowJsConfig?: boolean;
+}
+
+export function loadConfig(directory: string, options: LoadConfigOptions = {}): Partial<ScanOptions> {
   try {
     const jsonPath = join(directory, 'ubon.config.json');
     if (existsSync(jsonPath)) {
@@ -10,7 +14,7 @@ export function loadConfig(directory: string): Partial<ScanOptions> {
       return data;
     }
     const jsPath = join(directory, 'ubon.config.js');
-    if (existsSync(jsPath)) {
+    if (existsSync(jsPath) && options.allowJsConfig) {
       // eslint-disable-next-line @typescript-eslint/no-var-requires
       const data = require(jsPath);
       return (data && data.default) ? data.default : data;
