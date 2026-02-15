@@ -9,8 +9,12 @@ export class DevelopmentScanner extends BaseScanner {
   async scan(options: ScanOptions): Promise<ScanResult[]> {
     const results: ScanResult[] = [];
     const rules = this.ruleIds.map((id) => getRule(id)).filter(Boolean);
+    const ignorePatterns = ['node_modules/**', 'dist/**', 'build/**', '.next/**'];
+    if (!options.detailed) {
+      ignorePatterns.push('examples/**', '**/__tests__/**', '**/*.test.{js,jsx,ts,tsx}', '**/*.spec.{js,jsx,ts,tsx}');
+    }
 
-    for await (const ctx of this.iterateFiles(options, '**/*.{js,jsx,ts,tsx,py,rb,vue}', ['node_modules/**', 'dist/**', 'build/**', '.next/**'])) {
+    for await (const ctx of this.iterateFiles(options, '**/*.{js,jsx,ts,tsx,py,rb,vue}', ignorePatterns)) {
       const fileExt = ctx.file.split('.').pop()?.toLowerCase();
       if (this.hasFileSuppression(ctx.lines)) continue;
 

@@ -32,9 +32,10 @@ export abstract class BaseScanner implements Scanner {
   }
 
   protected async *iterateFiles(options: ScanOptions, pattern: string, ignore: string[]): AsyncGenerator<FileContext> {
+    const defaultIgnore = ['coverage/**', '.git/**'];
     const files = await glob(pattern, {
       cwd: options.directory,
-      ignore: [...ignore, ...(options.exclude || [])]
+      ignore: [...defaultIgnore, ...ignore, ...(options.exclude || [])]
     });
     for (const file of files) {
       try {

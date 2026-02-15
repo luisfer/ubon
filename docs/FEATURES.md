@@ -31,6 +31,7 @@
 - Inline suppressions with reasons: `// ubon-disable-next-line RULEID [reason]`
 - Baselines: `--update-baseline`, `--baseline`, `--no-baseline`
 - Fast loops: `--watch --fast`, `--git-changed-since`, `--changed-files`
+- Low-noise defaults: skips test fixtures and coverage artifacts unless `--detailed` is enabled
 - Safe autofixes: A11Y (alts/roles), cookie flags, secret-log redaction, env fallback cleanup, fetch AbortController signal
 - Fix preview: `--preview-fixes` shows diff-like preview before applying changes
 - OSV caching with TTL: `--clear-cache`, `--no-cache`, `ubon cache --info|--clear|--cleanup`

@@ -18,9 +18,13 @@ export class AstSecurityScanner implements Scanner {
     }
 
     const results: ScanResult[] = [];
+    const ignorePatterns = ['node_modules/**', 'dist/**', 'build/**', '.next/**', 'examples/**', 'coverage/**', '.git/**'];
+    if (!options.detailed) {
+      ignorePatterns.push('**/__tests__/**', '**/*.test.{js,jsx,ts,tsx}', '**/*.spec.{js,jsx,ts,tsx}');
+    }
     const files = await glob('**/*.{js,jsx,ts,tsx}', {
       cwd: options.directory,
-      ignore: ['node_modules/**', 'dist/**', 'build/**', '.next/**', 'examples/**']
+      ignore: ignorePatterns
     });
 
     for (const file of files) {
