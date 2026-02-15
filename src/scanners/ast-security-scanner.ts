@@ -1,11 +1,16 @@
 import { glob } from 'glob';
 import { readFileSync } from 'fs';
 import type ts from 'typescript';
-import { Scanner, ScanOptions, ScanResult } from '../types';
+import { Scanner, ScanOptions, ScanResult, ScannerRunStats } from '../types';
 import { RULES } from '../rules';
 
 export class AstSecurityScanner implements Scanner {
   name = 'AST Security Scanner';
+  private lastRunStats: ScannerRunStats | null = null;
+
+  getLastRunStats(): ScannerRunStats | null {
+    return this.lastRunStats;
+  }
 
   async scan(options: ScanOptions): Promise<ScanResult[]> {
     // Lazily require TypeScript at runtime; if unavailable (global install without dev deps), skip AST checks gracefully
@@ -14,10 +19,17 @@ export class AstSecurityScanner implements Scanner {
       // eslint-disable-next-line @typescript-eslint/no-var-requires
       tsReal = require('typescript') as typeof import('typescript');
     } catch {
+      this.lastRunStats = {
+        filesScanned: 0,
+        filesReadErrors: 0,
+        findings: 0
+      };
       return [];
     }
 
     const results: ScanResult[] = [];
+    let filesScanned = 0;
+    let filesReadErrors = 0;
     const ignorePatterns = ['node_modules/**', 'dist/**', 'build/**', '.next/**', 'examples/**', 'coverage/**', '.git/**', '.tmp*/**', 'tmp/**'];
     if (!options.detailed) {
       ignorePatterns.push('**/__tests__/**', '**/*.test.{js,jsx,ts,tsx}', '**/*.spec.{js,jsx,ts,tsx}');
@@ -31,7 +43,9 @@ export class AstSecurityScanner implements Scanner {
       let sourceText = '';
       try {
         sourceText = readFileSync(`${options.directory}/${file}`, 'utf-8');
+        filesScanned++;
       } catch (error) {
+        filesReadErrors++;
         if (options.verbose) {
           console.error(`🪷 AstSecurityScanner: failed to read ${file}:`, error);
         }
@@ -133,6 +147,11 @@ export class AstSecurityScanner implements Scanner {
       visit(sf);
     }
 
+    this.lastRunStats = {
+      filesScanned,
+      filesReadErrors,
+      findings: results.length
+    };
     return results;
   }
 }
