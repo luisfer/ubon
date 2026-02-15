@@ -1,12 +1,14 @@
 import { glob } from 'glob';
 import { readFileSync } from 'fs';
 import { Scanner, ScanResult, ScanOptions, ScannerRunStats } from '../types';
-import { RULES, getRule } from '../rules';
+import { getRule } from '../rules';
 import { ResultCache } from '../utils/result-cache';
 import { runNetworkAndCookieChecks } from './security/executors/network-cookie-executor';
+import { runModularPatternRules } from './security/executors/modular-rule-executor';
 import { runSecretSignalChecks } from './security/executors/secret-signal-executor';
 import { runNextStructureChecks, NextStructureState } from './security/executors/next-structure-executor';
 import { runNextRuntimeChecks } from './security/executors/next-runtime-executor';
+import { runVueSecurityChecks } from './security/executors/vue-executor';
 
 export class SecurityScanner implements Scanner {
   name = 'Security Scanner';
@@ -67,7 +69,9 @@ export class SecurityScanner implements Scanner {
     let processed = 0;
 
     // Load modular rules
-    const modularRules = this.modularRuleIds.map(id => getRule(id)).filter(Boolean);
+    const modularRules = this.modularRuleIds
+      .map((id) => getRule(id))
+      .filter((rule): rule is NonNullable<typeof rule> => Boolean(rule));
 
     const nextStructureState: NextStructureState = {
       hasAppDir: files.some((f) => /^app\//.test(f)),
@@ -109,99 +113,13 @@ export class SecurityScanner implements Scanner {
         });
         if (ubonDisableAll) continue;
 
-        // Run modular rules with patterns
-        for (const rule of modularRules) {
-          if (!rule) continue;
-          if (rule.impl.fileTypes && !rule.impl.fileTypes.includes(fileExt)) continue;
-          if (rule.impl.skipPatterns?.some(p => p.test(file))) continue;
-
-          if (rule.impl.patterns) {
-            for (const pattern of rule.impl.patterns) {
-              lines.forEach((line, index) => {
-                // Skip comments and pattern definitions
-                if (line.trim().startsWith('//') || 
-                    line.trim().startsWith('*') ||
-                    line.includes('pattern:') ||
-                    line.includes('message:') ||
-                    line.includes('severity:') ||
-                    line.includes('fix:') ||
-                    file.includes('security-scanner.ts') ||
-                    file.includes('/rules/security/')) {
-                  return;
-                }
-
-                // Skip console logs in logger files (intentional)
-                if (pattern.ruleId === 'SEC015' && file.includes('logger')) {
-                  return;
-                }
-
-                // Check inline suppressions
-                const disableNext = /ubon-disable-next-line\s+([A-Z0-9_,\s-]+)/.exec(line);
-                const prevDisable = index > 0 ? /ubon-disable-next-line\s+([A-Z0-9_,\s-]+)/.exec(lines[index - 1]) : null;
-                const disabledList = new Set<string>([
-                  ...(disableNext && disableNext[1] ? disableNext[1].split(/[,\s]+/).filter(Boolean) : []),
-                  ...(prevDisable && prevDisable[1] ? prevDisable[1].split(/[,\s]+/).filter(Boolean) : [])
-                ]);
-                if (disabledList.has(pattern.ruleId)) return;
-
-                const m = line.match(pattern.pattern);
-                if (m) {
-                  const matchedText = m[0] || '';
-                  const isSecretRule = ['SEC001', 'SEC003', 'SEC009', 'SEC011', 'SEC014'].includes(pattern.ruleId);
-                  const looksLikeRegexSource = /[\[\]\{\}\\]/.test(matchedText) && /\/.+\/[gimsuy]*/.test(line);
-                  if (isSecretRule && looksLikeRegexSource) {
-                    return;
-                  }
-
-                  const fixEdits: any[] = [];
-                  
-                  // Auto-fix for SEC008: Remove hardcoded fallback
-                  if (pattern.ruleId === 'SEC008') {
-                    const replacement = line.replace(/(process\.env\.\w+)\s*\|\|\s*['"][^'"`]+['"]/g, '$1');
-                    if (replacement !== line) {
-                      fixEdits.push({
-                        file,
-                        startLine: index + 1,
-                        startColumn: 1,
-                        endLine: index + 1,
-                        endColumn: Math.max(1, line.length),
-                        replacement
-                      });
-                    }
-                  }
-                  
-                  // Auto-fix for SEC015: Remove console statement
-                  if (pattern.ruleId === 'SEC015') {
-                    fixEdits.push({
-                      file,
-                      startLine: index + 1,
-                      startColumn: 1,
-                      endLine: index + 1,
-                      endColumn: Math.max(1, line.length),
-                      replacement: ''
-                    });
-                  }
-
-                  results.push({
-                    type: pattern.severity === 'high' ? 'error' : 'warning',
-                    category: 'security',
-                    message: pattern.message,
-                    file,
-                    line: index + 1,
-                    range: { startLine: index + 1, startColumn: 1, endLine: index + 1, endColumn: Math.max(1, line.length) },
-                    match: matchedText.slice(0, 200),
-                    severity: pattern.severity,
-                    ruleId: pattern.ruleId,
-                    confidence: pattern.confidence,
-                    confidenceReason: this.confidenceReasons[pattern.ruleId] || 'Pattern match detected',
-                    fix: pattern.fix,
-                    ...(fixEdits.length ? { fixEdits } : {})
-                  });
-                }
-              });
-            }
-          }
-        }
+        results.push(...runModularPatternRules({
+          file,
+          fileExt,
+          lines,
+          rules: modularRules,
+          confidenceReasons: this.confidenceReasons
+        }));
 
         results.push(...runNextStructureChecks({
           file,
@@ -214,26 +132,7 @@ export class SecurityScanner implements Scanner {
 
         results.push(...runSecretSignalChecks({ file, lines }));
 
-        // Vue v-html binding (XSS risk)
-        if (file.endsWith('.vue')) {
-          lines.forEach((line, index) => {
-            if (/v-html\s*=\s*\"|v-html\s*=\s*\'/.test(line)) {
-              const meta = RULES.VUE001;
-              results.push({
-                type: 'error',
-                category: meta.category,
-                message: meta.message,
-                file,
-                line: index + 1,
-                range: { startLine: index + 1, startColumn: 1, endLine: index + 1, endColumn: Math.max(1, line.length) },
-                severity: meta.severity,
-                ruleId: meta.id,
-                confidence: 0.9,
-                fix: meta.fix
-              });
-            }
-          });
-        }
+        results.push(...runVueSecurityChecks({ file, lines }));
 
         results.push(...runNextRuntimeChecks({ file, content, lines }));
 
