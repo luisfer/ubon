@@ -135,6 +135,13 @@ export class SecurityScanner implements Scanner {
 
                 const m = line.match(pattern.pattern);
                 if (m) {
+                  const matchedText = m[0] || '';
+                  const isSecretRule = ['SEC001', 'SEC003', 'SEC009', 'SEC011', 'SEC014'].includes(pattern.ruleId);
+                  const looksLikeRegexSource = /[\[\]\{\}\\]/.test(matchedText) && /\/.+\/[gimsuy]*/.test(line);
+                  if (isSecretRule && looksLikeRegexSource) {
+                    return;
+                  }
+
                   const fixEdits: any[] = [];
                   
                   // Auto-fix for SEC008: Remove hardcoded fallback
@@ -171,7 +178,7 @@ export class SecurityScanner implements Scanner {
                     file,
                     line: index + 1,
                     range: { startLine: index + 1, startColumn: 1, endLine: index + 1, endColumn: Math.max(1, line.length) },
-                    match: m[0]?.slice(0, 200),
+                    match: matchedText.slice(0, 200),
                     severity: pattern.severity,
                     ruleId: pattern.ruleId,
                     confidence: pattern.confidence,

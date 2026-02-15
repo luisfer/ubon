@@ -15,7 +15,7 @@ const rule: Rule = {
       {
         ruleId: 'SEC001',
         confidence: 0.9,
-        pattern: /(['"`])(?:sk-|pk_test_|pk_live_|rk_live_|rk_test_).+?\1/gi,
+        pattern: /(['"`])(?:sk-[A-Za-z0-9_-]{8,}|pk_test_[A-Za-z0-9_-]{6,}|pk_live_[A-Za-z0-9_-]{6,}|rk_live_[A-Za-z0-9_-]{6,}|rk_test_[A-Za-z0-9_-]{6,})\1/gi,
         message: 'Potential API key or secret token exposed',
         severity: 'high',
         fix: 'Move sensitive keys to environment variables'
