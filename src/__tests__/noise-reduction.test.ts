@@ -9,6 +9,7 @@ describe('Noise reduction defaults', () => {
   beforeAll(() => {
     try { rmSync(tmp, { recursive: true, force: true }); } catch {}
     mkdirSync(join(tmp, 'src', '__tests__'), { recursive: true });
+    mkdirSync(join(tmp, 'tmp'), { recursive: true });
     writeFileSync(join(tmp, 'src', 'app.ts'), 'export const ok = true;');
     writeFileSync(
       join(tmp, 'src', '__tests__', 'fixture.test.ts'),
@@ -17,6 +18,13 @@ describe('Noise reduction defaults', () => {
       eval("alert('xss')");
       const key = "sk-test_abcdefghijklmnopqrstuvwxyz1234";
       const placeholderApi = "https://example.com";
+      `
+    );
+    writeFileSync(
+      join(tmp, 'tmp', 'artifact.ts'),
+      `
+      // TODO: temp artifact
+      const key = "sk-test_abcdefghijklmnopqrstuvwxyz1234";
       `
     );
   });
@@ -47,5 +55,17 @@ describe('Noise reduction defaults', () => {
     const scanner = new DevelopmentScanner();
     const results = await scanner.scan({ directory: tmp, detailed: true });
     expect(results.some((r) => r.file?.includes('__tests__'))).toBe(true);
+  });
+
+  it('ignores temp artifact directories in security scanner even when detailed', async () => {
+    const scanner = new SecurityScanner();
+    const results = await scanner.scan({ directory: tmp, detailed: true });
+    expect(results.some((r) => r.file?.startsWith('tmp/'))).toBe(false);
+  });
+
+  it('ignores temp artifact directories in development scanner even when detailed', async () => {
+    const scanner = new DevelopmentScanner();
+    const results = await scanner.scan({ directory: tmp, detailed: true });
+    expect(results.some((r) => r.file?.startsWith('tmp/'))).toBe(false);
   });
 });

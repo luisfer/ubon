@@ -13,7 +13,7 @@ export class LinkScanner implements Scanner {
     // Find links in source files and check reachability
     const files = await glob('**/*.{md,mdx,js,jsx,ts,tsx,html}', {
       cwd: options.directory,
-      ignore: ['node_modules/**', 'dist/**', 'build/**', '.next/**', 'examples/**']
+      ignore: ['node_modules/**', 'dist/**', 'build/**', '.next/**', 'examples/**', 'coverage/**', '.git/**', '.tmp*/**', 'tmp/**']
     });
     const urlRegex = /(https?:\/\/[^\s)"'<>]+)/g;
     const uniqueUrls = new Map<string, { file: string; line: number }[]>();
