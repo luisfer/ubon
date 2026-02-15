@@ -5,6 +5,7 @@ import { getChangedFilesSince, createBranchCommitPush, tryOpenPullRequest, ensur
 import { loadConfig, mergeOptions } from '../utils/config';
 import { applyFixes, previewFixes, printFixPreviews, FixLevel, parseFixLevel } from '../utils/fix';
 import { generateScorecard } from '../utils/scorecard';
+import { redactSensitiveTokens } from '../utils/redaction';
 import pkg from '../../package.json';
 
 export function renderPrMarkdown(results: ScanResult[]): string {
@@ -32,13 +33,6 @@ export function renderPrMarkdown(results: ScanResult[]): string {
     });
   });
   return lines.join('\n');
-}
-
-export function redact(value?: string): string | undefined {
-  if (!value) return value;
-  if (/sk-[A-Za-z0-9_-]{8,}/.test(value)) return value.replace(/sk-[A-Za-z0-9_-]{8,}/g, 'sk-********');
-  if (/eyJ[A-Za-z0-9._-]{20,}/.test(value)) return value.replace(/eyJ[A-Za-z0-9._-]{20,}/g, 'eyJ********');
-  return value;
 }
 
 export function generateRecommendations(results: ScanResult[]): string[] {
@@ -240,7 +234,7 @@ export async function outputResults(
         warnings: results.filter(r => r.type === 'warning').length,
         info: results.filter(r => r.type === 'info').length
       },
-      issues: results.map(r => ({ ...r, match: redact(r.match) })),
+      issues: results.map(r => ({ ...r, match: redactSensitiveTokens(r.match) })),
       recommendations: generateRecommendations(results),
       ...(scorecard ? { scorecard } : {})
     };
