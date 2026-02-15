@@ -5,6 +5,7 @@ import { RULES, getRule } from '../rules';
 import { ResultCache } from '../utils/result-cache';
 import { runNetworkAndCookieChecks } from './security/executors/network-cookie-executor';
 import { runSecretSignalChecks } from './security/executors/secret-signal-executor';
+import { runNextStructureChecks, NextStructureState } from './security/executors/next-structure-executor';
 
 export class SecurityScanner implements Scanner {
   name = 'Security Scanner';
@@ -60,18 +61,18 @@ export class SecurityScanner implements Scanner {
     // Load modular rules
     const modularRules = this.modularRuleIds.map(id => getRule(id)).filter(Boolean);
 
-    // Project-level Next.js structure presence flags (for P5 experimental rules)
-    const hasAppDir = files.some(f => /^app\//.test(f));
-    const hasPagesDir = files.some(f => /^pages\//.test(f));
-    const hasNotFoundApp = files.some(f => /^app\/not-found\.(js|jsx|ts|tsx)$/.test(f));
-    const has404Pages = files.some(f => /^pages\/404\.(js|jsx|ts|tsx)$/.test(f));
-    const hasErrorApp = files.some(f => /^app\/error\.(js|jsx|ts|tsx)$/.test(f));
-    const hasErrorPages = files.some(f => /^pages\/_error\.(js|jsx|ts|tsx)$/.test(f));
-    const hasDocumentPages = files.some(f => /^pages\/_document\.(js|jsx|ts|tsx)$/.test(f));
-    // Emit-once sentinels
-    let emittedP5_404 = false;
-    let emittedP5_error = false;
-    let emittedP5_document = false;
+    const nextStructureState: NextStructureState = {
+      hasAppDir: files.some((f) => /^app\//.test(f)),
+      hasPagesDir: files.some((f) => /^pages\//.test(f)),
+      hasNotFoundApp: files.some((f) => /^app\/not-found\.(js|jsx|ts|tsx)$/.test(f)),
+      has404Pages: files.some((f) => /^pages\/404\.(js|jsx|ts|tsx)$/.test(f)),
+      hasErrorApp: files.some((f) => /^app\/error\.(js|jsx|ts|tsx)$/.test(f)),
+      hasErrorPages: files.some((f) => /^pages\/_error\.(js|jsx|ts|tsx)$/.test(f)),
+      hasDocumentPages: files.some((f) => /^pages\/_document\.(js|jsx|ts|tsx)$/.test(f)),
+      emittedMissing404: false,
+      emittedMissingErrorBoundary: false,
+      emittedMissingDocument: false
+    };
 
     for (const file of files) {
       try {
@@ -193,39 +194,12 @@ export class SecurityScanner implements Scanner {
           }
         }
 
-        // Project-level Next.js structure checks (emit once per project)
-        if (/^(pages|app)\//.test(file)) {
-          // Missing not-found/404
-          if (!emittedP5_404) {
-            if (hasAppDir && !hasNotFoundApp) {
-              const meta = RULES.NEXT201;
-              results.push({ type: 'warning', category: meta.category, message: meta.message, file, severity: meta.severity, ruleId: meta.id, confidence: 0.5, confidenceReason: this.confidenceReasons['NEXT201'], fix: meta.fix });
-              emittedP5_404 = true;
-            } else if (hasPagesDir && !has404Pages) {
-              const meta = RULES.NEXT201;
-              results.push({ type: 'warning', category: meta.category, message: meta.message, file, severity: meta.severity, ruleId: meta.id, confidence: 0.5, confidenceReason: this.confidenceReasons['NEXT201'], fix: meta.fix });
-              emittedP5_404 = true;
-            }
-          }
-          // Missing error boundary
-          if (!emittedP5_error) {
-            if (hasAppDir && !hasErrorApp) {
-              const meta = RULES.NEXT202;
-              results.push({ type: 'warning', category: meta.category, message: meta.message, file, severity: meta.severity, ruleId: meta.id, confidence: 0.5, confidenceReason: this.confidenceReasons['NEXT202'], fix: meta.fix });
-              emittedP5_error = true;
-            } else if (hasPagesDir && !hasErrorPages) {
-              const meta = RULES.NEXT202;
-              results.push({ type: 'warning', category: meta.category, message: meta.message, file, severity: meta.severity, ruleId: meta.id, confidence: 0.5, confidenceReason: this.confidenceReasons['NEXT202'], fix: meta.fix });
-              emittedP5_error = true;
-            }
-          }
-          // _document for Pages Router only when code hints custom head/script usage
-          if (!emittedP5_document && hasPagesDir && /from\s+['"]next\/(head|script)['"]/.test(content) && !hasDocumentPages) {
-            const meta = RULES.NEXT203;
-            results.push({ type: 'warning', category: meta.category, message: meta.message, file, severity: meta.severity, ruleId: meta.id, confidence: 0.5, confidenceReason: 'Custom head/script usage detected without _document.tsx', fix: meta.fix });
-            emittedP5_document = true;
-          }
-        }
+        results.push(...runNextStructureChecks({
+          file,
+          content,
+          state: nextStructureState,
+          confidenceReasons: this.confidenceReasons
+        }));
 
         results.push(...runNetworkAndCookieChecks({ file, lines }));
 
