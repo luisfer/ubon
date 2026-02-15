@@ -28,6 +28,16 @@ describe('Framework/infra rules', () => {
     expect(res.some(r => r.ruleId === 'NEXT006')).toBe(true);
   });
 
+  it('flags non-public environment variables in client pages (NEXT011)', async () => {
+    const pdir = join(tmp, 'pages');
+    mkdirSync(pdir, { recursive: true });
+    const fp = join(pdir, 'client.tsx');
+    writeFileSync(fp, `export default function C(){ return <div>{process.env.OPENAI_API_KEY}</div>; }`);
+    const s = new SecurityScanner();
+    const res = await s.scan({ directory: tmp });
+    expect(res.some(r => r.ruleId === 'NEXT011' && r.file?.includes('client.tsx'))).toBe(true);
+  });
+
   it('flags Vue v-html usage (VUE001)', async () => {
     const fp = join(tmp, 'App.vue');
     writeFileSync(fp, `<template><div v-html="raw"></div></template><script setup lang="ts">const raw='x'</script>`);
