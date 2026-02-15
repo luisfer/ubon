@@ -140,7 +140,7 @@ export function buildScanOptions(options: CliOptions, defaults: Partial<ScanOpti
     gitChangedSince: options.gitChangedSince,
     profile: options.profile as ScanOptions['profile'],
     gitHistoryDepth: options.gitHistoryDepth ? parseInt(options.gitHistoryDepth) : undefined,
-    fast: !!options.fast,
+    fast: options.fast ?? defaults.fast ?? false,
     crawlInternal: !!options.crawlInternal,
     crawlStartUrl: options.crawlStartUrl,
     crawlDepth: options.crawlDepth ? parseInt(options.crawlDepth) : undefined,
@@ -341,7 +341,7 @@ export async function runScanCommand(
 
 export async function runCheckCommand(options: CliOptions): Promise<void> {
   const scanner = new UbonScan(options.verbose, options.json, options.color as 'auto' | 'always' | 'never');
-  const scanOptions = buildScanOptions(options, { skipBuild: true });
+  const scanOptions = buildScanOptions(options, { skipBuild: true, fast: true });
 
   try {
     if (scanOptions.gitChangedSince && (!scanOptions.changedFiles || scanOptions.changedFiles.length === 0)) {
