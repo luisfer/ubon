@@ -17,7 +17,7 @@
 
 [![npm version](https://badge.fury.io/js/ubon.svg)](https://badge.fury.io/js/ubon)
 [![npm downloads](https://img.shields.io/npm/dm/ubon.svg)](https://npmjs.com/package/ubon)
-[![Test Coverage](https://img.shields.io/badge/coverage-70%25-green.svg)](./coverage)
+[![Test Coverage](https://img.shields.io/badge/coverage-tracked%20in%20CI-blue.svg)](.github/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 ## Contents

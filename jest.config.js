@@ -9,4 +9,12 @@ module.exports = {
   collectCoverage: true,
   coverageDirectory: 'coverage',
   coverageReporters: ['text', 'lcov', 'html'],
+  coverageThreshold: {
+    global: {
+      statements: 50,
+      branches: 35,
+      functions: 45,
+      lines: 50,
+    },
+  },
 };
