@@ -2,9 +2,9 @@ import { glob } from 'glob';
 import { readFileSync } from 'fs';
 import { Scanner, ScanResult, ScanOptions } from '../types';
 import { RULES, getRule } from '../rules';
-import { extractQuotedLiterals, shannonEntropy } from '../utils/entropy';
 import { ResultCache } from '../utils/result-cache';
 import { runNetworkAndCookieChecks } from './security/executors/network-cookie-executor';
+import { runSecretSignalChecks } from './security/executors/secret-signal-executor';
 
 export class SecurityScanner implements Scanner {
   name = 'Security Scanner';
@@ -229,86 +229,7 @@ export class SecurityScanner implements Scanner {
 
         results.push(...runNetworkAndCookieChecks({ file, lines }));
 
-        // Entropy-based secret detection (context-aware, reduced noise)
-        lines.forEach((line, index) => {
-          const toks = extractQuotedLiterals(line).filter(s => s.length >= 16);
-          for (const tok of toks) {
-            const ent = shannonEntropy(tok);
-            if (ent < 3.8 || !/[A-Za-z0-9]/.test(tok)) continue;
-
-            // File/context-based ignores: CSS/Tailwind, configs, globs
-            const lowerFile = file.toLowerCase();
-            const isCssContext = lowerFile.endsWith('.css') || lowerFile.endsWith('.scss') || lowerFile.endsWith('.sass') || lowerFile.endsWith('.less') || lowerFile.includes('tailwind.config');
-            if (isCssContext) continue;
-
-            // Token-based ignores: hex colors, tailwind classes, data URIs, globs, UUIDs
-            const isHexColor = /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(tok);
-            const isTailwind = /(bg|text|border|from|to|via)-[a-zA-Z]+-\d{2,3}/.test(tok);
-            const isDataUri = /^data:image\//.test(tok);
-            const isGlobLike = /\*\*?|\{.*\}|\*\.[a-zA-Z0-9]+/.test(tok);
-            const isUuid = /[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}/.test(tok);
-            if (isHexColor || isTailwind || isDataUri || isGlobLike || isUuid) continue;
-
-            // Suspicious indicators increase confidence
-            const looksLikeSecret = /\b(sk-|pk_live_|rk_(live|test)_|eyJ[A-Za-z0-9._-]{10,}|AKIA[0-9A-Z]{16}|password=|secret=|api_key=|token=|postgres(ql)?:\/\/|mongodb:\/\/)/.test(tok);
-            const isDotEnvFile = /(^|\/)\.env(\.|$)/.test(lowerFile);
-            if (!looksLikeSecret && !isDotEnvFile) continue;
-
-            const meta = RULES.SEC018;
-            const entropyConfidence = looksLikeSecret ? 0.9 : 0.8;
-            results.push({
-              type: meta.severity === 'high' ? 'error' : 'warning',
-              category: meta.category,
-              message: meta.message,
-              file,
-              line: index + 1,
-              range: { startLine: index + 1, startColumn: 1, endLine: index + 1, endColumn: Math.max(1, line.length) },
-              severity: meta.severity,
-              ruleId: meta.id,
-              match: tok.slice(0, 200),
-              confidence: entropyConfidence,
-              confidenceReason: looksLikeSecret 
-                ? 'High entropy + matches known secret pattern (sk-, AKIA, etc.)' 
-                : 'High entropy string in .env file - likely a secret',
-              fix: meta.fix
-            });
-          }
-        });
-
-        // Secret logging detection (console + secret-like token)
-        lines.forEach((line, index) => {
-          if (/console\.(log|debug|info|warn|error)\(/.test(line) && /(sk-[A-Za-z0-9_-]{8,}|eyJ[A-Za-z0-9._-]{20,}|AKIA[0-9A-Z]{16})/.test(line)) {
-            const meta = RULES.LOG001;
-            const fixEdits: any[] = [];
-            // Replace logged secret literal with a redacted placeholder
-            const redacted = line
-              .replace(/sk-[A-Za-z0-9_-]{8,}/g, 'sk-********')
-              .replace(/eyJ[A-Za-z0-9._-]{20,}/g, 'eyJ********')
-              .replace(/AKIA[0-9A-Z]{16}/g, 'AKIA**************');
-            fixEdits.push({
-              file,
-              startLine: index + 1,
-              startColumn: 1,
-              endLine: index + 1,
-              endColumn: Math.max(1, line.length),
-              replacement: redacted
-            });
-            results.push({
-              type: 'warning',
-              category: meta.category,
-              message: meta.message,
-              file,
-              line: index + 1,
-              range: { startLine: index + 1, startColumn: 1, endLine: index + 1, endColumn: Math.max(1, line.length) },
-              severity: meta.severity,
-              ruleId: meta.id,
-              confidence: 0.8,
-              confidenceReason: 'Console statement contains string matching secret pattern',
-              fix: meta.fix,
-              fixEdits
-            });
-          }
-        });
+        results.push(...runSecretSignalChecks({ file, lines }));
 
         // Vue v-html binding (XSS risk)
         if (file.endsWith('.vue')) {
