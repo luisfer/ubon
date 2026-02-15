@@ -14,6 +14,7 @@
     "start": "node dist/cli.js",
     "test": "jest",
     "docs:cli-sync": "node scripts/check-cli-docs-sync.js",
+    "audit": "npm audit --audit-level=high",
     "preversion": "node scripts/check-changelog.js",
     "prepublishOnly": "npm run build && npm run rules:gen",
     "test:watch": "jest --watch",
