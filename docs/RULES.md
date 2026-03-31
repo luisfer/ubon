@@ -1,46 +1,16 @@
 ## Rules Glossary
 
-### Confidence Scale
-
-Each finding includes a confidence score (0.0-1.0) indicating how likely it is to be a true positive:
-
-| Score | Level | Meaning |
-|-------|-------|---------|
-| 0.9-1.0 | Very High | AST-confirmed or exact pattern match. Almost certainly a real issue. |
-| 0.8-0.9 | High | Strong pattern match with context. Very likely a real issue. |
-| 0.7-0.8 | Medium | Pattern match that may need verification. Likely a real issue. |
-| 0.5-0.7 | Lower | Heuristic detection. Review recommended before acting. |
-
-Use `--min-confidence 0.8` to filter out lower-confidence findings, or `--detailed` to see all findings including noisy ones.
-
-Each finding also includes a `confidenceReason` field explaining why that confidence level was assigned.
-
----
-
-### Vibe Code Detection (v2.0.0)
-
-Rules for detecting common AI-generated code issues:
-
-- VIBE001: Import from non-existent package (possible hallucination) — detects imports from modules not in package.json
-- VIBE002: Repeated code block detected (possible copy-paste artifact) — identifies duplicated 5+ line blocks
-- VIBE003: Incomplete implementation detected (placeholder or stub) — catches "Not implemented" errors, placeholder strings, TODO stubs
-- VIBE004: Exported symbol appears unused in the codebase — finds exports never imported elsewhere
-
-### Development
-
-Rules for catching common development issues:
-
-- DEV001: TODO/FIXME comments detected
-- DEV002: "Not implemented" stubs and placeholder functions
-- DEV003: Placeholder URLs in API endpoints (`localhost`, `example.com`)
-- DEV004: Hardcoded mock/example data in responses
-- DEV005: Empty returns or unimplemented functions
 
 ### Security (JS/TS)
 - COOKIE001: Set-Cookie missing HttpOnly/Secure/SameSite ([docs](https://owasp.org/www-community/controls/SecureCookieAttributes))
 - COOKIE002: JWT token exposed in client-side cookie without security flags ([docs](https://owasp.org/www-community/controls/SecureCookieAttributes))
 - COOKIE003: Sensitive data returned in JSON response (potential token leak)
 - COOKIE004: Cookie used without domain/path restrictions
+- DEV001: TODO/FIXME comments detected
+- DEV002: "Not implemented" stub found
+- DEV003: Placeholder URL detected
+- DEV004: Hardcoded mock/example data detected
+- DEV005: Empty return or stubbed function detected
 - JSNET001: HTTP request without timeout/retry policy ([docs](https://developer.mozilla.org/docs/Web/API/AbortController))
 - LOG001: Potential secret logged to console/logger ([docs](https://cheatsheetseries.owasp.org/cheatsheets/Logging_Cheat_Sheet.html))
 - LOVABLE001: Supabase table accessed without RLS policy validation ([docs](https://supabase.com/docs/guides/auth/row-level-security))
@@ -70,6 +40,10 @@ Rules for catching common development issues:
 - SEC018: High-entropy string literal (possible secret) ([docs](https://owasp.org/Top10/A02_2021-Cryptographic_Failures))
 - SEC019: React component injection via createElement
 - TAILWIND001: Dynamic className with unvalidated input - may allow CSS injection ([docs](https://tailwindcss.com/docs/content-configuration#dynamic-class-names))
+- VIBE001: Import from non-existent package (possible hallucination)
+- VIBE002: Repeated code block detected (possible copy-paste artifact)
+- VIBE003: Incomplete implementation detected (placeholder or stub)
+- VIBE004: Exported symbol appears unused in the codebase
 - VITE001: Environment variable without VITE_ prefix may expose secrets to client ([docs](https://vitejs.dev/guide/env-and-mode.html#env-variables))
 - VITE002: Development-only code without production fallback ([docs](https://vitejs.dev/guide/env-and-mode.html#modes))
 - VITE003: Unsafe dynamic import with user input - potential path traversal ([docs](https://vitejs.dev/guide/features.html#dynamic-import))
