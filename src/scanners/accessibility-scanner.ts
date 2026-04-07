@@ -8,6 +8,7 @@ export class AccessibilityScanner extends BaseScanner {
 
   async scan(options: ScanOptions): Promise<ScanResult[]> {
     const results: ScanResult[] = [];
+    this.beginRunStats();
     const rules = this.ruleIds.map((id) => getRule(id)).filter(Boolean);
 
     for await (const ctx of this.iterateFiles(options, '**/*.{js,jsx,ts,tsx,vue,html}', ['node_modules/**', 'dist/**', 'build/**', '.next/**', 'examples/**'])) {
@@ -65,6 +66,7 @@ export class AccessibilityScanner extends BaseScanner {
       }
     }
 
+    this.finalizeRunStats(results.length);
     return results;
   }
 }

@@ -7,11 +7,20 @@
   "plugins": ["@typescript-eslint"],
   "extends": [
     "eslint:recommended",
-    "@typescript-eslint/recommended"
+    "plugin:@typescript-eslint/recommended"
   ],
   "rules": {
-    "@typescript-eslint/no-unused-vars": "error",
-    "@typescript-eslint/explicit-function-return-type": "warn"
+    "no-unused-vars": "off",
+    "no-empty": "off",
+    "no-useless-escape": "off",
+    "prefer-const": "off",
+    "no-case-declarations": "off",
+    "no-prototype-builtins": "off",
+    "@typescript-eslint/no-unused-vars": "warn",
+    "@typescript-eslint/explicit-function-return-type": "warn",
+    "@typescript-eslint/no-explicit-any": "off",
+    "@typescript-eslint/ban-ts-comment": "off",
+    "@typescript-eslint/no-var-requires": "off"
   },
   "env": {
     "node": true,

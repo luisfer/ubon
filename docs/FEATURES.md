@@ -31,7 +31,11 @@
 - Inline suppressions with reasons: `// ubon-disable-next-line RULEID [reason]`
 - Baselines: `--update-baseline`, `--baseline`, `--no-baseline`
 - Fast loops: `--watch --fast`, `--git-changed-since`, `--changed-files`
-- Safe autofixes: A11Y (alts/roles), cookie flags, secret-log redaction, env fallback cleanup, fetch AbortController signal
+- Low-noise defaults: skips test fixtures and coverage artifacts unless `--detailed` is enabled
+- Policy presets: `--policy startup|strict-prod|regulated|ai-prototype` for opinionated scan posture
+- CI-ready scorecard: `--scorecard` emits machine-readable quality/security metrics in JSON mode (includes runtime timings)
+- Autofix safety tiers: `--fix-level safe|review|aggressive`
+- Safe autofixes include A11Y (alts/roles), cookie flags, secret-log redaction, env fallback cleanup, fetch AbortController signal
 - Fix preview: `--preview-fixes` shows diff-like preview before applying changes
 - OSV caching with TTL: `--clear-cache`, `--no-cache`, `ubon cache --info|--clear|--cleanup`
 - Result cache (per-file): speeds up repeat scans; disable with `--no-result-cache`

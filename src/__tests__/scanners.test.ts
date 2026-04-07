@@ -29,6 +29,19 @@ describe('Scanners emit ruleId and confidence', () => {
     expect(typeof finding.confidence).toBe('number');
   });
 
+  it('SecurityScanner ignores regex source patterns for secret rules', async () => {
+    const filePath = join(tempDir, 'redaction.ts');
+    writeFileSync(
+      filePath,
+      `const sanitize = (v: string) => v.replace(/sk-[A-Za-z0-9_-]{8,}/g, "sk-********");`
+    );
+
+    const scanner = new SecurityScanner();
+    const results = await scanner.scan({ directory: tempDir, detailed: true });
+    const sec001 = results.filter((r) => r.file?.includes('redaction.ts') && r.ruleId === 'SEC001');
+    expect(sec001.length).toBe(0);
+  });
+
   it('AccessibilityScanner returns ruleId and confidence', async () => {
     const filePath = join(tempDir, 'component.tsx');
     writeFileSync(filePath, `<img src="/x.png" />`);

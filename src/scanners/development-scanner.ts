@@ -8,9 +8,14 @@ export class DevelopmentScanner extends BaseScanner {
 
   async scan(options: ScanOptions): Promise<ScanResult[]> {
     const results: ScanResult[] = [];
+    this.beginRunStats();
     const rules = this.ruleIds.map((id) => getRule(id)).filter(Boolean);
+    const ignorePatterns = ['node_modules/**', 'dist/**', 'build/**', '.next/**'];
+    if (!options.detailed) {
+      ignorePatterns.push('examples/**', '**/__tests__/**', '**/*.test.{js,jsx,ts,tsx}', '**/*.spec.{js,jsx,ts,tsx}');
+    }
 
-    for await (const ctx of this.iterateFiles(options, '**/*.{js,jsx,ts,tsx,py,rb,vue}', ['node_modules/**', 'dist/**', 'build/**', '.next/**'])) {
+    for await (const ctx of this.iterateFiles(options, '**/*.{js,jsx,ts,tsx,py,rb,vue}', ignorePatterns)) {
       const fileExt = ctx.file.split('.').pop()?.toLowerCase();
       if (this.hasFileSuppression(ctx.lines)) continue;
 
@@ -45,7 +50,12 @@ export class DevelopmentScanner extends BaseScanner {
         if (rule.impl.patterns) {
           for (const pattern of rule.impl.patterns) {
             ctx.lines.forEach((line, index) => {
-              if (line.trim().startsWith('//') || line.trim().startsWith('*')) return;
+              const trimmed = line.trim();
+              const isCommentLine = trimmed.startsWith('//') || trimmed.startsWith('*');
+              if (isCommentLine && pattern.ruleId !== 'DEV001') return;
+              const isRuleDefinitionContext = ctx.file.includes('/rules/') &&
+                /(pattern:\s*\/|message:\s*['"`]|fix:\s*['"`]|id:\s*['"`]|severity:\s*['"`])/.test(line);
+              if (isRuleDefinitionContext) return;
               if (this.isSuppressed(ctx.lines, index, pattern.ruleId)) return;
               const match = line.match(pattern.pattern);
               if (!match) return;
@@ -67,6 +77,7 @@ export class DevelopmentScanner extends BaseScanner {
       }
     }
 
+    this.finalizeRunStats(results.length);
     return results;
   }
 }

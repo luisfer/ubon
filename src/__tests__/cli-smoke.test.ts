@@ -46,6 +46,33 @@ describe('CLI smoke', () => {
       expect(f === 'src/pages/index.tsx').toBe(true);
     }
   });
+
+  (hasDist ? it : it.skip)('scan --skip-build skips link checks', () => {
+    const res = run(['scan', '--directory', 'examples/nextjs-security-demo', '--json', '--skip-build', '--fail-on', 'none']);
+    expect(res.status === 0 || res.status === 1).toBe(true);
+    const obj = JSON.parse(res.stdout.trim());
+    const hasLinkFindings = (obj.issues || []).some((x: any) => x.category === 'links' || String(x.ruleId || '').startsWith('LINK'));
+    expect(hasLinkFindings).toBe(false);
+  });
+
+  (hasDist ? it : it.skip)('includes scorecard in JSON output when requested', () => {
+    const res = run(['check', '--directory', 'examples/nextjs-security-demo', '--json', '--scorecard', '--fail-on', 'none']);
+    expect(res.status === 0 || res.status === 1).toBe(true);
+    const obj = JSON.parse(res.stdout.trim());
+    expect(obj.scorecard).toBeTruthy();
+    expect(typeof obj.scorecard.securityPosture).toBe('number');
+    expect(obj.scorecard.runtime).toBeTruthy();
+    expect(typeof obj.scorecard.runtime.totalDurationMs).toBe('number');
+    expect(obj.scorecard.runtime.scannerStats).toBeTruthy();
+    expect(Object.keys(obj.scorecard.runtime.scannerStats).length).toBeGreaterThan(0);
+  });
+
+  (hasDist ? it : it.skip)('fails fast on invalid --fix-level', () => {
+    const res = run(['check', '--directory', 'examples/nextjs-security-demo', '--json', '--preview-fixes', '--fix-level', 'invalid-level']);
+    expect(res.status).toBe(1);
+    const combinedOutput = `${res.stdout}\n${res.stderr}`;
+    expect(combinedOutput).toContain('Unknown fix level');
+  });
 });
 
 

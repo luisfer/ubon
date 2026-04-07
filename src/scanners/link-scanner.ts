@@ -1,4 +1,4 @@
-import { Scanner, ScanResult, ScanOptions } from '../types';
+import { Scanner, ScanResult, ScanOptions, ScannerRunStats } from '../types';
 import { RULES } from '../rules';
 import { glob } from 'glob';
 import { readFileSync } from 'fs';
@@ -7,19 +7,31 @@ import http from 'http';
 
 export class LinkScanner implements Scanner {
   name = 'Broken Links Scanner';
+  private lastRunStats: ScannerRunStats | null = null;
+
+  getLastRunStats(): ScannerRunStats | null {
+    return this.lastRunStats;
+  }
 
   async scan(options: ScanOptions): Promise<ScanResult[]> {
     const results: ScanResult[] = [];
+    let filesScanned = 0;
+    let filesReadErrors = 0;
     // Find links in source files and check reachability
     const files = await glob('**/*.{md,mdx,js,jsx,ts,tsx,html}', {
       cwd: options.directory,
-      ignore: ['node_modules/**', 'dist/**', 'build/**', '.next/**', 'examples/**']
+      ignore: ['node_modules/**', 'dist/**', 'build/**', '.next/**', 'examples/**', 'coverage/**', '.git/**', '.tmp*/**', 'tmp/**']
     });
     const urlRegex = /(https?:\/\/[^\s)"'<>]+)/g;
     const uniqueUrls = new Map<string, { file: string; line: number }[]>();
     for (const file of files) {
       let content = '';
-      try { content = readFileSync(`${options.directory}/${file}`, 'utf-8'); } catch {}
+      try {
+        content = readFileSync(`${options.directory}/${file}`, 'utf-8');
+        filesScanned++;
+      } catch {
+        filesReadErrors++;
+      }
       const lines = content.split('\n');
       lines.forEach((line, idx) => {
         let m: RegExpExecArray | null;
@@ -76,6 +88,11 @@ export class LinkScanner implements Scanner {
       const meta = RULES.LINK001;
       results.push({ type: 'info', category: meta.category, message: meta.message, ruleId: meta.id, severity: meta.severity, fix: meta.fix, confidence: 0.6, confidenceReason: 'Suggestion to add internal link checking' });
     }
+    this.lastRunStats = {
+      filesScanned,
+      filesReadErrors,
+      findings: results.length
+    };
     return results;
   }
 }

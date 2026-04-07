@@ -1,6 +1,5 @@
 import { Scanner, ScanResult, ScanOptions } from '../types';
-import { getRecentCommitHashes } from '../utils/git';
-import { execSync } from 'child_process';
+import { getRecentCommitHashes, getCommitDiff } from '../utils/git';
 import { RULES } from '../rules';
 import { shannonEntropy } from '../utils/entropy';
 
@@ -14,12 +13,8 @@ export class GitHistoryScanner implements Scanner {
 
     const commits = getRecentCommitHashes(depth, options.directory);
     for (const commit of commits) {
-      let diff = '';
-      try {
-        diff = execSync(`git show ${commit} --unified=0`, { cwd: options.directory, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] });
-      } catch {
-        continue;
-      }
+      const diff = getCommitDiff(options.directory, commit);
+      if (!diff) continue;
       const lines = diff.split('\n');
       for (let i = 0; i < lines.length; i++) {
         const line = lines[i];

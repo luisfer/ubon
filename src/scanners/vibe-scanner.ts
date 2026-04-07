@@ -1,4 +1,3 @@
-import { glob } from 'glob';
 import { readFileSync, existsSync } from 'fs';
 import { join } from 'path';
 import { ScanResult, ScanOptions } from '../types';
@@ -27,9 +26,25 @@ export class VibeScanner extends BaseScanner {
   private exports: Map<string, { file: string; line: number; name: string }[]> = new Map();
   private imports: Set<string> = new Set();
 
+  private buildIgnorePatterns(options: ScanOptions): string[] {
+    const common = ['node_modules/**', 'dist/**', 'build/**', '.next/**', 'coverage/**'];
+    // Default to production-facing source files to reduce noise.
+    // Detailed mode can include broader file sets.
+    if (options.detailed) return common;
+    return [
+      ...common,
+      'examples/**',
+      '**/__tests__/**',
+      '**/*.test.{js,jsx,ts,tsx}',
+      '**/*.spec.{js,jsx,ts,tsx}'
+    ];
+  }
+
   async scan(options: ScanOptions): Promise<ScanResult[]> {
     const results: ScanResult[] = [];
+    this.beginRunStats();
     this.initCache(options, 'vibe:1');
+    const ignorePatterns = this.buildIgnorePatterns(options);
 
     // Load package.json dependencies
     this.loadPackageDeps(options.directory);
@@ -38,7 +53,7 @@ export class VibeScanner extends BaseScanner {
     await this.collectExportsAndImports(options);
 
     // Second pass: run detection
-    for await (const ctx of this.iterateFiles(options, '**/*.{js,jsx,ts,tsx,vue}', ['node_modules/**', 'dist/**', 'build/**', '.next/**'])) {
+    for await (const ctx of this.iterateFiles(options, '**/*.{js,jsx,ts,tsx,vue}', ignorePatterns)) {
       if (this.hasFileSuppression(ctx.lines)) continue;
 
       const cached = this.getCached(ctx.file, ctx.contentHash);
@@ -50,22 +65,23 @@ export class VibeScanner extends BaseScanner {
       const fileResults: ScanResult[] = [];
 
       // VIBE001: Hallucinated imports
-      fileResults.push(...this.detectHallucinatedImports(ctx.file, ctx.lines, options));
+      fileResults.push(...this.detectHallucinatedImports(ctx.file, ctx.lines));
 
       // VIBE002: Copy-paste artifacts
-      fileResults.push(...this.detectCopyPasteArtifacts(ctx.file, ctx.lines, options));
+      fileResults.push(...this.detectCopyPasteArtifacts(ctx.file, ctx.lines));
 
       // VIBE003: Incomplete implementations (pattern-based)
-      fileResults.push(...this.detectIncompleteImplementations(ctx.file, ctx.lines, options));
+      fileResults.push(...this.detectIncompleteImplementations(ctx.file, ctx.lines));
 
       this.setCached(ctx.file, ctx.contentHash, fileResults);
       results.push(...fileResults);
     }
 
     // VIBE004: Orphaned exports (cross-file analysis)
-    results.push(...this.detectOrphanedExports(options));
+    results.push(...this.detectOrphanedExports());
 
     this.saveCache();
+    this.finalizeRunStats(results.length);
     return results;
   }
 
@@ -109,7 +125,7 @@ export class VibeScanner extends BaseScanner {
     this.exports.clear();
     this.imports.clear();
 
-    for await (const ctx of this.iterateFiles(options, '**/*.{js,jsx,ts,tsx}', ['node_modules/**', 'dist/**', 'build/**', '.next/**'])) {
+    for await (const ctx of this.iterateFiles(options, '**/*.{js,jsx,ts,tsx}', this.buildIgnorePatterns(options))) {
       // Collect exports
       ctx.lines.forEach((line, index) => {
         // Named exports: export const/function/class Name
@@ -155,7 +171,7 @@ export class VibeScanner extends BaseScanner {
     }
   }
 
-  private detectHallucinatedImports(file: string, lines: string[], options: ScanOptions): ScanResult[] {
+  private detectHallucinatedImports(file: string, lines: string[]): ScanResult[] {
     const results: ScanResult[] = [];
     const rule = getRule('VIBE001');
     if (!rule) return results;
@@ -201,7 +217,7 @@ export class VibeScanner extends BaseScanner {
     return results;
   }
 
-  private detectCopyPasteArtifacts(file: string, lines: string[], options: ScanOptions): ScanResult[] {
+  private detectCopyPasteArtifacts(file: string, lines: string[]): ScanResult[] {
     const results: ScanResult[] = [];
     const rule = getRule('VIBE002');
     if (!rule) return results;
@@ -255,7 +271,7 @@ export class VibeScanner extends BaseScanner {
     return results;
   }
 
-  private detectIncompleteImplementations(file: string, lines: string[], options: ScanOptions): ScanResult[] {
+  private detectIncompleteImplementations(file: string, lines: string[]): ScanResult[] {
     const results: ScanResult[] = [];
     const rule = getRule('VIBE003');
     if (!rule || !rule.impl.patterns) return results;
@@ -289,7 +305,7 @@ export class VibeScanner extends BaseScanner {
     return results;
   }
 
-  private detectOrphanedExports(options: ScanOptions): ScanResult[] {
+  private detectOrphanedExports(): ScanResult[] {
     const results: ScanResult[] = [];
     const rule = getRule('VIBE004');
     if (!rule) return results;

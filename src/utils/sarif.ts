@@ -1,5 +1,6 @@
 import { ScanResult } from '../types';
 import { RULES } from '../rules';
+import { redactSensitiveTokens } from './redaction';
 import pkg from '../../package.json';
 
 interface SarifLog {
@@ -62,7 +63,7 @@ export function toSarif(results: ScanResult[], repoRoot: string): SarifLog {
         severity: r.severity,
         confidence: r.confidence,
         fingerprint: r.fingerprint,
-        match: redact(r.match),
+        match: redactSensitiveTokens(r.match),
         fix: r.fix,
       },
       partialFingerprints: r.fingerprint ? { "vibeScan/fingerprint": r.fingerprint } : undefined,
@@ -94,14 +95,6 @@ export function toSarif(results: ScanResult[], repoRoot: string): SarifLog {
 function normalizePath(p: string): string {
   // Keep relative paths for SARIF consumers
   return p.replace(/\\/g, '/');
-}
-
-function redact(value?: string): string | undefined {
-  if (!value) return value;
-  // Replace long tokens with masked version
-  if (/sk-[A-Za-z0-9_-]{8,}/.test(value)) return value.replace(/sk-[A-Za-z0-9_-]{8,}/g, 'sk-********');
-  if (/eyJ[A-Za-z0-9._-]{20,}/.test(value)) return value.replace(/eyJ[A-Za-z0-9._-]{20,}/g, 'eyJ********');
-  return value;
 }
 
 

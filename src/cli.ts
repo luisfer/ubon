@@ -26,6 +26,7 @@ const addCommonOptions = (cmd: Command): Command => {
     .option('--update-baseline', 'Update baseline with current findings and exit')
     .option('--no-baseline', 'Do not apply baseline filtering')
     .option('--json', 'Output results as JSON (for AI agents)')
+    .option('--scorecard', 'Include machine-readable quality scorecard in JSON output')
     .option('--sarif <path>', 'Write results as SARIF 2.1.0 to given path')
     .option('--output <path>', 'Write JSON output to file')
     .option('--changed-files <paths...>', 'Limit scanning to these files (relative paths)')
@@ -33,6 +34,7 @@ const addCommonOptions = (cmd: Command): Command => {
     .option('--fix-dry-run', 'Compute and print auto-fix plan without writing files')
     .option('--preview-fixes', 'Show diff-like preview of fixes without applying')
     .option('--apply-fixes', 'Apply available safe auto-fixes to the codebase')
+    .option('--fix-level <level>', 'Fix safety level: safe|review|aggressive', 'safe')
     .option('--profile <name>', 'Scan profile: auto|lovable|react|next|vue|python|rails', 'auto')
     .option('--git-history-depth <n>', 'Scan last N commits for leaked secrets')
     .option('--fast', 'Skip expensive checks (OSV, links) for faster results')
@@ -57,8 +59,10 @@ const addCommonOptions = (cmd: Command): Command => {
     .option('--clear-cache', 'Clear OSV vulnerability cache before scanning')
     .option('--no-cache', 'Disable OSV caching for this scan')
     .option('--no-result-cache', 'Disable per-file result caching')
+    .option('--allow-js-config', 'Allow loading executable ubon.config.js (disabled by default for safety)')
     .option('--pr-comment', 'Output a Markdown summary suitable for PR comments')
-    .option('--interactive', 'Walk through issues interactively with explanations and fix options');
+    .option('--interactive', 'Walk through issues interactively with explanations and fix options')
+    .option('--policy <name>', 'Apply policy preset: startup|strict-prod|regulated|ai-prototype');
 };
 
 // Scan command

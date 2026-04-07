@@ -3,7 +3,9 @@ import { ScanResult, ScanOptions } from '../types';
 import { toSarif } from '../utils/sarif';
 import { getChangedFilesSince, createBranchCommitPush, tryOpenPullRequest, ensureGitRepo } from '../utils/git';
 import { loadConfig, mergeOptions } from '../utils/config';
-import { applyFixes, previewFixes, printFixPreviews } from '../utils/fix';
+import { applyFixes, previewFixes, printFixPreviews, FixLevel, parseFixLevel } from '../utils/fix';
+import { generateScorecard } from '../utils/scorecard';
+import { redactSensitiveTokens } from '../utils/redaction';
 import pkg from '../../package.json';
 
 export function renderPrMarkdown(results: ScanResult[]): string {
@@ -31,13 +33,6 @@ export function renderPrMarkdown(results: ScanResult[]): string {
     });
   });
   return lines.join('\n');
-}
-
-export function redact(value?: string): string | undefined {
-  if (!value) return value;
-  if (/sk-[A-Za-z0-9_-]{8,}/.test(value)) return value.replace(/sk-[A-Za-z0-9_-]{8,}/g, 'sk-********');
-  if (/eyJ[A-Za-z0-9._-]{20,}/.test(value)) return value.replace(/eyJ[A-Za-z0-9._-]{20,}/g, 'eyJ********');
-  return value;
 }
 
 export function generateRecommendations(results: ScanResult[]): string[] {
@@ -114,16 +109,20 @@ export interface CliOptions {
   clearCache?: boolean;
   noCache?: boolean;
   noResultCache?: boolean;
+  allowJsConfig?: boolean;
+  fixLevel?: string;
+  policy?: string;
   aiFriendly?: boolean;
   prComment?: boolean;
   interactive?: boolean;
+  scorecard?: boolean;
   json?: boolean;
   sarif?: string;
   output?: string;
 }
 
 export function buildScanOptions(options: CliOptions, defaults: Partial<ScanOptions> = {}): ScanOptions {
-  const config = loadConfig(options.directory);
+  const config = loadConfig(options.directory, { allowJsConfig: !!options.allowJsConfig });
   const cliOptions: Partial<ScanOptions> = {
     directory: options.directory,
     port: options.port ? parseInt(options.port) : undefined,
@@ -139,7 +138,7 @@ export function buildScanOptions(options: CliOptions, defaults: Partial<ScanOpti
     gitChangedSince: options.gitChangedSince,
     profile: options.profile as ScanOptions['profile'],
     gitHistoryDepth: options.gitHistoryDepth ? parseInt(options.gitHistoryDepth) : undefined,
-    fast: !!options.fast,
+    fast: options.fast ?? defaults.fast ?? false,
     crawlInternal: !!options.crawlInternal,
     crawlStartUrl: options.crawlStartUrl,
     crawlDepth: options.crawlDepth ? parseInt(options.crawlDepth) : undefined,
@@ -161,7 +160,8 @@ export function buildScanOptions(options: CliOptions, defaults: Partial<ScanOpti
     clearCache: !!options.clearCache,
     noCache: !!options.noCache,
     noResultCache: !!options.noResultCache,
-    interactive: !!options.interactive
+    interactive: !!options.interactive,
+    policy: options.policy as ScanOptions['policy']
   };
   return mergeOptions(config, cliOptions);
 }
@@ -174,6 +174,40 @@ export function applyAiFriendlyPreset(scanOptions: ScanOptions, forceJson: boole
   if (!scanOptions.maxIssues) (scanOptions as any).maxIssues = 15;
 }
 
+export function applyPolicyPreset(scanOptions: ScanOptions): void {
+  const policy = scanOptions.policy;
+  if (!policy) return;
+  const supportedPolicies = new Set(['startup', 'strict-prod', 'regulated', 'ai-prototype']);
+  if (!supportedPolicies.has(policy)) {
+    throw new Error(`Unknown policy "${policy}". Supported policies: startup, strict-prod, regulated, ai-prototype`);
+  }
+
+  switch (policy) {
+    case 'startup':
+      if (typeof scanOptions.fast === 'undefined') (scanOptions as any).fast = true;
+      if (typeof scanOptions.minConfidence !== 'number') (scanOptions as any).minConfidence = 0.8;
+      break;
+    case 'strict-prod':
+      (scanOptions as any).fast = false;
+      (scanOptions as any).detailed = true;
+      if (typeof scanOptions.minConfidence !== 'number') (scanOptions as any).minConfidence = 0.75;
+      break;
+    case 'regulated':
+      (scanOptions as any).fast = false;
+      (scanOptions as any).detailed = true;
+      (scanOptions as any).focusSecurity = true;
+      (scanOptions as any).showContext = true;
+      (scanOptions as any).explain = true;
+      if (typeof scanOptions.minConfidence !== 'number') (scanOptions as any).minConfidence = 0.7;
+      break;
+    case 'ai-prototype':
+      if (typeof scanOptions.fast === 'undefined') (scanOptions as any).fast = true;
+      if (typeof scanOptions.minConfidence !== 'number') (scanOptions as any).minConfidence = 0.85;
+      if (!scanOptions.maxIssues) (scanOptions as any).maxIssues = 20;
+      break;
+  }
+}
+
 export async function outputResults(
   scanner: UbonScan,
   results: ScanResult[],
@@ -184,6 +218,13 @@ export async function outputResults(
     const md = renderPrMarkdown(results);
     console.log(md);
   } else if (options.json) {
+    const runMetrics = options.scorecard ? scanner.getLastRunMetrics() : null;
+    const scorecard = options.scorecard
+      ? {
+          ...generateScorecard(results),
+          ...(runMetrics ? { runtime: runMetrics } : {})
+        }
+      : undefined;
     const payload = {
       schemaVersion: '1.0.0',
       toolVersion: (pkg as any).version,
@@ -193,8 +234,9 @@ export async function outputResults(
         warnings: results.filter(r => r.type === 'warning').length,
         info: results.filter(r => r.type === 'info').length
       },
-      issues: results.map(r => ({ ...r, match: redact(r.match) })),
-      recommendations: generateRecommendations(results)
+      issues: results.map(r => ({ ...r, match: redactSensitiveTokens(r.match) })),
+      recommendations: generateRecommendations(results),
+      ...(scorecard ? { scorecard } : {})
     };
     if (options.output) {
       const fs = await import('fs');
@@ -218,9 +260,11 @@ export async function handleFixes(
   results: ScanResult[],
   options: CliOptions
 ): Promise<void> {
+  const fixLevel: FixLevel = parseFixLevel(options.fixLevel);
+
   // Handle preview-fixes first (read-only)
   if (options.previewFixes) {
-    const previews = previewFixes(results, options.directory);
+    const previews = previewFixes(results, options.directory, fixLevel);
     printFixPreviews(previews);
     return;
   }
@@ -228,7 +272,7 @@ export async function handleFixes(
   if (!options.fixDryRun && !options.applyFixes) return;
 
   const dryRun = !!options.fixDryRun && !options.applyFixes;
-  const { changedFiles, appliedEditCount } = applyFixes(results, options.directory, dryRun);
+  const { changedFiles, appliedEditCount } = applyFixes(results, options.directory, dryRun, fixLevel);
   
   if (dryRun) {
     console.log(JSON.stringify({ fixPlan: { files: changedFiles, edits: appliedEditCount } }, null, 2));
@@ -278,6 +322,7 @@ export async function runScanCommand(
 ): Promise<void> {
   const scanner = new UbonScan(options.verbose, options.json, options.color as 'auto' | 'always' | 'never');
   const scanOptions = buildScanOptions(options, defaults);
+  applyPolicyPreset(scanOptions);
 
   if (options.aiFriendly) {
     applyAiFriendlyPreset(scanOptions, true);
@@ -340,7 +385,8 @@ export async function runScanCommand(
 
 export async function runCheckCommand(options: CliOptions): Promise<void> {
   const scanner = new UbonScan(options.verbose, options.json, options.color as 'auto' | 'always' | 'never');
-  const scanOptions = buildScanOptions(options, { skipBuild: true });
+  const scanOptions = buildScanOptions(options, { skipBuild: true, fast: true });
+  applyPolicyPreset(scanOptions);
 
   try {
     if (scanOptions.gitChangedSince && (!scanOptions.changedFiles || scanOptions.changedFiles.length === 0)) {

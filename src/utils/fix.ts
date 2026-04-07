@@ -20,9 +20,29 @@ export interface FixPreview {
   after: string;
 }
 
-export function collectFixEdits(results: ScanResult[]): FileEdits[] {
+export type FixLevel = 'safe' | 'review' | 'aggressive';
+
+export function parseFixLevel(input?: string): FixLevel {
+  if (!input || input === 'safe') return 'safe';
+  if (input === 'review') return 'review';
+  if (input === 'aggressive') return 'aggressive';
+  throw new Error(`Unknown fix level "${input}". Supported levels: safe, review, aggressive`);
+}
+
+function isFixAllowed(result: ScanResult, level: FixLevel): boolean {
+  const confidence = result.confidence ?? 0;
+  if (level === 'aggressive') return true;
+  if (level === 'review') return confidence >= 0.7;
+  // safe default: only high-confidence fixes; extra caution on high severity findings
+  if (confidence < 0.8) return false;
+  if (result.severity === 'high' && confidence < 0.9) return false;
+  return true;
+}
+
+export function collectFixEdits(results: ScanResult[], level: FixLevel = 'safe'): FileEdits[] {
   const map = new Map<string, FixEdit[]>();
   for (const r of results) {
+    if (!isFixAllowed(r, level)) continue;
     if (!r.fixEdits || r.fixEdits.length === 0) continue;
     for (const e of r.fixEdits) {
       if (!map.has(e.file)) map.set(e.file, []);
@@ -32,8 +52,8 @@ export function collectFixEdits(results: ScanResult[]): FileEdits[] {
   return Array.from(map.entries()).map(([filePath, edits]) => ({ filePath, edits }));
 }
 
-export function applyFixes(results: ScanResult[], directory: string, dryRun: boolean): ApplyFixesResult {
-  const filesWithEdits = collectFixEdits(results);
+export function applyFixes(results: ScanResult[], directory: string, dryRun: boolean, level: FixLevel = 'safe'): ApplyFixesResult {
+  const filesWithEdits = collectFixEdits(results, level);
   let appliedEditCount = 0;
   const changedFiles: string[] = [];
 
@@ -90,9 +110,9 @@ function positionToIndex(line: number, column: number, lineStarts: number[]): nu
 /**
  * Generate a preview of fixes without applying them
  */
-export function previewFixes(results: ScanResult[], directory: string): FixPreview[] {
+export function previewFixes(results: ScanResult[], directory: string, level: FixLevel = 'safe'): FixPreview[] {
   const previews: FixPreview[] = [];
-  const filesWithEdits = collectFixEdits(results);
+  const filesWithEdits = collectFixEdits(results, level);
 
   for (const { filePath, edits } of filesWithEdits) {
     try {

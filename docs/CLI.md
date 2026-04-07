@@ -15,6 +15,7 @@ Options:
   -d, --directory <path>      Directory to scan (default: current)
   -p, --port <number>         Development server port (for future internal crawling)
   --skip-build                Skip link checking (static analysis only)
+  --base-sha <ref>            In CI, only fail on findings in files changed since base ref
   -v, --verbose               Enable verbose output
   --fail-on <level>           none|warning|error (default: error)
   --min-confidence <n>        Minimum confidence threshold (0.0-1.0)
@@ -24,6 +25,7 @@ Options:
   --update-baseline           Update baseline with current findings and exit
   --no-baseline               Do not apply baseline filtering
   --json                      Output results as JSON
+  --scorecard                 Include machine-readable quality scorecard in JSON output
   --output <path>             Write JSON output to file
   --sarif <path>              Write SARIF 2.1.0 report to path
   --changed-files <...>       Only scan these files (relative paths)
@@ -31,6 +33,7 @@ Options:
   --fix-dry-run               Print auto-fix plan (no writes)
   --preview-fixes             Show diff-like preview of fixes without applying
   --apply-fixes               Apply available safe auto-fixes
+  --fix-level <level>         Fix safety level: safe|review|aggressive (default: safe)
   --profile <name>            auto|lovable|react|next|vue|python|rails (default: auto)
   --git-history-depth <n>     Scan last N commits for leaked secrets
   --fast                      Skip OSV and link/crawler checks for speed
@@ -51,6 +54,8 @@ Options:
   --watch                     Re-run scan on file changes
   --create-pr                 Create a PR with auto-fixes applied
   --no-result-cache           Disable per-file result cache (skip reuse between runs)
+  --allow-js-config           Allow executable ubon.config.js (off by default)
+  --policy <name>             Policy preset: startup|strict-prod|regulated|ai-prototype
   --min-severity <level>      Minimum severity to include: low|medium|high
   --max-issues <n>            Limit output to N most important issues
   --show-context              Show code context around findings (3–5 lines)
@@ -122,12 +127,14 @@ Options:
   --update-baseline           Update baseline with current findings and exit
   --no-baseline               Do not apply baseline filtering
   --json                      Output results as JSON
+  --scorecard                 Include machine-readable quality scorecard in JSON output
   --output <path>             Write JSON output to file
   --sarif <path>              Write SARIF 2.1.0 report to path
   --changed-files <...>       Only scan these files (relative paths)
   --git-changed-since <ref>   Only scan files changed since Git ref
   --fix-dry-run               Print auto-fix plan (no writes)
   --apply-fixes               Apply available safe auto-fixes
+  --fix-level <level>         Fix safety level: safe|review|aggressive (default: safe)
   --profile <name>            auto|lovable|react|next|vue|python|rails (default: auto)
   --git-history-depth <n>     Scan last N commits for leaked secrets
   --fast                      Skip OSV and link/crawler checks for speed
@@ -135,17 +142,28 @@ Options:
   --crawl-start-url <url>     Starting URL for internal crawl
   --crawl-depth <n>           Max crawl depth (default: 2)
   --crawl-timeout <ms>        Per-page timeout in ms (default: 10000)
+  --detailed                  Show all findings including lower-confidence/noisy ones
+  --focus-critical            Only show critical (high severity) issues
+  --focus-security            Only show security issues (hide a11y/links/etc)
+  --focus-new                 Only show issues not in baseline
   --group-by <mode>           Group results: category|file|rule|severity (default: category)
   --format <mode>             Output format (human mode): human|table (default: human)
   --color <mode>              Colorize output: auto|always|never (default: auto)
+  --pr-comment                Output a Markdown summary suitable for PR comments
+  --interactive               Walk through issues interactively with explanations and fix options
   --min-severity <level>      Minimum severity to include: low|medium|high
   --max-issues <n>            Limit output to N most important issues
   --show-context              Show code context around findings (3–5 lines)
   --explain                   Show "why it matters" explanations
+  --show-confidence           Show per-finding confidence in human output
   --show-suppressed           Include suppressed results in output
   --ignore-suppressed         Completely ignore suppressed results
   --clear-cache               Clear OSV cache before scanning
   --no-cache                  Disable OSV caching for this run
+  --preview-fixes             Show diff-like preview of fixes without applying
+  --no-result-cache           Disable per-file result cache (skip reuse between runs)
+  --allow-js-config           Allow executable ubon.config.js (off by default)
+  --policy <name>             Policy preset: startup|strict-prod|regulated|ai-prototype
 
 Fixes:
 
@@ -155,6 +173,10 @@ ubon check --fix-dry-run
 
 # Apply safe autofixes
 ubon check --apply-fixes
+
+# Expand fix scope when needed
+ubon check --apply-fixes --fix-level review
+ubon check --apply-fixes --fix-level aggressive
 
 # Notes:
 # - A11Y: add alt to <img>, aria-label to <input>, button roles on clickable divs, convert <a> (no href) to <button>
@@ -182,6 +204,7 @@ Exit codes:
 JSON schema highlights:
 - schemaVersion, toolVersion
 - ruleId, category, severity, match, range, fingerprint, fix, fixEdits, helpUri
+- optional scorecard payload via `--scorecard` (severity/type/category totals + runtime metrics, including per-scanner timings and scanner stats when available)
 - secrets are redacted in match; fingerprints remain stable
 
 ### Baseline workflows
