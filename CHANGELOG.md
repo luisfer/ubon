@@ -1,3 +1,19 @@
+## 3.0.1 — `chmod +x` patch — 2026-04-19
+
+### 🐛 Critical fix
+
+- **`npx ubon` and the global bin were broken in 3.0.0.** The published
+  tarball shipped `dist/cli.js` without the executable bit
+  (`-rw-r--r--` instead of `-rwxr-xr-x`), so `sh: ubon: command not
+  found` was returned for every install. The build script now runs
+  `chmod +x dist/cli.js` after `tsc` so the bit is preserved through
+  `npm pack`. Upgrade with `npm install -g ubon@3.0.1` or
+  `npx ubon@latest`. `ubon@3.0.0` has been deprecated on npm.
+
+No source or rule changes — `3.0.1` is a packaging-only fix.
+
+---
+
 ## 3.0.0 — Modernization & AI-Era Edition — 2026-04-18
 
 ### 🎯 Major: AI-era detections, MCP server, Cursor hooks, deterministic output

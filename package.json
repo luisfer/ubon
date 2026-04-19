@@ -1,6 +1,6 @@
 {
   "name": "ubon",
-  "version": "3.0.0",
+  "version": "3.0.1",
   "description": "Security scanner for AI-generated apps (Cursor, Lovable, Windsurf, v0). Catches hardcoded secrets, prompt injection, hallucinated imports, Server Actions / Edge runtime mistakes, and the vibe-coded vulnerabilities traditional linters miss.",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -8,7 +8,7 @@
     "ubon": "./dist/cli.js"
   },
   "scripts": {
-    "build": "tsc",
+    "build": "tsc && chmod +x dist/cli.js",
     "dev": "tsc --watch",
     "start": "node dist/cli.js",
     "test": "jest",
