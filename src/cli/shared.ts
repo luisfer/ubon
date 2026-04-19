@@ -219,6 +219,7 @@ export function buildScanOptions(options: CliOptions, defaults: Partial<ScanOpti
     interactive: !!options.interactive,
     quiet: !!options.quiet,
     ndjson: !!options.ndjson,
+    json: !!options.json,
     allowConfigJs: !!options.allowConfigJs
   };
   return mergeOptions(config, cliOptions);

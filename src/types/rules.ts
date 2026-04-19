@@ -95,7 +95,55 @@ export const RULES: Record<string, RuleMeta> = {
   NEXT216: { id: 'NEXT216', category: 'security', severity: 'high', message: 'App Router page/layout types params/searchParams as a plain object (Next 15 requires a Promise)', fix: 'Type the prop as Promise<{...}> and await it before use', helpUri: 'https://nextjs.org/docs/app/api-reference/file-conventions/page#params-optional', impact: 'Next 15 makes params/searchParams async; synchronous typing silently returns a thenable at runtime' },
   NEXT217: { id: 'NEXT217', category: 'security', severity: 'high', message: "React hook used in a component file without the 'use client' directive", fix: "Add 'use client'; at the very top of the file", helpUri: 'https://nextjs.org/docs/app/building-your-application/rendering/client-components', impact: 'Hooks in Server Components fail the Next build; the file needs the client directive to render on the browser' },
   NEXT218: { id: 'NEXT218', category: 'security', severity: 'low', message: 'reactStrictMode: false disables an important dev-time correctness check', fix: 'Remove the override or set reactStrictMode: true', helpUri: 'https://react.dev/reference/react/StrictMode', impact: 'Disabling Strict Mode masks double-invocation bugs and deprecated API warnings Next would otherwise catch' },
-  NEXT219: { id: 'NEXT219', category: 'security', severity: 'low', message: 'experimental.serverActions: true uses the Next 13 shape and is ignored in Next 14/15', fix: 'Remove the flag; Server Actions are stable in Next 14. Use the object form only if you need allowedOrigins/bodySizeLimit', helpUri: 'https://nextjs.org/docs/app/api-reference/next-config-js/serverActions', impact: 'Stale experimental flags give a false sense that something is configured when it is not' }
+  NEXT219: { id: 'NEXT219', category: 'security', severity: 'low', message: 'experimental.serverActions: true uses the Next 13 shape and is ignored in Next 14/15', fix: 'Remove the flag; Server Actions are stable in Next 14. Use the object form only if you need allowedOrigins/bodySizeLimit', helpUri: 'https://nextjs.org/docs/app/api-reference/next-config-js/serverActions', impact: 'Stale experimental flags give a false sense that something is configured when it is not' },
+
+  // 3.1 additions — React anti-patterns, module hygiene, agent tooling,
+  // and extra security heuristics. Modular rules in src/rules/* are the
+  // source of truth; these entries exist so the legacy registry stays in sync.
+  REACT001: { id: 'REACT001', category: 'development', severity: 'medium', message: 'Array index used as React `key`', fix: 'Use a stable id from the data', helpUri: 'https://react.dev/learn/rendering-lists#why-does-react-need-keys' },
+  REACT002: { id: 'REACT002', category: 'development', severity: 'high', message: 'Event handler invoked at render time (onClick={fn()})', fix: 'Pass the function reference: onClick={fn}' },
+  REACT003: { id: 'REACT003', category: 'development', severity: 'high', message: 'State mutated in place before setter call', fix: 'Produce a new value (spread/map) before calling the setter' },
+  REACT004: { id: 'REACT004', category: 'development', severity: 'medium', message: 'useEffect closes over a state value without listing it as a dependency', fix: 'Add the value to the dependency array or use the functional setter form' },
+  REACT005: { id: 'REACT005', category: 'development', severity: 'high', message: 'useEffect starts a timer/listener without returning a cleanup', fix: 'Return a cleanup that clears the timer/listener' },
+  REACT006: { id: 'REACT006', category: 'development', severity: 'medium', message: 'useEffect issues fetch without an AbortController signal', fix: 'Pass an AbortController signal and call abort() in cleanup' },
+  REACT007: { id: 'REACT007', category: 'development', severity: 'high', message: 'Async function passed directly to useEffect', fix: 'Declare an async function inside the effect and call it' },
+  REACT008: { id: 'REACT008', category: 'development', severity: 'medium', message: 'useState(expensive()) runs the initializer on every render', fix: 'Pass a function: useState(() => expensive())' },
+  REACT009: { id: 'REACT009', category: 'development', severity: 'high', message: 'React hook called conditionally', fix: 'Call hooks at the top level of the component, unconditionally' },
+  REACT010: { id: 'REACT010', category: 'development', severity: 'medium', message: 'ref.current assigned during render', fix: 'Mutate refs inside handlers or effects, not during render' },
+  REACT011: { id: 'REACT011', category: 'security', severity: 'high', message: 'JWT / bearer token stored in localStorage or sessionStorage', fix: 'Store the token in an HttpOnly cookie set by the server' },
+
+  SEC021: { id: 'SEC021', category: 'security', severity: 'medium', message: 'Error stack serialized into HTTP response body', fix: 'Return a generic message; log the stack server-side only' },
+  SEC022: { id: 'SEC022', category: 'security', severity: 'medium', message: 'Silent .catch on DB/fetch returns stub data', fix: 'Log the error and either rethrow or surface a real failure state' },
+  SEC023: { id: 'SEC023', category: 'security', severity: 'high', message: 'Weak hash (md5/sha1) used for a password or token', fix: 'Use bcrypt/argon2/scrypt for passwords; HMAC-SHA256 for tokens' },
+  SEC024: { id: 'SEC024', category: 'security', severity: 'high', message: 'Math.random() used to produce a token/session id/nonce', fix: 'Use crypto.randomUUID() or crypto.randomBytes()' },
+  SEC025: { id: 'SEC025', category: 'security', severity: 'high', message: 'Open redirect: redirect()/router.push() fed directly from user input', fix: 'Validate the target against a same-origin allowlist' },
+  SEC026: { id: 'SEC026', category: 'security', severity: 'high', message: 'child_process called with a string containing user input', fix: 'Use execFile with an arg array; validate inputs' },
+  SEC027: { id: 'SEC027', category: 'security', severity: 'high', message: 'File path built from user input without a path-traversal guard', fix: 'Resolve the joined path and assert it starts with the allowed root' },
+  SEC028: { id: 'SEC028', category: 'security', severity: 'high', message: 'Auth token stored in localStorage or sessionStorage', fix: 'Use an HttpOnly cookie set by the server' },
+  SEC029: { id: 'SEC029', category: 'security', severity: 'high', message: 'Webhook handler never verifies an incoming signature before mutating state', fix: 'Call stripe.webhooks.constructEvent / svix.verify / timingSafeEqual(createHmac(...)) before trusting the body' },
+  SEC030: { id: 'SEC030', category: 'security', severity: 'high', message: 'fetch() target is user-controlled in a server route — potential SSRF', fix: 'Validate the URL against a hostname/IP allowlist before fetching' },
+  SEC031: { id: 'SEC031', category: 'security', severity: 'medium', message: 'Password/token compared with === instead of timingSafeEqual', fix: 'Use crypto.timingSafeEqual for secret comparisons' },
+
+  NEXT220: { id: 'NEXT220', category: 'security', severity: 'high', message: 'window access inside a Server Component', fix: "Move browser access into a 'use client' component" },
+  NEXT221: { id: 'NEXT221', category: 'security', severity: 'high', message: "Client Component imports a server-only module (fs, pg, better-sqlite3, @prisma/client, ...)", fix: 'Move DB / fs access into a Server Component or Route Handler' },
+  NEXT222: { id: 'NEXT222', category: 'security', severity: 'medium', message: 'Server Component imports a client-only state library (zustand/jotai/recoil/valtio)', fix: "Move stateful logic into a 'use client' component" },
+  NEXT223: { id: 'NEXT223', category: 'security', severity: 'high', message: 'Route file uses `export default` instead of named GET/POST/...', fix: 'Rename the default export to a method name (GET, POST, ...)' },
+  NEXT224: { id: 'NEXT224', category: 'development', severity: 'low', message: '<a href="/internal"> used instead of <Link>', fix: 'Import Link from next/link for same-origin navigation' },
+  NEXT225: { id: 'NEXT225', category: 'security', severity: 'medium', message: '<form method="POST" action="/api/..."> without CSRF or Server Action', fix: 'Use a Server Action or add CSRF middleware' },
+
+  MOD001: { id: 'MOD001', category: 'development', severity: 'medium', message: 'Module-level side effect runs at import time', fix: 'Move the side-effect inside a function' },
+  MOD002: { id: 'MOD002', category: 'development', severity: 'low', message: 'Async function body contains no await (unnecessary wrapper)', fix: 'Drop the async keyword if nothing is awaited' },
+  MOD003: { id: 'MOD003', category: 'security', severity: 'medium', message: 'Silent .catch on DB/fetch hides real errors', fix: 'Log the error or rethrow' },
+  MOD004: { id: 'MOD004', category: 'development', severity: 'low', message: 'High density of `: any` annotations in a single file', fix: 'Narrow the types (unknown, generics, unions)' },
+
+  CC001: { id: 'CC001', category: 'security', severity: 'high', message: 'Secret literal inside .claude/settings*.json', fix: 'Move the value out of the committed settings; rotate if already pushed' },
+  CC002: { id: 'CC002', category: 'security', severity: 'high', message: 'Claude Code hook uses unquoted variable in a destructive command', fix: 'Quote every $VAR expansion' },
+  CC003: { id: 'CC003', category: 'security', severity: 'high', message: 'Claude Code hook pipes remote content to a shell (curl | sh)', fix: 'Download, verify checksum, then execute' },
+  CC004: { id: 'CC004', category: 'security', severity: 'high', message: 'Secret-shaped string inside CLAUDE.md / .claude/agents/*.md', fix: 'Remove the literal and rotate if committed' },
+  CC005: { id: 'CC005', category: 'security', severity: 'high', message: 'MCP server config exposes a secret in its env block', fix: "Resolve ${VAR} from the shell env instead of committing the literal" },
+  CC006: { id: 'CC006', category: 'security', severity: 'high', message: 'Secret-shaped string inside .cursorrules / .windsurfrules / .aiderconfig', fix: 'Remove the secret from the rules file' },
+  CC007: { id: 'CC007', category: 'security', severity: 'low', message: 'Claude Code session transcripts or TODO state committed', fix: 'Add .claude/todos/ and .claude/history/ to .gitignore' },
+  CC008: { id: 'CC008', category: 'security', severity: 'medium', message: 'Prompt-injection marker inside agent rules / memory file', fix: 'Remove lines that try to override the agent behavior' }
 };
 
 

@@ -9,6 +9,8 @@ import { reactRules } from './react';
 import { vibeRules } from './vibe';
 import { aiRules } from './ai';
 import { frameworkRules } from './frameworks';
+import { moduleRules } from './module';
+import { agentRules } from './agent';
 
 // Combine all modular rules from different categories
 const allRuleModules = {
@@ -21,7 +23,9 @@ const allRuleModules = {
   ...reactRules,
   ...vibeRules,
   ...aiRules,
-  ...frameworkRules
+  ...frameworkRules,
+  ...moduleRules,
+  ...agentRules
 };
 
 // Create rules registry (compatible with existing RULES interface)

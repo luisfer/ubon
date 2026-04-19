@@ -50,6 +50,13 @@ export abstract class BaseScanner implements Scanner {
         '.output/**',
         '.vercel/**',
         '.netlify/**',
+        // Build / coverage artifacts — HTML, .js.map, compiled output. These
+        // aren't source and produce massive A11Y / noise if scanned.
+        'coverage/**',
+        'dist/**',
+        'build/**',
+        'out/**',
+        '.ubon/**',
         ...ignore,
         ...(options.exclude || [])
       ]

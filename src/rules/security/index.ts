@@ -95,5 +95,85 @@ export const securityRules: Record<string, Rule> = {
   NEXT205: makeRule({ id: 'NEXT205', category: 'security', severity: 'medium', message: 'API route may be accessible without authentication', fix: 'Require auth (NextAuth getServerSession/JWT/cookie checks) for sensitive endpoints', helpUri: 'https://next-auth.js.org/configuration/nextjs#api-routes', impact: 'Unauthenticated access to sensitive APIs can leak data or allow abuse' }),
   NEXT208: makeRule({ id: 'NEXT208', category: 'security', severity: 'medium', message: 'router.push() to external URL', fix: 'Validate and restrict redirect targets to an allowlist or same-origin', helpUri: 'https://owasp.org/www-community/attacks/Unvalidated_Redirects_and_Forwards_Cheat_Sheet', impact: 'Open redirects facilitate phishing and credential theft' }),
   NEXT209: makeRule({ id: 'NEXT209', category: 'security', severity: 'medium', message: 'API route missing HTTP method validation', fix: 'Validate req.method in Pages API or export method handlers (GET/POST/...) in App Router', helpUri: 'https://nextjs.org/docs/app/building-your-application/routing/route-handlers', impact: 'Accepting unintended methods broadens attack surface and leads to undefined behavior' }),
-  NEXT210: makeRule({ id: 'NEXT210', category: 'security', severity: 'high', message: 'Server secret serialized to client props (leak risk)', fix: 'Do not pass secrets in getServerSideProps/getStaticProps props; keep server-only or use secure cookies', helpUri: 'https://nextjs.org/docs/pages/building-your-application/data-fetching/get-server-side-props#caveats', impact: 'Secrets sent via props are exposed to the browser and can be exfiltrated' })
+  NEXT210: makeRule({ id: 'NEXT210', category: 'security', severity: 'high', message: 'Server secret serialized to client props (leak risk)', fix: 'Do not pass secrets in getServerSideProps/getStaticProps props; keep server-only or use secure cookies', helpUri: 'https://nextjs.org/docs/pages/building-your-application/data-fetching/get-server-side-props#caveats', impact: 'Secrets sent via props are exposed to the browser and can be exfiltrated' }),
+
+  // 3.1 security extensions — high-signal patterns common in AI-generated
+  // code. Detection lives in AstSecurityScanner / FrameworkScanner;
+  // metadata is centralised here so `ubon explain <id>` works for every rule.
+  SEC021: makeRule({
+    id: 'SEC021', category: 'security', severity: 'medium',
+    message: 'Error stack / internal error serialised into HTTP response body',
+    fix: 'Return a generic message to the client; log the stack server-side only.',
+    impact: 'Stack traces expose file paths, framework versions and sometimes secrets; invaluable reconnaissance for an attacker.',
+    helpUri: 'https://owasp.org/www-community/Improper_Error_Handling'
+  }),
+  SEC022: makeRule({
+    id: 'SEC022', category: 'security', severity: 'medium',
+    message: 'Silent `.catch(() => [] | {} | null)` after DB/fetch — swallows errors and returns stub data',
+    fix: 'Log the error and either rethrow or surface a real failure state.',
+    impact: 'Stub-on-error makes outages invisible: the UI renders "empty" and monitoring never fires.'
+  }),
+  SEC023: makeRule({
+    id: 'SEC023', category: 'security', severity: 'high',
+    message: 'Weak hash (`md5` / `sha1`) used for a password / token',
+    fix: 'Use `bcrypt`/`argon2`/`scrypt` for passwords and `crypto.randomBytes` + HMAC-SHA-256 for tokens.',
+    impact: 'md5/sha1 are broken for authentication: trivially cracked with rainbow tables or collisions.',
+    helpUri: 'https://cheatsheetseries.owasp.org/cheatsheets/Password_Storage_Cheat_Sheet.html'
+  }),
+  SEC024: makeRule({
+    id: 'SEC024', category: 'security', severity: 'high',
+    message: '`Math.random()` used to produce a token / session id / nonce',
+    fix: 'Use `crypto.randomUUID()` or `crypto.randomBytes(32).toString(\'hex\')`.',
+    impact: 'Math.random is a predictable PRNG — attackers can guess the next value from a handful of samples.',
+    helpUri: 'https://developer.mozilla.org/docs/Web/API/Crypto/randomUUID'
+  }),
+  SEC025: makeRule({
+    id: 'SEC025', category: 'security', severity: 'high',
+    message: 'Open redirect: `redirect()` / `router.push()` / `NextResponse.redirect()` fed directly from user input',
+    fix: 'Validate the target against a same-origin allowlist before redirecting.',
+    impact: 'Open redirects are weaponised for phishing: attackers craft links on your domain that bounce users to a credential-harvesting page.',
+    helpUri: 'https://owasp.org/www-community/attacks/Unvalidated_Redirects_and_Forwards_Cheat_Sheet'
+  }),
+  SEC026: makeRule({
+    id: 'SEC026', category: 'security', severity: 'high',
+    message: '`child_process.exec` / `execSync` / `spawn` called with a string containing user input',
+    fix: 'Use the array form (`execFile(cmd, [arg1, arg2])`) and validate inputs against an allowlist.',
+    impact: 'String concatenation in shell commands is the textbook command-injection sink.',
+    helpUri: 'https://owasp.org/Top10/A03_2021-Injection'
+  }),
+  SEC027: makeRule({
+    id: 'SEC027', category: 'security', severity: 'high',
+    message: 'File path built from user input without a path-traversal guard',
+    fix: 'Resolve the joined path and assert it starts with your allowed root (`resolved.startsWith(rootDir)`).',
+    impact: '`../` sequences in the path let attackers read `/etc/passwd`, the `.env`, or anywhere else the process can read.',
+    helpUri: 'https://owasp.org/www-community/attacks/Path_Traversal'
+  }),
+  SEC028: makeRule({
+    id: 'SEC028', category: 'security', severity: 'high',
+    message: 'Auth token stored in `localStorage` / `sessionStorage`',
+    fix: 'Use an HttpOnly cookie set by the server. localStorage is reachable by any XSS.',
+    impact: 'A single XSS can exfiltrate every token from localStorage. HttpOnly cookies are invisible to JavaScript.',
+    helpUri: 'https://cheatsheetseries.owasp.org/cheatsheets/HTML5_Security_Cheat_Sheet.html#local-storage'
+  }),
+  SEC029: makeRule({
+    id: 'SEC029', category: 'security', severity: 'high',
+    message: 'Webhook route handler never verifies an incoming signature before mutating state',
+    fix: 'Call `stripe.webhooks.constructEvent(body, sig, secret)` / `svix.verify()` / `timingSafeEqual(createHmac(...))` before trusting the payload.',
+    impact: 'Without signature verification anyone who can POST to the endpoint can replay/forge events — flipping subscriptions, granting roles, draining inventory.',
+    helpUri: 'https://stripe.com/docs/webhooks/signatures'
+  }),
+  SEC030: makeRule({
+    id: 'SEC030', category: 'security', severity: 'high',
+    message: 'fetch() target is user-controlled in a server route — potential SSRF',
+    fix: 'Resolve the URL against an allowlist of hostnames (and IP ranges) before calling `fetch()`. Reject `localhost`, private ranges, and link-local addresses.',
+    impact: 'The server can be turned into a proxy to cloud metadata (169.254.169.254), internal services, or arbitrary hosts on the private network.',
+    helpUri: 'https://owasp.org/www-community/attacks/Server_Side_Request_Forgery'
+  }),
+  SEC031: makeRule({
+    id: 'SEC031', category: 'security', severity: 'medium',
+    message: 'Password/token compared with `===` / `!==` instead of a timing-safe compare',
+    fix: 'Use `crypto.timingSafeEqual(Buffer.from(a), Buffer.from(b))` so the comparison time doesn\'t leak the prefix.',
+    impact: 'A constant-time compare is the standard mitigation; `===` short-circuits on the first mismatch and leaks information byte-by-byte under a timing attack.',
+    helpUri: 'https://nodejs.org/api/crypto.html#cryptotimingsafeequala-b'
+  })
 };

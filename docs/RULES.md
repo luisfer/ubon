@@ -3,7 +3,7 @@
 This file is auto-generated from the rule registry by `scripts/generate-rules-md.js`.
 Do not hand-edit; run `npm run rules:gen` after building.
 
-Total rules: **112**.
+Total rules: **152**.
 
 ## Security (JS/TS)
 
@@ -34,6 +34,17 @@ Total rules: **112**.
 - **SEC018** — High-entropy string literal (possible secret) ([docs](https://owasp.org/Top10/A02_2021-Cryptographic_Failures))
 - **SEC019** — React component injection via createElement
 - **SEC020** — SQL sink called with string interpolation or concatenation (SQL injection) ([docs](https://owasp.org/Top10/A03_2021-Injection))
+- **SEC021** — Error stack / internal error serialised into HTTP response body ([docs](https://owasp.org/www-community/Improper_Error_Handling))
+- **SEC022** — Silent `.catch(() => [] | {} | null)` after DB/fetch — swallows errors and returns stub data
+- **SEC023** — Weak hash (`md5` / `sha1`) used for a password / token ([docs](https://cheatsheetseries.owasp.org/cheatsheets/Password_Storage_Cheat_Sheet.html))
+- **SEC024** — `Math.random()` used to produce a token / session id / nonce ([docs](https://developer.mozilla.org/docs/Web/API/Crypto/randomUUID))
+- **SEC025** — Open redirect: `redirect()` / `router.push()` / `NextResponse.redirect()` fed directly from user input ([docs](https://owasp.org/www-community/attacks/Unvalidated_Redirects_and_Forwards_Cheat_Sheet))
+- **SEC026** — `child_process.exec` / `execSync` / `spawn` called with a string containing user input ([docs](https://owasp.org/Top10/A03_2021-Injection))
+- **SEC027** — File path built from user input without a path-traversal guard ([docs](https://owasp.org/www-community/attacks/Path_Traversal))
+- **SEC028** — Auth token stored in `localStorage` / `sessionStorage` ([docs](https://cheatsheetseries.owasp.org/cheatsheets/HTML5_Security_Cheat_Sheet.html#local-storage))
+- **SEC029** — Webhook route handler never verifies an incoming signature before mutating state ([docs](https://stripe.com/docs/webhooks/signatures))
+- **SEC030** — fetch() target is user-controlled in a server route — potential SSRF ([docs](https://owasp.org/www-community/attacks/Server_Side_Request_Forgery))
+- **SEC031** — Password/token compared with `===` / `!==` instead of a timing-safe compare ([docs](https://nodejs.org/api/crypto.html#cryptotimingsafeequala-b))
 
 ## AI (LLM era)
 
@@ -68,6 +79,12 @@ Total rules: **112**.
 - **NEXT217** — React hook used in a component file without the `'use client'` directive ([docs](https://nextjs.org/docs/app/building-your-application/rendering/client-components))
 - **NEXT218** — `reactStrictMode: false` disables an important dev-time correctness check ([docs](https://react.dev/reference/react/StrictMode))
 - **NEXT219** — `experimental.serverActions: true` is the Next 13 shape and is ignored in Next 14/15 ([docs](https://nextjs.org/docs/app/api-reference/next-config-js/serverActions))
+- **NEXT220** — `typeof window !== "undefined"` / `window.*` access inside a Server Component ([docs](https://nextjs.org/docs/app/building-your-application/rendering/server-components))
+- **NEXT221** — Client Component imports a server-only module (`fs`, `child_process`, `pg`, `better-sqlite3`, `@prisma/client`, …) ([docs](https://nextjs.org/docs/app/building-your-application/rendering/client-components))
+- **NEXT222** — Server Component imports a client-only state library (`zustand` / `jotai` / `recoil` / `valtio`) ([docs](https://react.dev/reference/rsc/use-client))
+- **NEXT223** — `app/**/route.ts` uses `export default` instead of a named `GET`/`POST`/… export ([docs](https://nextjs.org/docs/app/building-your-application/routing/route-handlers))
+- **NEXT224** — `<a href="/internal">` used instead of `<Link>` for an internal route ([docs](https://nextjs.org/docs/app/api-reference/components/link))
+- **NEXT225** — `<form method="POST" action="/api/…">` without a CSRF token or a Server Action ([docs](https://owasp.org/www-community/attacks/csrf))
 
 ## Next.js (experimental)
 
@@ -111,6 +128,17 @@ Total rules: **112**.
 
 ## React / Tailwind
 
+- **REACT001** — Array index used as React `key` — breaks reconciliation on reorder/insert ([docs](https://react.dev/learn/rendering-lists#why-does-react-need-keys))
+- **REACT002** — Event handler invoked at render time (`onClick={fn()}` instead of `onClick={fn}`) ([docs](https://react.dev/learn/responding-to-events))
+- **REACT003** — State mutated in place before setter call (React will not re-render) ([docs](https://react.dev/learn/updating-arrays-in-state))
+- **REACT004** — `useEffect(cb, [])` closes over a state value without listing it as a dependency ([docs](https://react.dev/learn/you-might-not-need-an-effect))
+- **REACT005** — `useEffect` starts a timer / listener without returning a cleanup function ([docs](https://react.dev/reference/react/useEffect#subscribing-to-events))
+- **REACT006** — `useEffect` issues `fetch` without an AbortController signal ([docs](https://react.dev/reference/react/useEffect#fetching-data-with-effects))
+- **REACT007** — Async function passed directly to `useEffect` (returns a Promise, not a cleanup) ([docs](https://react.dev/reference/react/useEffect))
+- **REACT008** — `useState(expensive())` runs the initializer on every render ([docs](https://react.dev/reference/react/useState#avoiding-recreating-the-initial-state))
+- **REACT009** — React hook called conditionally (inside `if` / ternary / loop / early return) ([docs](https://react.dev/reference/rules/rules-of-hooks))
+- **REACT010** — `ref.current = …` assigned during render ([docs](https://react.dev/reference/react/useRef#referencing-a-value-with-a-ref))
+- **REACT011** — JWT / bearer token stored in `localStorage` / `sessionStorage` ([docs](https://cheatsheetseries.owasp.org/cheatsheets/JSON_Web_Token_for_Java_Cheat_Sheet.html))
 - **TAILWIND001** — Dynamic className with unvalidated input - may allow CSS injection ([docs](https://tailwindcss.com/docs/content-configuration#dynamic-class-names))
 
 ## Vibe (AI hallucination signals)
@@ -161,3 +189,18 @@ Total rules: **112**.
 - **DOCKER003** — Docker base image uses :latest tag
 - **DOCKER004** — apt-get install without cleaning apt cache
 - **GHA001** — Secrets may be echoed in GitHub Actions workflow
+
+## Other
+
+- **CC001** — Secret literal inside `.claude/settings*.json` ([docs](https://docs.claude.com/en/docs/claude-code/settings))
+- **CC002** — Claude Code hook shell script uses unquoted variable in a destructive command (`rm`/`mv`/`cp`/`eval`) ([docs](https://www.shellcheck.net/wiki/SC2086))
+- **CC003** — Claude Code hook executes `curl | sh` or pipes remote content to a shell ([docs](https://docs.claude.com/en/docs/claude-code/hooks))
+- **CC004** — Secret-shaped string inside `CLAUDE.md` / `.claude/agents/*.md` ([docs](https://docs.claude.com/en/docs/claude-code/memory))
+- **CC005** — MCP server config exposes a secret in its `env` block ([docs](https://modelcontextprotocol.io/docs/concepts/configuration))
+- **CC006** — Secret-shaped string inside `.cursorrules` / `.cursor/rules/*.mdc` / `.windsurfrules` / `.aiderconfig`
+- **CC007** — Claude Code session transcripts or TODO state committed to the repo ([docs](https://docs.claude.com/en/docs/claude-code/overview))
+- **CC008** — Prompt-injection marker inside agent rules / memory file ([docs](https://simonwillison.net/2023/May/2/prompt-injection-explained/))
+- **MOD001** — Module-level side effect (`fs.*Sync`, `db.exec`, `fetch`) runs at import time
+- **MOD002** — `async function` body contains no `await` / `for await` (unnecessary wrapper)
+- **MOD003** — Silent `.catch(() => …)` on a DB/fetch call hides real errors from the caller
+- **MOD004** — High density of `: any` annotations in a single file

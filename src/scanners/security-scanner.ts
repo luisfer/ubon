@@ -1,5 +1,5 @@
 import { glob } from 'glob';
-import { statSync } from 'fs';
+import { existsSync, readFileSync, statSync } from 'fs';
 import { join } from 'path';
 import { Scanner, ScanResult, ScanOptions } from '../types';
 import { RULES, getRule } from '../rules';
@@ -59,6 +59,24 @@ export class SecurityScanner implements Scanner {
 
     // Load modular rules
     const modularRules = this.modularRuleIds.map(id => getRule(id)).filter(Boolean);
+
+    // NEXT* rules gate: require a real Next.js project so an Astro fixture
+    // with `src/pages/api/*` doesn't spuriously flag NEXT209.
+    const isNextProject = ((): boolean => {
+      try {
+        const pkgPath = join(options.directory, 'package.json');
+        if (existsSync(pkgPath)) {
+          const pkg = JSON.parse(readFileSync(pkgPath, 'utf-8'));
+          if (pkg.dependencies?.next || pkg.devDependencies?.next) return true;
+        }
+      } catch {}
+      return (
+        existsSync(join(options.directory, 'next.config.js')) ||
+        existsSync(join(options.directory, 'next.config.ts')) ||
+        existsSync(join(options.directory, 'next.config.mjs')) ||
+        existsSync(join(options.directory, 'next.config.cjs'))
+      );
+    })();
 
     // Project-level Next.js structure presence flags (for P5 experimental rules)
     const hasAppDir = files.some(f => /^app\//.test(f));
@@ -195,8 +213,10 @@ export class SecurityScanner implements Scanner {
           }
         }
 
-        // Project-level Next.js structure checks (emit once per project)
-        if (/^(pages|app)\//.test(file)) {
+        // Project-level Next.js structure checks (emit once per project).
+        // Gate on real Next.js: Remix also uses `app/` and we don't want to
+        // flag a missing `app/not-found.tsx` in a Remix project.
+        if (isNextProject && /^(pages|app)\//.test(file)) {
           // Missing not-found/404
           if (!emittedP5_404) {
             if (hasAppDir && !hasNotFoundApp) {
@@ -533,7 +553,7 @@ export class SecurityScanner implements Scanner {
         }
 
         // API route structure: missing method validation (NEXT209) and unauthenticated sensitive responses (NEXT205)
-        if (/\b(pages|app)\/api\//.test(file)) {
+        if (isNextProject && /\b(pages|app)\/api\//.test(file)) {
           const isPagesAPI = /\bpages\/api\//.test(file);
           const isAppRoute = /\bapp\/api\//.test(file);
           if (isPagesAPI) {

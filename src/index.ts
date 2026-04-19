@@ -278,6 +278,8 @@ export { IacScanner } from './scanners/iac-scanner';
 export { OSVScanner } from './scanners/osv-scanner';
 export { ViteScanner } from './scanners/vite-scanner';
 export { ReactSecurityScanner } from './scanners/react-security-scanner';
+export { ReactPatternsScanner } from './scanners/react-patterns-scanner';
+export { AgentSettingsScanner } from './scanners/agent-settings-scanner';
 export { LovableSupabaseScanner } from './scanners/lovable-supabase-scanner';
 export { VibeScanner } from './scanners/vibe-scanner';
 export { AIScanner } from './scanners/ai-scanner';

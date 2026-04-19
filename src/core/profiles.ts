@@ -10,8 +10,10 @@ import { EnvScanner } from '../scanners/env-scanner';
 import { IacScanner } from '../scanners/iac-scanner';
 import { OSVScanner } from '../scanners/osv-scanner';
 import { ReactSecurityScanner } from '../scanners/react-security-scanner';
+import { ReactPatternsScanner } from '../scanners/react-patterns-scanner';
 import { LovableSupabaseScanner } from '../scanners/lovable-supabase-scanner';
 import { ViteScanner } from '../scanners/vite-scanner';
+import { AgentSettingsScanner } from '../scanners/agent-settings-scanner';
 
 /**
  * Profile registry — single source of truth for "what runs under this profile".
@@ -38,6 +40,8 @@ const baseJsScanners = (): Scanner[] => [
   new VibeScanner(),
   new AIScanner(),
   new FrameworkScanner(),
+  new ReactPatternsScanner(),
+  new AgentSettingsScanner(),
   new EnvScanner(),
   new IacScanner()
 ];

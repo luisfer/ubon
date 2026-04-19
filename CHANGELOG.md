@@ -1,3 +1,151 @@
+## 3.1.0 — AI-tool coverage: React patterns, agent settings, module hygiene — 2026-04-19
+
+### 🎯 What this release is
+
+An additive minor release that broadens coverage of the AI-generated
+stacks ubon gets pointed at: React anti-patterns, Next App Router
+server/client boundaries, module-level hygiene, and the meta-configuration
+dotfiles that Claude Code, Cursor, and Windsurf commit into repos. No
+breaking changes to 3.0.x behavior; every addition is a new rule or a
+false-positive gate on an existing one.
+
+### 🧩 New rule packs
+
+- **React anti-patterns (`REACT001`–`REACT011`).** New
+  `ReactPatternsScanner` catches the staple AI-generated hazards:
+  `key={i}` with array index, `onClick={fn()}` invoking on render,
+  state mutation before the setter, `useEffect` with `setInterval` /
+  `fetch` and no cleanup, `useEffect(async () => …)`, eager state
+  initializer, conditional hook call, `useRef(…).current = x` during
+  render, and JWT / bearer tokens stored in `localStorage` /
+  `sessionStorage`.
+- **Security extensions (`SEC021`–`SEC031`).** Error stack leaked to
+  the response body, silent `.catch(() => [])` stubs, weak crypto
+  (`md5` / `sha1`) over credential-named variables, `Math.random()`
+  for tokens / sessionIds, open redirect from user input, shell
+  injection via `child_process.exec`, unchecked `fs.readFile(path.join(…))`,
+  JWT tokens persisted in web storage, webhook handlers that never
+  verify an inbound signature (`SEC029`), SSRF via `fetch(userUrl)`
+  inside a route handler (`SEC030`), and timing-unsafe credential
+  comparisons with `===` (`SEC031`).
+- **Next App Router boundaries (`NEXT220`–`NEXT225`).** `typeof window`
+  inside an async server component, Client Component importing
+  server-only modules (`fs`, `crypto`, `better-sqlite3`, Prisma…),
+  Server Component importing client state libs (`zustand`, `jotai`,
+  `recoil`, `valtio`), `route.ts` exporting `default` instead of named
+  verbs, `<a href>` for internal routes where `next/link` exists, and
+  `<form method="POST">` without a Server Action wiring.
+- **Module-level hygiene (`MOD001`–`MOD004`).** Side-effect calls at
+  module top level, `async` functions without any `await`,
+  `Promise.all([…]).catch(() => stub)` shrug-on-error, and the
+  `: any` explosion (≥3 in one file; detailed-only).
+- **Agent / Claude Code tooling (`CC001`–`CC008`).** New
+  `AgentSettingsScanner` walks `.claude/`, `.cursor/`, `.windsurf/`,
+  `.mcp.json`, `CLAUDE.md`, `.cursorrules`, `.windsurfrules`, and
+  friends. Flags literal secrets in settings / MCP env blocks, hooks
+  that `rm -rf $VAR` unquoted, hooks that shell out to untrusted
+  domains, inline secrets in agent memory / prompt files, and
+  prompt-injection markers embedded in committed agent docs.
+
+### 🧠 False-positive killers
+
+- **`NEXT*` rules gate on a detected Next.js project.** A Vite+React
+  SPA with `src/pages/api/…` no longer spuriously lights up `NEXT209`
+  / `NEXT217`; the framework and security scanners both read
+  `package.json` once per scan and look for a `next` dependency or a
+  `next.config.*` on disk before emitting App Router findings.
+- **`SEC023` sees credential context even without a direct target.**
+  `return createHash('md5').update(password).digest('hex')` now fires
+  via an enclosing-function parameter check, not just a direct
+  variable assignment.
+- **`SEC021` catches `JSON.stringify({ stack: err.stack })`** in
+  addition to `res.json` / `c.json` / `.send()`.
+- **`--detailed` and `--json` correctly propagate from CLI to core.**
+  Previously low-confidence findings stayed filtered under
+  `--json --detailed` because the flag wasn't threaded through
+  `buildScanOptions`.
+
+### 🧪 Fixture fleet
+
+Seven eval fixtures live out-of-tree under
+`~/Downloads/code/my-projects/test/buggy-*/`, one each for Next 15 +
+SQLite, Vite + React 18, Astro 4 + SSR, Lovable-style Next + Supabase,
+Claude Code / Cursor dotfile leaks, v0-style shadcn Server Actions,
+and a tricky T3-stack (`buggy-trpc-ai`: Next 15 + tRPC + Prisma +
+NextAuth + OpenAI) that stresses multi-file taint flows — SSRF via
+`fetch(userUrl)`, webhook handlers with no signature verification,
+timing-unsafe password compares, path traversal via form-data
+filenames, `NEXT_PUBLIC_` env used in auth gates, and a fake
+markdown sanitizer feeding `dangerouslySetInnerHTML`. Each ships a
+`BUGS.md` enumerating the planted bugs and the rule IDs expected to
+fire. `scripts/run-fixture-suite.sh` scans them all and prints a
+rule-ID histogram per fixture.
+
+An eighth fixture (`buggy-remix-ai`) targets Remix v2 + Vercel AI SDK
++ Drizzle + Resend + Upstash. Added detectors and gates so its
+planted bugs are caught:
+
+- **Remix + SvelteKit route detection.** `isRouteFile` now matches
+  `app/routes/*.tsx` / `app/routes/*.ts` and `+server.ts|js|mjs`, so
+  `SEC029` (missing webhook signature) and `SEC030` (SSRF) fire on
+  Remix and SvelteKit endpoints, not just Next.js.
+- **`SEC026` through `promisify(exec)` aliases and named imports.**
+  Tracks `const pexec = promisify(exec)` and `import { exec } from
+  'child_process'`; the bare-identifier call `pexec(cmd)` / `exec(cmd)`
+  with a tainted arg is now flagged, matching how AI SDK "shell" tools
+  are typically wired.
+- **`SEC027` on direct `fs.readFile` / `writeFile` sinks.** Not just
+  `path.join(userInput)` — a tool callback like
+  `execute: async ({ path }) => readFile(path, 'utf-8')` is now
+  treated as arbitrary read/write. Gated to files that handle request
+  input or import an AI SDK (`ai`, `@ai-sdk/*`, `@anthropic-ai/sdk`).
+- **One-hop taint through local bindings.** `const next =
+  searchParams.get('next'); redirect(next)` now fires `SEC025`;
+  `const target = url.searchParams.get('url'); fetch(target)` fires
+  `SEC030`. A per-file pre-pass collects locals whose initializers
+  mention a request-shaped identifier and feeds them into
+  `callContainsUserInput`.
+- **Remix `action` exports recognized for `SEC029`.** Previously only
+  `POST` / `default` exports triggered the "webhook with no signature
+  verify" heuristic; Remix's `export async function action` now does.
+
+### 🧠 False-positive killers (late additions)
+
+- **`coverage/`, `dist/`, `build/`, `out/`, `.ubon/` excluded by
+  default.** Scanning a project's own Jest coverage HTML produced
+  30k+ spurious `A11Y005` findings on the generated lcov report.
+  These directories now join the default ignore list alongside
+  `.next`, `.turbo`, etc.
+- **`SEC025` only treats `router.push` / `history.replace` as
+  navigation.** A bare `.push()` / `.replace()` on arbitrary receivers
+  (`arr.push(x)`, `results.push(...)`) no longer fires — the receiver
+  name must look like a router / history / navigation object.
+- **`SEC026` skips SQL-client `.exec(...)` calls.** `db.exec(\`INSERT
+  … '${body.title}'\`)` is a SQL sink (SEC020 catches it), not a
+  shell. Receivers named `db`, `knex`, `pool`, `conn`, `prisma`,
+  `drizzle`, `sqlite`, etc., are excluded from SEC026.
+- **`SEC031` requires an operand to be credential-named.** The prior
+  "context-nearby" heuristic matched `Token` as a substring of
+  `EqualsEqualsEqualsToken` / `PlusToken`, lighting up every `===`
+  inside TypeScript AST code. Now one side of the comparison must
+  itself be `password`, `authToken`, `sessionId`, `apiKey`, `hash`,
+  or a similar tight credential name.
+- **`SEC024` requires a tight credential-shaped target.**
+  `const sessionsPerDay = Math.random()` and `session_type =
+  Math.random()` no longer fire; the target must be an exact
+  credential name (`token`, `sessionId`, `apiKey`, …) or
+  `<anything>Id`.
+- **`NEXT201` / `NEXT202` gated on a real Next.js project.** Remix
+  also uses `app/`; previously its projects always surfaced a
+  spurious "missing `app/not-found.tsx`".
+
+### 🧾 Tests
+
+- New `src/__tests__/fixture-suite-3.1.test.ts` — 21 integration
+  tests covering the new scanners + SEC027/SEC028/SEC029/SEC030/SEC031
+  and MOD001 on inline fixtures.
+- Total test count: **214** (up from 193).
+
 ## 3.0.2 — Quick wins: trust, noise, coverage — 2026-04-19
 
 ### 🎯 What this release is

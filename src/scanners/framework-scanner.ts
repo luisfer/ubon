@@ -1,3 +1,5 @@
+import { existsSync, readFileSync } from 'fs';
+import { join } from 'path';
 import { ScanOptions, ScanResult } from '../types';
 import { BaseScanner } from './base-scanner';
 import { getRule } from '../rules';
@@ -20,9 +22,14 @@ export class FrameworkScanner extends BaseScanner {
   private readonly validatorMarkerRegex =
     /\b(zod|valibot|yup|ajv|safeParse|parse\s*\(|zValidator|@hapi\/joi|joi\.|superstruct|arktype|class-validator)\b/;
 
+  // Cached per-scan: is this project using Next.js? NEXT* rules gate on this
+  // so a Vite+React SPA doesn't light up with App Router findings.
+  private isNextProject: boolean = false;
+
   async scan(options: ScanOptions): Promise<ScanResult[]> {
     const results: ScanResult[] = [];
-    this.initCache(options, 'framework:1');
+    this.initCache(options, 'framework:2');
+    this.isNextProject = this.detectNextProject(options.directory);
 
     for await (const ctx of this.iterateFiles(
       options,
@@ -45,9 +52,12 @@ export class FrameworkScanner extends BaseScanner {
       fileResults.push(...this.detectRemix(ctx.file, ctx.content, ctx.lines));
       fileResults.push(...this.detectHono(ctx.file, ctx.content, ctx.lines));
       fileResults.push(...this.detectDrizzlePrisma(ctx.file, ctx.content, ctx.lines));
-      fileResults.push(...this.detectNext15AsyncParams(ctx.file, ctx.content, ctx.lines));
-      fileResults.push(...this.detectMissingUseClient(ctx.file, ctx.content, ctx.lines));
-      fileResults.push(...this.detectNextConfigHints(ctx.file, ctx.content, ctx.lines));
+      if (this.isNextProject) {
+        fileResults.push(...this.detectNext15AsyncParams(ctx.file, ctx.content, ctx.lines));
+        fileResults.push(...this.detectMissingUseClient(ctx.file, ctx.content, ctx.lines));
+        fileResults.push(...this.detectNextConfigHints(ctx.file, ctx.content, ctx.lines));
+        fileResults.push(...this.detectNextAppRouterBoundaries(ctx.file, ctx.content, ctx.lines));
+      }
 
       this.setCached(ctx.file, ctx.contentHash, fileResults);
       results.push(...fileResults);
@@ -55,6 +65,22 @@ export class FrameworkScanner extends BaseScanner {
 
     this.saveCache();
     return results;
+  }
+
+  private detectNextProject(directory: string): boolean {
+    try {
+      const pkgPath = join(directory, 'package.json');
+      if (existsSync(pkgPath)) {
+        const pkg = JSON.parse(readFileSync(pkgPath, 'utf-8'));
+        if (pkg.dependencies?.next || pkg.devDependencies?.next) return true;
+      }
+    } catch {}
+    return (
+      existsSync(join(directory, 'next.config.js')) ||
+      existsSync(join(directory, 'next.config.ts')) ||
+      existsSync(join(directory, 'next.config.mjs')) ||
+      existsSync(join(directory, 'next.config.cjs'))
+    );
   }
 
   // -------- Next.js Server Actions (NEXT212–215) ------------------------
@@ -373,8 +399,12 @@ export class FrameworkScanner extends BaseScanner {
     const out: ScanResult[] = [];
     const looksLikeEndpoint =
       /\b(GET|POST|PUT|PATCH|DELETE)\s*:\s*(?:async\s*)?\(?\s*\{?[^)]*Astro[^)]*\}?\)?\s*=>/.test(content) ||
-      /export\s+(?:async\s+)?function\s+(?:GET|POST|PUT|PATCH|DELETE)\s*\(/.test(content);
+      /export\s+(?:async\s+)?function\s+(?:GET|POST|PUT|PATCH|DELETE)\s*\(/.test(content) ||
+      /export\s+const\s+(?:GET|POST|PUT|PATCH|DELETE)\s*:\s*APIRoute\b/.test(content) ||
+      /from\s+['"]astro['"]/.test(content);
     if (!looksLikeEndpoint) return out;
+    // Only Astro projects: must import from 'astro' or have `.astro` neighbours.
+    if (!/from\s+['"]astro(?:\:|['"])/.test(content) && !/APIRoute\b/.test(content)) return out;
 
     // Only flag mutating verbs
     const meta = getRule('ASTRO001')?.meta;
@@ -697,6 +727,149 @@ export class FrameworkScanner extends BaseScanner {
             },
             lines[idx]
           )
+        );
+      }
+    }
+
+    return out;
+  }
+
+  // -------- NEXT220-225: App Router boundary hygiene --------------------
+
+  private detectNextAppRouterBoundaries(file: string, content: string, lines: string[]): ScanResult[] {
+    const out: ScanResult[] = [];
+    if (!/\.(?:tsx|jsx|ts)$/.test(file)) return out;
+
+    // Figure out whether this file is a Client Component, a Server
+    // Component, or an app-router route file.
+    const firstNonBlank = lines.findIndex((l) => {
+      const t = l.trim();
+      return t.length > 0 && !t.startsWith('//') && !t.startsWith('/*') && !t.startsWith('*');
+    });
+    const directive = firstNonBlank >= 0 ? lines[firstNonBlank].trim() : '';
+    const isClient = /^['"]use client['"]\s*;?$/.test(directive);
+    const inAppDir = /(?:^|\/)app\//.test(file);
+
+    const pushFinding = (ruleId: string, lineIndex: number, confidence: number, reason: string, detail?: string): void => {
+      if (this.isSuppressed(lines, lineIndex, ruleId)) return;
+      const meta = getRule(ruleId)?.meta;
+      if (!meta) return;
+      out.push(
+        this.createResult(
+          {
+            type: meta.severity === 'high' ? 'error' : 'warning',
+            category: meta.category,
+            severity: meta.severity,
+            ruleId: meta.id,
+            message: detail ? `${meta.message} — ${detail}` : meta.message,
+            fix: meta.fix,
+            file,
+            line: lineIndex + 1,
+            match: redact((lines[lineIndex] ?? '').trim().slice(0, 200)),
+            confidence,
+            confidenceReason: reason
+          },
+          lines[lineIndex]
+        )
+      );
+    };
+
+    // NEXT220: window / document access in a Server Component (app/**/*.tsx
+    // without 'use client'). Match `window.` or `document.` read.
+    if (inAppDir && !isClient && /\.(?:tsx|jsx)$/.test(file)) {
+      lines.forEach((line, i) => {
+        if (/\btypeof\s+window\s*!==?\s*['"]undefined['"]/.test(line) ||
+            /\bwindow\.[A-Za-z_$]/.test(line) ||
+            /\bdocument\.[A-Za-z_$]/.test(line)) {
+          pushFinding('NEXT220', i, 0.75,
+            'Browser global referenced in a Server Component (no `use client` directive).'
+          );
+        }
+      });
+    }
+
+    // NEXT221: Client Component imports a server-only module.
+    if (isClient) {
+      const serverOnly = [
+        'fs', 'fs/promises', 'child_process', 'net', 'dgram', 'dns',
+        'better-sqlite3', 'pg', 'mysql2', 'mongodb', 'redis', 'ioredis',
+        '@prisma/client', 'prisma', 'drizzle-orm/node-postgres',
+        'drizzle-orm/better-sqlite3', 'drizzle-orm/mysql2'
+      ];
+      const importRegex = /import\s+(?:[^'"`]+?\s+from\s+)?['"]([^'"`]+)['"]/g;
+      let m: RegExpExecArray | null;
+      while ((m = importRegex.exec(content))) {
+        const spec = m[1];
+        if (serverOnly.includes(spec) || serverOnly.some((s) => spec.startsWith(`${s}/`))) {
+          const lineIndex = content.slice(0, m.index).split('\n').length - 1;
+          pushFinding('NEXT221', lineIndex, 0.9,
+            `Client component imports \`${spec}\`, a server-only module.`,
+            `imports \`${spec}\``
+          );
+        }
+      }
+    }
+
+    // NEXT222: Server Component imports a client-only state library.
+    if (inAppDir && !isClient && /\.(?:tsx|jsx)$/.test(file)) {
+      const clientOnly = ['zustand', 'jotai', 'recoil', 'valtio', 'mobx'];
+      const importRegex = /import\s+(?:[^'"`]+?\s+from\s+)?['"]([^'"`]+)['"]/g;
+      let m: RegExpExecArray | null;
+      while ((m = importRegex.exec(content))) {
+        const spec = m[1];
+        const top = spec.split('/')[0];
+        if (clientOnly.includes(top)) {
+          const lineIndex = content.slice(0, m.index).split('\n').length - 1;
+          pushFinding('NEXT222', lineIndex, 0.8,
+            `Server Component imports \`${spec}\` (client-only state library).`,
+            `imports \`${spec}\``
+          );
+        }
+      }
+    }
+
+    // NEXT223: route.ts uses `export default`.
+    if (/(?:^|\/)app\/.*\/route\.(?:ts|tsx)$/.test(file) || /(?:^|\/)app\/route\.(?:ts|tsx)$/.test(file)) {
+      const idx = lines.findIndex((l) => /^\s*export\s+default\b/.test(l));
+      if (idx >= 0) {
+        pushFinding('NEXT223', idx, 0.95,
+          'Route file uses `export default`; Next ignores defaults in route handlers.'
+        );
+      }
+    }
+
+    // NEXT224: <a href="/internal"> in a page/component.
+    if (/\.(?:tsx|jsx)$/.test(file)) {
+      const aRegex = /<a\b([^>]*?)\bhref\s*=\s*["']\/[^"'#?]*["']([^>]*)>/g;
+      let m: RegExpExecArray | null;
+      while ((m = aRegex.exec(content))) {
+        const attrs = `${m[1]} ${m[2]}`;
+        if (/\btarget\s*=\s*["']_blank["']/.test(attrs)) continue; // external-ish new tab
+        if (/\bdownload\b/.test(attrs)) continue;
+        const lineIndex = content.slice(0, m.index).split('\n').length - 1;
+        pushFinding('NEXT224', lineIndex, 0.7,
+          'Internal anchor used; prefer `next/link` for client navigation.'
+        );
+      }
+    }
+
+    // NEXT225: <form method="POST" action="/api/..."> without Server Action.
+    if (/\.(?:tsx|jsx)$/.test(file)) {
+      const formRegex = /<form\b([^>]*)>/gi;
+      let m: RegExpExecArray | null;
+      while ((m = formRegex.exec(content))) {
+        const attrs = m[1];
+        const isPost = /\bmethod\s*=\s*["']post["']/i.test(attrs);
+        const actionMatch = /\baction\s*=\s*["']([^"']+)["']/i.exec(attrs);
+        const actionExpr = /\baction\s*=\s*\{[^}]+\}/.test(attrs);
+        if (!isPost || !actionMatch) continue;
+        const action = actionMatch[1];
+        if (!action.startsWith('/')) continue;
+        // Using a Server Action via action={fn} is OK; flag only string actions.
+        if (actionExpr) continue;
+        const lineIndex = content.slice(0, m.index).split('\n').length - 1;
+        pushFinding('NEXT225', lineIndex, 0.7,
+          'POST form targets a URL string without a Server Action wrapper or visible CSRF guard.'
         );
       }
     }

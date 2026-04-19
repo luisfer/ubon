@@ -13,6 +13,10 @@ describe('3.0.2 quick-wins — false-positive killers, noise reduction, new rule
 
   beforeEach(() => {
     dir = mkdtempSync(join(tmpdir(), 'ubon-302-'));
+    writeFileSync(
+      join(dir, 'package.json'),
+      JSON.stringify({ name: 't', dependencies: { next: '15.0.0' } })
+    );
   });
 
   afterEach(() => {

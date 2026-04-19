@@ -100,6 +100,66 @@ export const frameworkRules: Record<string, Rule> = {
       'Stale experimental flags give a false sense that something is configured. Keeping the boolean shape masks the fact that no tuning is actually in place.',
     helpUri: 'https://nextjs.org/docs/app/api-reference/next-config-js/serverActions'
   }, ['js', 'ts', 'mjs', 'cjs']),
+  NEXT220: make({
+    id: 'NEXT220',
+    category: 'security',
+    severity: 'high',
+    message: '`typeof window !== "undefined"` / `window.*` access inside a Server Component',
+    fix: "Move browser access into a `'use client'` component, or guard with `if (typeof document !== 'undefined')` only for progressive enhancement.",
+    impact:
+      "Server Components run at build/request time in Node. A `window` reference there crashes the render; branching silently removes the branch that actually does the work.",
+    helpUri: 'https://nextjs.org/docs/app/building-your-application/rendering/server-components'
+  }, ['tsx', 'jsx']),
+  NEXT221: make({
+    id: 'NEXT221',
+    category: 'security',
+    severity: 'high',
+    message: "Client Component imports a server-only module (`fs`, `child_process`, `pg`, `better-sqlite3`, `@prisma/client`, …)",
+    fix: "Move the DB / filesystem access to a Server Component, Route Handler, or Server Action and pass data down as a prop.",
+    impact:
+      "Server-only modules have no browser equivalent. Bundling one into a client chunk either crashes at runtime or (worse) leaks your database credentials into the bundle.",
+    helpUri: 'https://nextjs.org/docs/app/building-your-application/rendering/client-components'
+  }, ['tsx', 'jsx']),
+  NEXT222: make({
+    id: 'NEXT222',
+    category: 'security',
+    severity: 'medium',
+    message: 'Server Component imports a client-only state library (`zustand` / `jotai` / `recoil` / `valtio`)',
+    fix: "Move stateful logic into a `'use client'` component and pass initial data via props.",
+    impact:
+      "Client state libraries rely on React hooks that only run on the client. Importing them from a Server Component explodes at build time or silently no-ops at runtime.",
+    helpUri: 'https://react.dev/reference/rsc/use-client'
+  }, ['tsx', 'jsx']),
+  NEXT223: make({
+    id: 'NEXT223',
+    category: 'security',
+    severity: 'high',
+    message: "`app/**/route.ts` uses `export default` instead of a named `GET`/`POST`/… export",
+    fix: 'Rename the default export to `GET`, `POST`, `PUT`, `DELETE`, `PATCH`, or `OPTIONS` as appropriate.',
+    impact:
+      "Next ignores default exports from route files. The route silently 404s; the AI thinks the endpoint exists because the file compiles.",
+    helpUri: 'https://nextjs.org/docs/app/building-your-application/routing/route-handlers'
+  }, ['ts', 'tsx']),
+  NEXT224: make({
+    id: 'NEXT224',
+    category: 'development',
+    severity: 'low',
+    message: '`<a href="/internal">` used instead of `<Link>` for an internal route',
+    fix: 'Import `Link` from `next/link` and use it for same-origin navigation.',
+    impact:
+      "Plain `<a>` does a full page reload — loses client state, re-runs every layout, and makes the app feel like a traditional MPA.",
+    helpUri: 'https://nextjs.org/docs/app/api-reference/components/link'
+  }, ['tsx', 'jsx']),
+  NEXT225: make({
+    id: 'NEXT225',
+    category: 'security',
+    severity: 'medium',
+    message: '`<form method="POST" action="/api/…">` without a CSRF token or a Server Action',
+    fix: 'Use a Server Action (`action={createPost}`) or add a CSRF token middleware (next-auth, csrf-csrf, edge middleware).',
+    impact:
+      'Cross-origin POSTs from a logged-in victim can trigger state changes on your API — classic CSRF.',
+    helpUri: 'https://owasp.org/www-community/attacks/csrf'
+  }, ['tsx', 'jsx']),
 
   // ---- Edge runtime ----------------------------------------------------
   EDGE001: make({
