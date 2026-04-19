@@ -53,10 +53,33 @@ export class AstSecurityScanner implements Scanner {
       const confidenceReasons: Record<string, string> = {
         'SEC016': 'AST confirms direct eval() call expression',
         'SEC019': 'React.createElement with non-literal component - potential injection',
+        'SEC020': 'SQL sink receives a template literal with interpolations or a string concatenation — classic injection pattern',
         'NEXT004': 'Dynamic import() with non-literal argument - potential code injection',
         'JSNET001': 'fetch() call without AbortController signal in options',
         'SEC017': 'dangerouslySetInnerHTML attribute detected in JSX',
         'SEC008': 'process.env.X || "fallback" pattern detected via AST'
+      };
+
+      // JSNET001 fires per-fetch, which was loud for files with several
+      // calls. Collapse to one finding per file; the count is unchanged in
+      // aggregate but a single badge is enough for the user to act on.
+      let jsNetEmittedForFile = false;
+
+      // SQL sinks we consider. Property access `.prepare(` / `.query(` etc.
+      // on ANY receiver (db, knex, pool, conn, prisma, supabase, ...) plus
+      // bare calls that some ORMs expose.
+      const sqlSinkNames = new Set([
+        'prepare', 'query', 'exec', 'execute', 'run', 'raw',
+        '$queryRawUnsafe', '$executeRawUnsafe', 'unsafe'
+      ]);
+      const isTaintedArg = (arg: ts.Node): boolean => {
+        // Template literal with at least one interpolation span.
+        if (tsReal.isTemplateExpression(arg) && arg.templateSpans.length > 0) return true;
+        // Binary `+` concatenation anywhere on the left/right spine.
+        if (tsReal.isBinaryExpression(arg) && arg.operatorToken.kind === tsReal.SyntaxKind.PlusToken) {
+          return true;
+        }
+        return false;
       };
 
       const add = (metaKey: keyof typeof RULES, node: ts.Node, message?: string) => {
@@ -105,13 +128,31 @@ export class AstSecurityScanner implements Scanner {
             }
           }
           // fetch(...)
-          if (tsReal.isIdentifier(expr) && expr.text === 'fetch') {
+          if (tsReal.isIdentifier(expr) && expr.text === 'fetch' && !jsNetEmittedForFile) {
             const second = node.arguments[1];
             let hasSignal = false;
             if (second && tsReal.isObjectLiteralExpression(second)) {
               hasSignal = second.properties.some(p => tsReal.isPropertyAssignment(p) && tsReal.isIdentifier(p.name) && p.name.text === 'signal');
             }
-            if (!hasSignal) add('JSNET001', node, RULES.JSNET001.message);
+            if (!hasSignal) {
+              add('JSNET001', node, RULES.JSNET001.message);
+              jsNetEmittedForFile = true;
+            }
+          }
+
+          // SEC020: SQL sinks called with a template literal (containing
+          // interpolations) or a string concatenation. Covers the generic
+          // shape that complements DRIZZLE001/PRISMA001: better-sqlite3
+          // `.prepare()`, pg `.query()`, mysql2 `.execute()`, knex `.raw()`,
+          // Prisma `$queryRawUnsafe()`, etc.
+          let sinkName: string | undefined;
+          if (tsReal.isIdentifier(expr) && sqlSinkNames.has(expr.text)) sinkName = expr.text;
+          else if (tsReal.isPropertyAccessExpression(expr) && tsReal.isIdentifier(expr.name) && sqlSinkNames.has(expr.name.text)) sinkName = expr.name.text;
+          if (sinkName) {
+            const firstArg = node.arguments[0];
+            if (firstArg && isTaintedArg(firstArg)) {
+              add('SEC020', node, `SQL sink .${sinkName}() called with interpolated/concatenated string — possible SQL injection`);
+            }
           }
         }
 

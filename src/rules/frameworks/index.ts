@@ -58,6 +58,48 @@ export const frameworkRules: Record<string, Rule> = {
     helpUri:
       'https://nextjs.org/docs/app/api-reference/functions/redirect'
   }),
+  NEXT216: make({
+    id: 'NEXT216',
+    category: 'security',
+    severity: 'high',
+    message: 'App Router page/layout types `params`/`searchParams` as a plain object (Next 15 requires a Promise)',
+    fix: 'Type the prop as `Promise<{ ... }>` and `await` it before use. Example: `export default async function Page({ params }: { params: Promise<{ id: string }> }) { const { id } = await params; }`.',
+    impact:
+      'In Next 15 `params` and `searchParams` are asynchronous. A synchronous object type compiles but returns a thenable at runtime, so field access silently yields `undefined` (or crashes under strict typing).',
+    helpUri:
+      'https://nextjs.org/docs/app/api-reference/file-conventions/page#params-optional'
+  }, ['ts', 'tsx']),
+  NEXT217: make({
+    id: 'NEXT217',
+    category: 'security',
+    severity: 'high',
+    message: "React hook used in a component file without the `'use client'` directive",
+    fix: "Add `'use client';` at the very top of the file (above the imports).",
+    impact:
+      "Using `useState`/`useEffect`/etc. in a Server Component fails the Next build. Without `'use client'`, the file is treated as server-side and the hook import throws at compile time.",
+    helpUri:
+      'https://nextjs.org/docs/app/building-your-application/rendering/client-components'
+  }, ['tsx', 'jsx']),
+  NEXT218: make({
+    id: 'NEXT218',
+    category: 'security',
+    severity: 'low',
+    message: '`reactStrictMode: false` disables an important dev-time correctness check',
+    fix: 'Remove the override or set `reactStrictMode: true`. Strict mode surfaces unsafe side-effects and legacy lifecycles while developing.',
+    impact:
+      'Disabling Strict Mode masks double-invocation bugs and deprecated API warnings that Next would otherwise catch during `next dev`.',
+    helpUri: 'https://react.dev/reference/react/StrictMode'
+  }, ['js', 'ts', 'mjs', 'cjs']),
+  NEXT219: make({
+    id: 'NEXT219',
+    category: 'security',
+    severity: 'low',
+    message: '`experimental.serverActions: true` is the Next 13 shape and is ignored in Next 14/15',
+    fix: 'Remove the flag. Server Actions are stable since Next 14; the boolean form no longer applies. Use `experimental.serverActions = { allowedOrigins, bodySizeLimit }` only if you need the object form.',
+    impact:
+      'Stale experimental flags give a false sense that something is configured. Keeping the boolean shape masks the fact that no tuning is actually in place.',
+    helpUri: 'https://nextjs.org/docs/app/api-reference/next-config-js/serverActions'
+  }, ['js', 'ts', 'mjs', 'cjs']),
 
   // ---- Edge runtime ----------------------------------------------------
   EDGE001: make({

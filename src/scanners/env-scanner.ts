@@ -5,24 +5,45 @@ import { Scanner, ScanResult, ScanOptions } from '../types';
 export class EnvScanner implements Scanner {
   name = 'Environment Variables Scanner';
 
-  private readonly envPatterns = [
+  private readonly envPatterns: Array<{
+    ruleId: string;
+    pattern: RegExp;
+    message: string;
+    severity: 'high' | 'medium' | 'low';
+    fix: string;
+    confidenceReason?: string;
+  }> = [
     {
+      ruleId: 'ENV002',
       pattern: /^(?!#).*=.*(?:sk-|pk_live_|pk_test_|rk_live_|rk_test_|eyJ)[a-zA-Z0-9_-]+$/gm,
       message: 'Potential API key in .env file',
-      severity: 'high' as const,
+      severity: 'high',
       fix: 'Ensure this .env file is in .gitignore and not committed'
     },
     {
+      ruleId: 'ENV003',
       pattern: /^(?!#).*PASSWORD.*=.+$/gmi,
       message: 'Password stored in .env file',
-      severity: 'high' as const,
+      severity: 'high',
       fix: 'Ensure .env files are never committed to version control'
     },
     {
+      ruleId: 'ENV004',
       pattern: /^(?!#).*SECRET.*=.+$/gmi,
       message: 'Secret value in .env file',
-      severity: 'high' as const,
+      severity: 'high',
       fix: 'Verify .env is in .gitignore and use .env.example for documentation'
+    },
+    {
+      // Values in NEXT_PUBLIC_* / VITE_* / PUBLIC_* / EXPO_PUBLIC_* are baked
+      // into the browser bundle. A database/Redis/Mongo connection string in
+      // one of these is an immediate credential leak.
+      ruleId: 'ENV008',
+      pattern: /^(?!#)\s*(?:NEXT_PUBLIC_|VITE_|PUBLIC_|EXPO_PUBLIC_)[A-Z0-9_]*(?:URL|URI|DSN|HOST|CONN|CONNECTION|ENDPOINT|DATABASE)[A-Z0-9_]*\s*=\s*.*(?:postgres|postgresql|mongodb|redis|mysql|amqp|clickhouse|mssql|rediss):\/\/.+$/gmi,
+      message: 'Client-exposed env var carries a database/service connection URL (leaks to browser bundle)',
+      severity: 'high',
+      fix: 'Rename without the `NEXT_PUBLIC_`/`VITE_`/`PUBLIC_` prefix so the value stays server-only; rotate the credential if it has already shipped.',
+      confidenceReason: 'NEXT_PUBLIC_/VITE_/PUBLIC_ env with a postgres://, mongodb://, redis://… value ships to the client bundle.'
     }
   ];
 
@@ -79,7 +100,7 @@ export class EnvScanner implements Scanner {
 
         // Scan for secrets in env files
         lines.forEach((line, index) => {
-          this.envPatterns.forEach(({ pattern, message, severity, fix }, envIndex) => {
+          this.envPatterns.forEach(({ ruleId, pattern, message, severity, fix, confidenceReason }) => {
             const m = line.match(pattern);
             if (m) {
               results.push({
@@ -89,9 +110,9 @@ export class EnvScanner implements Scanner {
                 file,
                 line: index + 1,
                 range: { startLine: index + 1, startColumn: 1, endLine: index + 1, endColumn: Math.max(1, line.length) },
-                ruleId: `ENV${String(envIndex + 2).padStart(3, '0')}`,
+                ruleId,
                 confidence: 0.85,
-                confidenceReason: 'Pattern matches known secret format in .env file',
+                confidenceReason: confidenceReason || 'Pattern matches known secret format in .env file',
                 match: m[0]?.slice(0, 200),
                 severity,
                 fix

@@ -3,6 +3,7 @@ import { join } from 'path';
 import { ScanResult, ScanOptions } from '../types';
 import { BaseScanner } from './base-scanner';
 import { getRule } from '../rules';
+import { resolvesViaTsconfigPaths } from '../utils/tsconfig-resolver';
 
 interface PackageJson {
   dependencies?: Record<string, string>;
@@ -154,7 +155,7 @@ export class VibeScanner extends BaseScanner {
     }
   }
 
-  private detectHallucinatedImports(file: string, lines: string[], _options: ScanOptions): ScanResult[] {
+  private detectHallucinatedImports(file: string, lines: string[], options: ScanOptions): ScanResult[] {
     const results: ScanResult[] = [];
     const rule = getRule('VIBE001');
     if (!rule) return results;
@@ -167,15 +168,21 @@ export class VibeScanner extends BaseScanner {
       if (!importMatch) return;
 
       const moduleName = importMatch[1] || importMatch[2];
-      
+
       // Skip relative imports
       if (moduleName.startsWith('.') || moduleName.startsWith('/')) return;
-      
+
+      // Skip if the specifier resolves via `tsconfig.json` paths/baseUrl.
+      // Covers the common `@/*` and `~/*` aliases used by Next.js, Vite,
+      // shadcn, etc. — without this check every aliased import was flagged
+      // as a hallucinated package.
+      if (resolvesViaTsconfigPaths(moduleName, options.directory)) return;
+
       // Skip if it's a known dependency
-      const baseName = moduleName.startsWith('@') 
+      const baseName = moduleName.startsWith('@')
         ? moduleName.split('/').slice(0, 2).join('/')
         : moduleName.split('/')[0];
-      
+
       if (this.packageDeps.has(baseName)) return;
 
       // Common false positives to skip — biased toward the v3 modern-JS scope

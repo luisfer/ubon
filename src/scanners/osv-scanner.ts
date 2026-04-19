@@ -96,24 +96,41 @@ export class OSVScanner implements Scanner {
 
     try {
       const vulns = data.results || [];
+      // Group advisories by `(ecosystem, package)` so a single vulnerable
+      // dependency produces one finding instead of one-per-CVE. A package
+      // like `next@15.0.0` can have 15+ open advisories that otherwise
+      // dominate the triage view and hide real application-level issues.
+      type Bucket = { eco: string; name: string; version: string; ids: string[] };
+      const buckets = new Map<string, Bucket>();
       vulns.forEach((entry: any, idx: number) => {
         const q = queries[idx];
-        const pkgName = q.package.name;
-        const eco = q.package.ecosystem;
-        if (entry.vulns && entry.vulns.length) {
-          for (const v of entry.vulns) {
-            results.push({
-              type: 'error',
-              category: 'security',
-              message: `Vulnerability in ${eco}:${pkgName} (${v.id || v.aliases?.[0] || 'UNKNOWN'})`,
-              severity: 'high',
-              ruleId: 'OSV001',
-              fix: v.summary || 'Update to a patched version',
-              confidence: 0.9
-            });
-          }
+        if (!entry?.vulns?.length) return;
+        const key = `${q.package.ecosystem}:${q.package.name}`;
+        let bucket = buckets.get(key);
+        if (!bucket) {
+          bucket = { eco: q.package.ecosystem, name: q.package.name, version: q.version || '', ids: [] };
+          buckets.set(key, bucket);
+        }
+        for (const v of entry.vulns) {
+          const id = v.id || v.aliases?.[0];
+          if (id && !bucket.ids.includes(id)) bucket.ids.push(id);
         }
       });
+      for (const { eco, name, version, ids } of buckets.values()) {
+        const count = ids.length;
+        const preview = ids.slice(0, 3).join(', ');
+        const suffix = count > 3 ? `, +${count - 3} more` : '';
+        results.push({
+          type: 'error',
+          category: 'security',
+          message: `${count} known vulnerabilit${count === 1 ? 'y' : 'ies'} in ${eco}:${name}${version ? `@${version}` : ''} (${preview}${suffix})`,
+          severity: 'high',
+          ruleId: 'OSV001',
+          fix: `Upgrade ${name} to a patched version`,
+          confidence: 0.9,
+          match: ids.join(', ')
+        });
+      }
     } catch {}
 
     return results;

@@ -1,3 +1,91 @@
+## 3.0.2 — Quick wins: trust, noise, coverage — 2026-04-19
+
+### 🎯 What this release is
+
+A focused patch on top of 3.0.1 that tackles the three biggest failure
+modes from real-world scans: **false positives that erode trust**,
+**noise that drowns real findings**, and a **handful of high-ROI rules
+that should already exist**. No breaking changes, no config migration,
+drop-in upgrade.
+
+### 🧠 False-positive killers
+
+- **`tsconfig.json` path-alias resolver** — `VIBE001` (hallucinated
+  import) no longer fires on `@/lib/db`, `~/components/Foo`, or any
+  other import whose `tsconfig.json` `paths` / `baseUrl` entry points
+  to a real file. Covers the common Next.js / Vite / shadcn scaffolds.
+  New utility: `src/utils/tsconfig-resolver.ts` with a string-aware
+  JSONC comment stripper.
+- **Cross-scanner dedup** at the orchestrator. Previously
+  `SEC017` (`dangerouslySetInnerHTML`) could fire twice per site from
+  two passes. Findings are now deduplicated by
+  `(ruleId, file, line)`, keeping the highest-confidence emitter.
+
+### 🤫 Noise reduction
+
+- **`OSV001` grouped per package.** A single `next@15.0.0` no longer
+  produces 15 identical HIGH findings — one grouped finding lists
+  every advisory ID in the `match` field. Triage view stays
+  readable.
+- **`JSNET001` debounced** to one warning per file (was: once per
+  `fetch(` call).
+
+### 🆕 New rules
+
+- **`SEC020`** — SQL sink called with template interpolation or
+  string concatenation. AST-driven: matches `CallExpression` whose
+  callee is `prepare` / `query` / `exec` / `execute` / `run` /
+  `raw` / `$queryRawUnsafe` / `$executeRawUnsafe` / `unsafe` with a
+  `TemplateExpression` (≥1 span) or a `+` `BinaryExpression`. Covers
+  `better-sqlite3`, Prisma `$*Unsafe`, Drizzle `sql`, raw `pg`.
+- **`ENV008`** — Client-exposed env var carrying a database / service
+  connection URL. Matches `NEXT_PUBLIC_` / `VITE_` / `PUBLIC_` /
+  `EXPO_PUBLIC_` keys containing `URL` / `URI` / `DSN` / `HOST` /
+  `CONN` / `ENDPOINT` / `DATABASE` whose value starts with
+  `postgres://`, `mongodb://`, `redis://`, `mysql://`, `amqp://`, etc.
+- **`NEXT216`** — App Router page/layout types `params` or
+  `searchParams` as a plain object. Next 15 passes a `Promise` here;
+  the synchronous typing compiles but returns a thenable at runtime.
+- **`NEXT217`** — React hook used in a `.tsx` / `.jsx` file without
+  a `'use client'` directive (fails the Next build, ships before
+  `next dev` catches it).
+- **`NEXT218`** — `reactStrictMode: false` in `next.config.*` (masks
+  double-invocation bugs during dev).
+- **`NEXT219`** — Stale `experimental.serverActions: true` shape in
+  `next.config.*` (ignored in Next 14/15).
+
+### 🧪 Tests
+
+- 18 new Jest cases in `src/__tests__/quick-wins-3.0.2.test.ts`
+  cover every new rule (positive + negative fixtures), the
+  orchestrator-level dedup, and the tsconfig paths resolver.
+- Full suite: **193/193 green**.
+
+### 🗺 Verification against a planted fixture
+
+On a purpose-built faulty Next 15 repo (`buggy-next/`, ~25 seeded
+vibe-coded bugs):
+
+| Change | Before 3.0.2 | After 3.0.2 |
+| --- | --- | --- |
+| Total findings | 30 | 20 |
+| `OSV001` (next CVEs) | 15 | 1 |
+| `SEC017` (dangerouslySetInnerHTML) | 4 | 2 |
+| `VIBE001` (`@/lib/db` false positive) | 2 | 0 |
+| `SEC020` (new: SQL injection) | 0 | 4 |
+| `ENV008` (new: `NEXT_PUBLIC_` URL) | 0 | 1 |
+| `NEXT216` / `217` / `218` / `219` (new) | 0 | 5 |
+
+### Upgrade
+
+```
+npm install -g ubon@3.0.2
+# or
+npx ubon@latest scan
+```
+
+---
+
 ## 3.0.1 — `chmod +x` patch — 2026-04-19
 
 ### 🐛 Critical fix

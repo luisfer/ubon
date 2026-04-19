@@ -45,6 +45,9 @@ export class FrameworkScanner extends BaseScanner {
       fileResults.push(...this.detectRemix(ctx.file, ctx.content, ctx.lines));
       fileResults.push(...this.detectHono(ctx.file, ctx.content, ctx.lines));
       fileResults.push(...this.detectDrizzlePrisma(ctx.file, ctx.content, ctx.lines));
+      fileResults.push(...this.detectNext15AsyncParams(ctx.file, ctx.content, ctx.lines));
+      fileResults.push(...this.detectMissingUseClient(ctx.file, ctx.content, ctx.lines));
+      fileResults.push(...this.detectNextConfigHints(ctx.file, ctx.content, ctx.lines));
 
       this.setCached(ctx.file, ctx.contentHash, fileResults);
       results.push(...fileResults);
@@ -528,6 +531,169 @@ export class FrameworkScanner extends BaseScanner {
               match: redact((lines[idx] ?? '').trim().slice(0, 200)),
               confidence: 0.85,
               confidenceReason: 'Prisma $queryRawUnsafe/$executeRawUnsafe is a documented SQL injection sink.'
+            },
+            lines[idx]
+          )
+        );
+      }
+    }
+
+    return out;
+  }
+
+  // -------- NEXT216: Next 15 async params / searchParams ----------------
+
+  private detectNext15AsyncParams(file: string, content: string, lines: string[]): ScanResult[] {
+    const out: ScanResult[] = [];
+    // Only App Router page/layout/route files care.
+    if (!/(?:^|\/)app\/.*\/(?:page|layout|route|default|template|error|not-found|loading)\.(?:tsx|ts)$/.test(file)
+        && !/(?:^|\/)app\/(?:page|layout|route)\.(?:tsx|ts)$/.test(file)) {
+      return out;
+    }
+    const meta = getRule('NEXT216')?.meta;
+    if (!meta) return out;
+
+    // Match `params:` or `searchParams:` inside a prop type block where the value
+    // is a plain object literal (`{ ... }`) rather than `Promise<...>`.
+    const propRegex = /\b(params|searchParams)\s*:\s*([^,;}\n]+)/g;
+    const seen = new Set<number>();
+    let m: RegExpExecArray | null;
+    while ((m = propRegex.exec(content))) {
+      const rawType = (m[2] || '').trim();
+      if (!rawType) continue;
+      // Accept: `Promise<…>`, `Awaitable<…>`, or imported alias ending in `Params`
+      // that the user obviously owns. We only fire on bare object literal or
+      // `Record<…>` / indexed access types without `Promise`.
+      if (/^Promise\s*</.test(rawType)) continue;
+      if (!/^\{/.test(rawType) && !/^Record\s*</.test(rawType) && !/^\[/.test(rawType)) continue;
+      const lineIndex = content.slice(0, m.index).split('\n').length - 1;
+      if (seen.has(lineIndex)) continue;
+      seen.add(lineIndex);
+      if (this.isSuppressed(lines, lineIndex, 'NEXT216')) continue;
+      out.push(
+        this.createResult(
+          {
+            type: 'warning',
+            category: 'security',
+            severity: meta.severity,
+            ruleId: meta.id,
+            message: `${meta.message} (${m[1]})`,
+            fix: meta.fix,
+            file,
+            line: lineIndex + 1,
+            match: redact((lines[lineIndex] ?? '').trim().slice(0, 200)),
+            confidence: 0.8,
+            confidenceReason: `App Router ${file} types \`${m[1]}\` as a plain object — Next 15 passes a Promise here.`
+          },
+          lines[lineIndex]
+        )
+      );
+    }
+    return out;
+  }
+
+  // -------- NEXT217: hooks without 'use client' -------------------------
+
+  private detectMissingUseClient(file: string, content: string, lines: string[]): ScanResult[] {
+    const out: ScanResult[] = [];
+    if (!/\.(?:tsx|jsx)$/.test(file)) return out;
+    const meta = getRule('NEXT217')?.meta;
+    if (!meta) return out;
+
+    // Strip leading comments/blank lines to find the first directive
+    const firstNonBlank = lines.findIndex((l) => {
+      const t = l.trim();
+      if (!t) return false;
+      if (t.startsWith('//') || t.startsWith('/*') || t.startsWith('*')) return false;
+      return true;
+    });
+    const directive = firstNonBlank >= 0 ? lines[firstNonBlank].trim() : '';
+    if (/^['"]use client['"]\s*;?$/.test(directive)) return out;
+
+    // Look for hook imports from react: `import { useState, useEffect } from 'react'`
+    const importRegex = /import\s*(?:type\s*)?\{([^}]+)\}\s*from\s*['"]react['"]/g;
+    const hooks: Array<{ name: string; line: number }> = [];
+    let m: RegExpExecArray | null;
+    while ((m = importRegex.exec(content))) {
+      const names = (m[1] || '').split(',').map((s) => s.trim().split(/\s+as\s+/)[0].trim()).filter(Boolean);
+      const hook = names.find((n) => /^use[A-Z]\w*$/.test(n));
+      if (!hook) continue;
+      const lineIndex = content.slice(0, m.index).split('\n').length - 1;
+      hooks.push({ name: hook, line: lineIndex });
+    }
+    if (hooks.length === 0) return out;
+    const first = hooks[0];
+    if (this.isSuppressed(lines, first.line, 'NEXT217')) return out;
+    out.push(
+      this.createResult(
+        {
+          type: 'error',
+          category: 'security',
+          severity: meta.severity,
+          ruleId: meta.id,
+          message: `${meta.message} (imports \`${first.name}\`)`,
+          fix: meta.fix,
+          file,
+          line: first.line + 1,
+          match: redact((lines[first.line] ?? '').trim().slice(0, 200)),
+          confidence: 0.9,
+          confidenceReason: `File imports the hook \`${first.name}\` from 'react' but has no top-of-file \`'use client'\` directive.`
+        },
+        lines[first.line]
+      )
+    );
+    return out;
+  }
+
+  // -------- NEXT218 / NEXT219: next.config hints ------------------------
+
+  private detectNextConfigHints(file: string, content: string, lines: string[]): ScanResult[] {
+    const out: ScanResult[] = [];
+    if (!/(?:^|\/)next\.config\.(?:js|ts|mjs|cjs)$/.test(file)) return out;
+
+    const meta218 = getRule('NEXT218')?.meta;
+    if (meta218) {
+      const idx = lines.findIndex((l) => /\breactStrictMode\s*:\s*false\b/.test(l));
+      if (idx >= 0 && !this.isSuppressed(lines, idx, 'NEXT218')) {
+        out.push(
+          this.createResult(
+            {
+              type: 'warning',
+              category: 'security',
+              severity: meta218.severity,
+              ruleId: meta218.id,
+              message: meta218.message,
+              fix: meta218.fix,
+              file,
+              line: idx + 1,
+              match: redact((lines[idx] ?? '').trim().slice(0, 200)),
+              confidence: 0.95,
+              confidenceReason: '`reactStrictMode: false` literal in next.config.'
+            },
+            lines[idx]
+          )
+        );
+      }
+    }
+
+    const meta219 = getRule('NEXT219')?.meta;
+    if (meta219) {
+      const idx = lines.findIndex((l) => /\bserverActions\s*:\s*(?:true|false)\b/.test(l));
+      if (idx >= 0 && !this.isSuppressed(lines, idx, 'NEXT219')) {
+        out.push(
+          this.createResult(
+            {
+              type: 'warning',
+              category: 'security',
+              severity: meta219.severity,
+              ruleId: meta219.id,
+              message: meta219.message,
+              fix: meta219.fix,
+              file,
+              line: idx + 1,
+              match: redact((lines[idx] ?? '').trim().slice(0, 200)),
+              confidence: 0.9,
+              confidenceReason: 'experimental.serverActions uses the removed boolean shape.'
             },
             lines[idx]
           )

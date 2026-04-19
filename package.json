@@ -1,6 +1,6 @@
 {
   "name": "ubon",
-  "version": "3.0.1",
+  "version": "3.0.2",
   "description": "Security scanner for AI-generated apps (Cursor, Lovable, Windsurf, v0). Catches hardcoded secrets, prompt injection, hallucinated imports, Server Actions / Edge runtime mistakes, and the vibe-coded vulnerabilities traditional linters miss.",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",

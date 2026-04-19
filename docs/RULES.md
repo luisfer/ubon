@@ -3,7 +3,7 @@
 This file is auto-generated from the rule registry by `scripts/generate-rules-md.js`.
 Do not hand-edit; run `npm run rules:gen` after building.
 
-Total rules: **106**.
+Total rules: **112**.
 
 ## Security (JS/TS)
 
@@ -33,6 +33,7 @@ Total rules: **106**.
 - **SEC017** — dangerouslySetInnerHTML usage (XSS risk) ([docs](https://react.dev/reference/react-dom/components/common#dangerously-setting-the-inner-html))
 - **SEC018** — High-entropy string literal (possible secret) ([docs](https://owasp.org/Top10/A02_2021-Cryptographic_Failures))
 - **SEC019** — React component injection via createElement
+- **SEC020** — SQL sink called with string interpolation or concatenation (SQL injection) ([docs](https://owasp.org/Top10/A03_2021-Injection))
 
 ## AI (LLM era)
 
@@ -63,6 +64,10 @@ Total rules: **106**.
 - **NEXT213** — Server Action accepts FormData / JSON without input validation ([docs](https://nextjs.org/docs/app/building-your-application/data-fetching/server-actions-and-mutations#validation))
 - **NEXT214** — `use server` module imported from a `use client` file ([docs](https://react.dev/reference/rsc/use-server))
 - **NEXT215** — Server Action passes user input directly to redirect()/revalidatePath() ([docs](https://nextjs.org/docs/app/api-reference/functions/redirect))
+- **NEXT216** — App Router page/layout types `params`/`searchParams` as a plain object (Next 15 requires a Promise) ([docs](https://nextjs.org/docs/app/api-reference/file-conventions/page#params-optional))
+- **NEXT217** — React hook used in a component file without the `'use client'` directive ([docs](https://nextjs.org/docs/app/building-your-application/rendering/client-components))
+- **NEXT218** — `reactStrictMode: false` disables an important dev-time correctness check ([docs](https://react.dev/reference/react/StrictMode))
+- **NEXT219** — `experimental.serverActions: true` is the Next 13 shape and is ignored in Next 14/15 ([docs](https://nextjs.org/docs/app/api-reference/next-config-js/serverActions))
 
 ## Next.js (experimental)
 
@@ -141,6 +146,7 @@ Total rules: **106**.
 - **ENV005** — Supabase credentials in .env
 - **ENV006** — Missing .env.example file for documentation
 - **ENV007** — Environment variable drift between .env and .env.example
+- **ENV008** — Client-exposed env var carries a database/service connection URL (leaks to browser bundle) ([docs](https://nextjs.org/docs/app/building-your-application/configuring/environment-variables#bundling-environment-variables-for-the-browser))
 
 ## Links
 

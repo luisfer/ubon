@@ -114,7 +114,8 @@ export class UbonScan {
       }
     }
 
-    const filtered = this.filterResults(allResults, options);
+    const deduped = this.dedupeResults(allResults);
+    const filtered = this.filterResults(deduped, options);
     const withFingerprints = filtered.map((r) => ({ ...r, fingerprint: this.computeFingerprint(r) }));
     const withSuppressions = applySuppressions(withFingerprints);
     const afterBaseline = await this.applyBaseline(withSuppressions, options);
@@ -194,6 +195,30 @@ export class UbonScan {
       out = out.filter((r) => (r.confidence ?? 1) >= 0.8);
     }
     return out;
+  }
+
+  /**
+   * Collapse findings that target the same `(ruleId, file, line)` tuple.
+   * Multiple scanners (e.g. `security-scanner` + `react-security-scanner`)
+   * sometimes match the same AST node and emit the same rule at the same
+   * location; users see the redundancy as noise. Keep the highest-confidence
+   * finding; tie-break on richer `match` context.
+   */
+  private dedupeResults(results: ScanResult[]): ScanResult[] {
+    const keyed = new Map<string, ScanResult>();
+    for (const r of results) {
+      const key = [r.ruleId, r.file || '', r.line ?? 0].join('|');
+      const existing = keyed.get(key);
+      if (!existing) {
+        keyed.set(key, r);
+        continue;
+      }
+      const aConf = existing.confidence ?? 0;
+      const bConf = r.confidence ?? 0;
+      if (bConf > aConf) keyed.set(key, r);
+      else if (bConf === aConf && (r.match?.length ?? 0) > (existing.match?.length ?? 0)) keyed.set(key, r);
+    }
+    return Array.from(keyed.values());
   }
 
   private computeFingerprint(result: ScanResult): string {
