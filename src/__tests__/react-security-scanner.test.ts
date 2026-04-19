@@ -235,30 +235,6 @@ describe('ReactSecurityScanner', () => {
       expect(tailwind001Results.length).toBe(0);
     });
 
-    it('detects issues in Vue files', async () => {
-      const file = join(tmp, 'component.vue');
-      writeFileSync(file, `
-        <template>
-          <div :class="userClass">Content</div>
-        </template>
-
-        <script>
-        export default {
-          props: ['userClass']
-        }
-        </script>
-      `);
-
-      const scanner = new ReactSecurityScanner();
-      const results = await scanner.scan({ directory: tmp });
-      const tailwind001Results = results.filter(r =>
-        r.ruleId === 'TAILWIND001' && r.file?.includes('component.vue')
-      );
-      // Vue binding syntax is different, but the scanner looks for className patterns
-      // This test verifies it processes .vue files
-      expect(results.filter(r => r.file?.includes('component.vue')).length).toBeGreaterThanOrEqual(0);
-    });
-
     it('handles multiple className violations in one file', async () => {
       const file = join(tmp, 'multiple-violations.tsx');
       writeFileSync(file, `
@@ -309,7 +285,7 @@ describe('ReactSecurityScanner', () => {
   });
 
   describe('Integration Tests', () => {
-    it('only scans React and Vue files', async () => {
+    it('does not scan plain .ts files (no JSX surface)', async () => {
       const tsFile = join(tmp, 'utils.ts');
       writeFileSync(tsFile, `
         export function getClassName(variant: string) {
@@ -323,10 +299,9 @@ describe('ReactSecurityScanner', () => {
       expect(utilsResults.length).toBe(0);
     });
 
-    it('scans .jsx, .tsx, and .vue files', async () => {
+    it('scans .jsx and .tsx files', async () => {
       const jsxFile = join(tmp, 'comp.jsx');
       const tsxFile = join(tmp, 'comp.tsx');
-      const vueFile = join(tmp, 'comp.vue');
 
       const code = `
         export function Component({ style }) {
@@ -336,12 +311,11 @@ describe('ReactSecurityScanner', () => {
 
       writeFileSync(jsxFile, code);
       writeFileSync(tsxFile, code);
-      writeFileSync(vueFile, `<template><div className="test"></div></template>`);
 
       const scanner = new ReactSecurityScanner();
       const results = await scanner.scan({ directory: tmp });
       const compResults = results.filter(r => r.file?.startsWith('comp.'));
-      expect(compResults.length).toBeGreaterThanOrEqual(2); // jsx and tsx should trigger
+      expect(compResults.length).toBeGreaterThanOrEqual(2);
     });
   });
 });

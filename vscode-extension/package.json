@@ -22,7 +22,7 @@
     ],
     "codeActions": [
       {
-        "languages": ["javascript", "javascriptreact", "typescript", "typescriptreact", "vue"],
+        "languages": ["javascript", "javascriptreact", "typescript", "typescriptreact", "svelte", "astro"],
         "kind": "quickfix"
       }
     ],

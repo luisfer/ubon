@@ -14,8 +14,7 @@ const rule: Rule = {
     detect: (content: string, file: string, lines: string[]) => {
       const results: import('../types').DetectionResult[] = [];
 
-      // Only check React/Vue files
-      if (!/(jsx|tsx|vue)$/.test(file)) return results;
+      if (!/(jsx|tsx|svelte|astro)$/.test(file)) return results;
 
       lines.forEach((line, index) => {
         // Pattern 1: className={variable} without validation
@@ -94,7 +93,7 @@ const rule: Rule = {
 
       return results;
     },
-    fileTypes: ['jsx', 'tsx', 'vue']
+    fileTypes: ['jsx', 'tsx', 'svelte', 'astro']
   }
 };
 

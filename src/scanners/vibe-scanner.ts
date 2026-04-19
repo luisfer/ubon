@@ -1,4 +1,3 @@
-import { glob } from 'glob';
 import { readFileSync, existsSync } from 'fs';
 import { join } from 'path';
 import { ScanResult, ScanOptions } from '../types';
@@ -38,7 +37,7 @@ export class VibeScanner extends BaseScanner {
     await this.collectExportsAndImports(options);
 
     // Second pass: run detection
-    for await (const ctx of this.iterateFiles(options, '**/*.{js,jsx,ts,tsx,vue}', ['node_modules/**', 'dist/**', 'build/**', '.next/**'])) {
+    for await (const ctx of this.iterateFiles(options, '**/*.{js,jsx,ts,tsx,svelte,astro}', ['node_modules/**', 'dist/**', 'build/**', '.next/**'])) {
       if (this.hasFileSuppression(ctx.lines)) continue;
 
       const cached = this.getCached(ctx.file, ctx.contentHash);
@@ -155,7 +154,7 @@ export class VibeScanner extends BaseScanner {
     }
   }
 
-  private detectHallucinatedImports(file: string, lines: string[], options: ScanOptions): ScanResult[] {
+  private detectHallucinatedImports(file: string, lines: string[], _options: ScanOptions): ScanResult[] {
     const results: ScanResult[] = [];
     const rule = getRule('VIBE001');
     if (!rule) return results;
@@ -179,9 +178,27 @@ export class VibeScanner extends BaseScanner {
       
       if (this.packageDeps.has(baseName)) return;
 
-      // Common false positives to skip
-      const commonModules = ['react', 'next', 'vue', 'svelte', 'express', 'lodash', 'axios'];
+      // Common false positives to skip — biased toward the v3 modern-JS scope
+      // (Next/React/Vite/SvelteKit/Astro/Remix/Hono/Lovable). Vue is intentionally
+      // omitted: ubon v3 dropped the Vue profile, and importing `vue` in a JS app
+      // we scan is a strong-enough signal that the user should still see it.
+      const commonModules = [
+        'react',
+        'react-dom',
+        'next',
+        'svelte',
+        'astro',
+        'hono',
+        'express',
+        'lodash',
+        'axios',
+        'zod'
+      ];
       if (commonModules.includes(baseName)) return;
+      // Common scoped namespaces that are routinely added without an exact
+      // dep entry (workspaces, peer-deps installed transitively, etc.).
+      const commonScopes = ['@sveltejs', '@remix-run', '@astrojs', '@hono', '@supabase', '@vercel'];
+      if (baseName.startsWith('@') && commonScopes.some((s) => baseName === s || baseName.startsWith(`${s}/`))) return;
 
       results.push(this.createResult({
         type: 'error',
@@ -201,7 +218,7 @@ export class VibeScanner extends BaseScanner {
     return results;
   }
 
-  private detectCopyPasteArtifacts(file: string, lines: string[], options: ScanOptions): ScanResult[] {
+  private detectCopyPasteArtifacts(file: string, lines: string[], _options: ScanOptions): ScanResult[] {
     const results: ScanResult[] = [];
     const rule = getRule('VIBE002');
     if (!rule) return results;
@@ -255,7 +272,7 @@ export class VibeScanner extends BaseScanner {
     return results;
   }
 
-  private detectIncompleteImplementations(file: string, lines: string[], options: ScanOptions): ScanResult[] {
+  private detectIncompleteImplementations(file: string, lines: string[], _options: ScanOptions): ScanResult[] {
     const results: ScanResult[] = [];
     const rule = getRule('VIBE003');
     if (!rule || !rule.impl.patterns) return results;
@@ -289,7 +306,7 @@ export class VibeScanner extends BaseScanner {
     return results;
   }
 
-  private detectOrphanedExports(options: ScanOptions): ScanResult[] {
+  private detectOrphanedExports(_options: ScanOptions): ScanResult[] {
     const results: ScanResult[] = [];
     const rule = getRule('VIBE004');
     if (!rule) return results;

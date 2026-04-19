@@ -56,7 +56,7 @@ export function activate(context: vscode.ExtensionContext) {
 
   // Provide basic quick fixes for selected rules
   context.subscriptions.push(vscode.languages.registerCodeActionsProvider([
-    { language: 'javascript' }, { language: 'javascriptreact' }, { language: 'typescript' }, { language: 'typescriptreact' }, { language: 'vue' }
+    { language: 'javascript' }, { language: 'javascriptreact' }, { language: 'typescript' }, { language: 'typescriptreact' }, { language: 'svelte' }, { language: 'astro' }
   ], {
     provideCodeActions(document, range, ctx) {
       const actions: vscode.CodeAction[] = [];
