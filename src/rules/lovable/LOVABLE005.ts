@@ -11,7 +11,7 @@ const rule: Rule = {
     impact: 'Weak RLS policies may allow users to access other users\' data, violating privacy and security.'
   },
   impl: {
-    detect: (content: string, file: string, lines: string[]) => {
+    detect: (content: string, _file: string, _lines: string[]) => {
       const results: import('../types').DetectionResult[] = [];
 
       // Look for SQL policy definitions in comments or separate .sql files

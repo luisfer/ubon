@@ -1,4 +1,4 @@
-import { Rule, DetectionResult } from '../types';
+import { Rule } from '../types';
 
 /**
  * VIBE003: Incomplete implementations
@@ -14,7 +14,7 @@ const rule: Rule = {
     impact: 'Placeholder code in production causes runtime errors or unexpected behavior'
   },
   impl: {
-    fileTypes: ['js', 'jsx', 'ts', 'tsx', 'vue'],
+    fileTypes: ['js', 'jsx', 'ts', 'tsx', 'svelte', 'astro'],
     patterns: [
       {
         ruleId: 'VIBE003',

@@ -28,14 +28,6 @@ describe('Framework/infra rules', () => {
     expect(res.some(r => r.ruleId === 'NEXT006')).toBe(true);
   });
 
-  it('flags Vue v-html usage (VUE001)', async () => {
-    const fp = join(tmp, 'App.vue');
-    writeFileSync(fp, `<template><div v-html="raw"></div></template><script setup lang="ts">const raw='x'</script>`);
-    const s = new SecurityScanner();
-    const res = await s.scan({ directory: tmp });
-    expect(res.some(r => r.ruleId === 'VUE001')).toBe(true);
-  });
-
   it('flags GitHub Actions secrets echoed (GHA001)', async () => {
     const ghaDir = join(tmp, '.github/workflows');
     mkdirSync(ghaDir, { recursive: true });

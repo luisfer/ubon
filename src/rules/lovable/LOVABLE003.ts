@@ -11,7 +11,7 @@ const rule: Rule = {
     impact: 'Anonymous users may access tables intended for authenticated users if RLS is not properly configured.'
   },
   impl: {
-    detect: (content: string, file: string, lines: string[]) => {
+    detect: (content: string, _file: string, _lines: string[]) => {
       const results: import('../types').DetectionResult[] = [];
 
       // Check for anonymous sign-in

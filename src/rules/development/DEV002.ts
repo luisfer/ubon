@@ -1,6 +1,6 @@
 import { Rule } from '../types';
 
-const devFileTypes = ['js', 'jsx', 'ts', 'tsx', 'py', 'rb', 'vue'];
+const devFileTypes = ['js', 'jsx', 'ts', 'tsx', 'svelte', 'astro'];
 
 const rule: Rule = {
   meta: {

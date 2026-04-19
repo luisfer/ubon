@@ -34,7 +34,7 @@ const rule: Rule = {
       });
       return results;
     },
-    fileTypes: ['jsx', 'tsx', 'vue', 'html']
+    fileTypes: ['jsx', 'tsx', 'svelte', 'astro', 'html']
   }
 };
 

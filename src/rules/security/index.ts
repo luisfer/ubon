@@ -22,7 +22,7 @@ import SEC017 from './SEC017';
 const makeRule = (meta: RuleMeta, fileTypes?: string[]): Rule => ({
   meta,
   impl: {
-    fileTypes: fileTypes || ['js', 'jsx', 'ts', 'tsx', 'vue', 'py', 'rb', 'html', 'env', 'md', 'mdx', 'yml', 'yaml', 'json', 'dockerfile']
+    fileTypes: fileTypes || ['js', 'jsx', 'ts', 'tsx', 'svelte', 'astro', 'html', 'env', 'md', 'mdx', 'yml', 'yaml', 'json', 'dockerfile']
   }
 });
 
@@ -69,26 +69,13 @@ export const securityRules: Record<string, Rule> = {
   ENV006: makeRule({ id: 'ENV006', category: 'security', severity: 'low', message: 'Missing .env.example file for documentation', fix: 'Create .env.example with placeholder values for team setup' }, ['env']),
   ENV007: makeRule({ id: 'ENV007', category: 'security', severity: 'low', message: 'Environment variable drift between .env and .env.example', fix: 'Align keys in .env and .env.example' }, ['env']),
 
-  // Python
-  PYSEC001: makeRule({ id: 'PYSEC001', category: 'security', severity: 'high', message: 'Potential API key exposed', fix: 'Move secrets to environment variables' }, ['py']),
-  PYSEC002: makeRule({ id: 'PYSEC002', category: 'security', severity: 'high', message: 'Use of exec() detected', fix: 'Avoid exec(); use safer alternatives' }, ['py']),
-  PYSEC003: makeRule({ id: 'PYSEC003', category: 'security', severity: 'high', message: 'Use of eval() detected', fix: 'Avoid eval(); use safer alternatives' }, ['py']),
-  PYSEC004: makeRule({ id: 'PYSEC004', category: 'security', severity: 'high', message: 'subprocess with shell=True', fix: 'Avoid shell=True; pass args as list' }, ['py']),
-  PYSEC005: makeRule({ id: 'PYSEC005', category: 'security', severity: 'medium', message: 'yaml.load() unsafe without Loader', fix: 'Use yaml.safe_load()' }, ['py']),
-  PYSEC006: makeRule({ id: 'PYSEC006', category: 'security', severity: 'medium', message: 'Insecure pickle usage', fix: 'Avoid pickle with untrusted data' }, ['py']),
-  PYSEC007: makeRule({ id: 'PYSEC007', category: 'security', severity: 'medium', message: 'TLS verification disabled', fix: 'Remove verify=False' }, ['py']),
-  PYSEC009: makeRule({ id: 'PYSEC009', category: 'security', severity: 'medium', message: 'DEBUG=True in settings', fix: 'Disable DEBUG in production' }, ['py']),
-  PYSEC010: makeRule({ id: 'PYSEC010', category: 'security', severity: 'low', message: 'ALLOWED_HOSTS includes *', fix: 'Restrict ALLOWED_HOSTS' }, ['py']),
-  PYNET001: makeRule({ id: 'PYNET001', category: 'security', severity: 'medium', message: 'requests call without timeout', fix: 'Add timeout= to requests.* calls' }, ['py']),
-
   // Docker / CI
   DOCKER001: makeRule({ id: 'DOCKER001', category: 'security', severity: 'medium', message: 'Dockerfile runs as root (USER root or no USER)', fix: 'Add a non-root USER' }, ['dockerfile']),
   DOCKER002: makeRule({ id: 'DOCKER002', category: 'security', severity: 'high', message: 'Secrets defined via ENV in Dockerfile', fix: 'Avoid embedding secrets in Docker images' }, ['dockerfile']),
   DOCKER003: makeRule({ id: 'DOCKER003', category: 'security', severity: 'low', message: 'Docker base image uses :latest tag', fix: 'Pin to a specific version tag' }, ['dockerfile']),
   DOCKER004: makeRule({ id: 'DOCKER004', category: 'security', severity: 'low', message: 'apt-get install without cleaning apt cache', fix: 'Run rm -rf /var/lib/apt/lists/* after apt-get' }, ['dockerfile']),
 
-  // Vue & CI
-  VUE001: makeRule({ id: 'VUE001', category: 'security', severity: 'high', message: 'v-html binding (XSS risk)', fix: 'Avoid v-html or sanitize input before binding' }, ['vue']),
+  // CI
   GHA001: makeRule({ id: 'GHA001', category: 'security', severity: 'high', message: 'Secrets may be echoed in GitHub Actions workflow', fix: 'Do not print secrets to logs; remove echo/printf of secrets' }, ['yml', 'yaml']),
 
   // Next.js security

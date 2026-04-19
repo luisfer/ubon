@@ -1,12 +1,19 @@
-import chalk from 'chalk';
+import chalk from './colors';
 
 export class Logger {
   private useColor: boolean;
   
+  /**
+   * `quiet` is a softer form of `silent`: it suppresses chatty progress
+   * (info/success/title/separator/debug) but still allows warnings & errors
+   * to surface. Used by --quiet for CI runs that want JSON-friendly output
+   * without noisy prefixes.
+   */
   constructor(
-    private verbose: boolean = false, 
+    private verbose: boolean = false,
     private silent: boolean = false,
-    colorMode: 'auto' | 'always' | 'never' = 'auto'
+    colorMode: 'auto' | 'always' | 'never' = 'auto',
+    private quiet: boolean = false
   ) {
     this.useColor = this.shouldUseColor(colorMode);
   }
@@ -27,13 +34,13 @@ export class Logger {
   }
 
   info(message: string): void {
-    if (!this.silent) {
+    if (!this.silent && !this.quiet) {
       console.log(this.brand('🪷'), message);
     }
   }
 
   success(message: string): void {
-    if (!this.silent) {
+    if (!this.silent && !this.quiet) {
       console.log(this.colorize(chalk.green, '✓'), message);
     }
   }
@@ -51,20 +58,20 @@ export class Logger {
   }
 
   debug(message: string): void {
-    if (this.verbose && !this.silent) {
+    if (this.verbose && !this.silent && !this.quiet) {
       console.log(this.brand('🪷'), this.colorize(chalk.gray, message));
     }
   }
 
   title(message: string): void {
-    if (!this.silent) {
+    if (!this.silent && !this.quiet) {
       const titleText = this.useColor ? this.brand(chalk.bold('🪷 ' + message)) : '🪷 ' + message;
       console.log('\n' + titleText);
     }
   }
 
   separator(): void {
-    if (!this.silent) {
+    if (!this.silent && !this.quiet) {
       console.log(this.brand('─'.repeat(50)));
     }
   }

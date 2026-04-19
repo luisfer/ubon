@@ -21,7 +21,7 @@ const rule: Rule = {
         fix: 'Move sensitive keys to environment variables'
       }
     ],
-    fileTypes: ['js', 'jsx', 'ts', 'tsx', 'vue', 'env']
+    fileTypes: ['js', 'jsx', 'ts', 'tsx', 'svelte', 'astro', 'env']
   }
 };
 

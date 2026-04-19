@@ -4,7 +4,44 @@ import { toSarif } from '../utils/sarif';
 import { getChangedFilesSince, createBranchCommitPush, tryOpenPullRequest, ensureGitRepo } from '../utils/git';
 import { loadConfig, mergeOptions } from '../utils/config';
 import { applyFixes, previewFixes, printFixPreviews } from '../utils/fix';
+import { redact as sharedRedact } from '../utils/redact';
+import { REMOVED_PROFILES } from '../core/profiles';
 import pkg from '../../package.json';
+
+/**
+ * Strip undefined fields and let `stableStringify` sort the rest. Keeping
+ * undefined out of the payload prevents non-deterministic key churn (a key
+ * present in some issues but absent in others would otherwise change the
+ * sorted output's shape).
+ */
+function normaliseIssue(issue: ScanResult & { match?: string | undefined }): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(issue)) {
+    if (value === undefined) continue;
+    out[key] = value;
+  }
+  return out;
+}
+
+/**
+ * Deterministic JSON serialiser: sorts keys alphabetically at every level so
+ * the output is byte-for-byte identical across runs. Required for CI diffs,
+ * baseline files, and the upcoming MCP transport.
+ */
+function stableStringify(value: unknown, indent: number = 2): string {
+  const replacer = (_key: string, v: unknown) => {
+    if (v && typeof v === 'object' && !Array.isArray(v)) {
+      return Object.keys(v as object)
+        .sort()
+        .reduce<Record<string, unknown>>((acc, k) => {
+          acc[k] = (v as Record<string, unknown>)[k];
+          return acc;
+        }, {});
+    }
+    return v;
+  };
+  return JSON.stringify(value, replacer, indent);
+}
 
 export function renderPrMarkdown(results: ScanResult[]): string {
   const groups: Record<string, ScanResult[]> = { high: [], medium: [], low: [] } as any;
@@ -33,12 +70,8 @@ export function renderPrMarkdown(results: ScanResult[]): string {
   return lines.join('\n');
 }
 
-export function redact(value?: string): string | undefined {
-  if (!value) return value;
-  if (/sk-[A-Za-z0-9_-]{8,}/.test(value)) return value.replace(/sk-[A-Za-z0-9_-]{8,}/g, 'sk-********');
-  if (/eyJ[A-Za-z0-9._-]{20,}/.test(value)) return value.replace(/eyJ[A-Za-z0-9._-]{20,}/g, 'eyJ********');
-  return value;
-}
+// Re-export the centralized redactor so existing imports keep working.
+export const redact = sharedRedact;
 
 export function generateRecommendations(results: ScanResult[]): string[] {
   const recommendations: string[] = [];
@@ -118,12 +151,16 @@ export interface CliOptions {
   prComment?: boolean;
   interactive?: boolean;
   json?: boolean;
+  ndjson?: boolean;
   sarif?: string;
   output?: string;
+  quiet?: boolean;
+  allowConfigJs?: boolean;
+  schema?: boolean;
 }
 
 export function buildScanOptions(options: CliOptions, defaults: Partial<ScanOptions> = {}): ScanOptions {
-  const config = loadConfig(options.directory);
+  const config = loadConfig(options.directory, { allowConfigJs: !!options.allowConfigJs });
   const cliOptions: Partial<ScanOptions> = {
     directory: options.directory,
     port: options.port ? parseInt(options.port) : undefined,
@@ -137,10 +174,28 @@ export function buildScanOptions(options: CliOptions, defaults: Partial<ScanOpti
     useBaseline: options.baseline !== false,
     changedFiles: options.changedFiles,
     gitChangedSince: options.gitChangedSince,
-    profile: options.profile as ScanOptions['profile'],
+    profile: ((): ScanOptions['profile'] => {
+      const raw = options.profile as string | undefined;
+      if (raw && Object.prototype.hasOwnProperty.call(REMOVED_PROFILES, raw)) {
+        process.stderr.write(
+          `🪷 ubon: profile "${raw}" was removed in v3.0.0. ` +
+          `${REMOVED_PROFILES[raw]} See MIGRATION-v3.md.\n`
+        );
+        process.exit(2);
+      }
+      return raw as ScanOptions['profile'];
+    })(),
     gitHistoryDepth: options.gitHistoryDepth ? parseInt(options.gitHistoryDepth) : undefined,
     fast: !!options.fast,
-    crawlInternal: !!options.crawlInternal,
+    crawlInternal: ((): boolean => {
+      if (options.crawlInternal) {
+        process.stderr.write(
+          '🪷 `--crawl-internal` (puppeteer) is deprecated and will be removed in v3.1. ' +
+          'Use a dedicated link checker (e.g. lychee, linkinator) instead.\n'
+        );
+      }
+      return !!options.crawlInternal;
+    })(),
     crawlStartUrl: options.crawlStartUrl,
     crawlDepth: options.crawlDepth ? parseInt(options.crawlDepth) : undefined,
     crawlTimeoutMs: options.crawlTimeout ? parseInt(options.crawlTimeout) : undefined,
@@ -161,7 +216,10 @@ export function buildScanOptions(options: CliOptions, defaults: Partial<ScanOpti
     clearCache: !!options.clearCache,
     noCache: !!options.noCache,
     noResultCache: !!options.noResultCache,
-    interactive: !!options.interactive
+    interactive: !!options.interactive,
+    quiet: !!options.quiet,
+    ndjson: !!options.ndjson,
+    allowConfigJs: !!options.allowConfigJs
   };
   return mergeOptions(config, cliOptions);
 }
@@ -183,24 +241,49 @@ export async function outputResults(
   if (options.prComment) {
     const md = renderPrMarkdown(results);
     console.log(md);
-  } else if (options.json) {
-    const payload = {
-      schemaVersion: '1.0.0',
-      toolVersion: (pkg as any).version,
-      summary: {
-        total: results.length,
-        errors: results.filter(r => r.type === 'error').length,
-        warnings: results.filter(r => r.type === 'warning').length,
-        info: results.filter(r => r.type === 'info').length
-      },
-      issues: results.map(r => ({ ...r, match: redact(r.match) })),
-      recommendations: generateRecommendations(results)
-    };
-    if (options.output) {
-      const fs = await import('fs');
-      fs.writeFileSync(options.output, JSON.stringify(payload, null, 2));
+  } else if (options.json || options.ndjson) {
+    // Sort by severity → file → line → ruleId for byte-deterministic output.
+    // Agents and CI diff tools rely on stable ordering.
+    const sevOrder = { high: 0, medium: 1, low: 2 } as Record<string, number>;
+    const sorted = [...results].sort((a, b) =>
+      (sevOrder[a.severity] - sevOrder[b.severity]) ||
+      (a.file || '').localeCompare(b.file || '') ||
+      ((a.line || 0) - (b.line || 0)) ||
+      a.ruleId.localeCompare(b.ruleId)
+    );
+
+    const issues = sorted.map(r => normaliseIssue({ ...r, match: redact(r.match) }));
+
+    if (options.ndjson) {
+      // Each finding must serialise on a single line so consumers can
+      // splitOnLine and JSON.parse incrementally. Pass indent=0 to stableStringify.
+      const lines = issues.map(i => stableStringify(i, 0)).join('\n');
+      if (options.output) {
+        const fs = await import('fs');
+        fs.writeFileSync(options.output, lines + '\n');
+      } else {
+        process.stdout.write(lines + '\n');
+      }
     } else {
-      console.log(JSON.stringify(payload, null, 2));
+      const payload = {
+        schemaVersion: '2.0.0',
+        toolVersion: (pkg as any).version,
+        summary: {
+          total: sorted.length,
+          errors: sorted.filter(r => r.type === 'error').length,
+          warnings: sorted.filter(r => r.type === 'warning').length,
+          info: sorted.filter(r => r.type === 'info').length
+        },
+        issues,
+        recommendations: generateRecommendations(sorted)
+      };
+      const serialised = stableStringify(payload, 2);
+      if (options.output) {
+        const fs = await import('fs');
+        fs.writeFileSync(options.output, serialised + '\n');
+      } else {
+        process.stdout.write(serialised + '\n');
+      }
     }
   } else {
     await scanner.printResults(results, scanOptions);
@@ -276,8 +359,15 @@ export async function runScanCommand(
   options: CliOptions,
   defaults: Partial<ScanOptions> = {}
 ): Promise<void> {
-  const scanner = new UbonScan(options.verbose, options.json, options.color as 'auto' | 'always' | 'never');
+  if (options.schema) {
+    if (await dumpSchema()) return;
+  }
+  // --ndjson and --json both require stdout to contain only the JSON payload.
+  // Force quiet mode in that case so progress chatter doesn't corrupt parsing.
+  const effectiveQuiet = options.quiet || options.ndjson || options.json;
+  const scanner = new UbonScan(options.verbose, options.json, options.color as 'auto' | 'always' | 'never', effectiveQuiet);
   const scanOptions = buildScanOptions(options, defaults);
+  if (effectiveQuiet) scanOptions.quiet = true;
 
   if (options.aiFriendly) {
     applyAiFriendlyPreset(scanOptions, true);
@@ -302,7 +392,7 @@ export async function runScanCommand(
 
     if (options.watch) {
       const chokidar = await import('chokidar');
-      const watcher = chokidar.watch(['**/*.{js,jsx,ts,tsx,vue}'], {
+      const watcher = chokidar.watch(['**/*.{js,jsx,ts,tsx,svelte,astro}'], {
         cwd: options.directory,
         ignored: ['node_modules/**', 'dist/**', 'build/**', '.next/**']
       });
@@ -338,9 +428,25 @@ export async function runScanCommand(
   }
 }
 
+export async function dumpSchema(): Promise<boolean> {
+  const path = await import('path');
+  const fs = await import('fs');
+  const schemaPath = path.join(__dirname, '..', '..', 'docs', 'schema', 'ubon-finding.schema.json');
+  if (fs.existsSync(schemaPath)) {
+    process.stdout.write(fs.readFileSync(schemaPath, 'utf8'));
+    return true;
+  }
+  return false;
+}
+
 export async function runCheckCommand(options: CliOptions): Promise<void> {
-  const scanner = new UbonScan(options.verbose, options.json, options.color as 'auto' | 'always' | 'never');
+  if (options.schema) {
+    if (await dumpSchema()) return;
+  }
+  const effectiveQuiet = options.quiet || options.ndjson || options.json;
+  const scanner = new UbonScan(options.verbose, options.json, options.color as 'auto' | 'always' | 'never', effectiveQuiet);
   const scanOptions = buildScanOptions(options, { skipBuild: true });
+  if (effectiveQuiet) scanOptions.quiet = true;
 
   try {
     if (scanOptions.gitChangedSince && (!scanOptions.changedFiles || scanOptions.changedFiles.length === 0)) {

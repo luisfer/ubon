@@ -20,7 +20,7 @@ const rule: Rule = {
         fix: 'Move AWS credentials to environment variables'
       }
     ],
-    fileTypes: ['js', 'jsx', 'ts', 'tsx', 'vue', 'env']
+    fileTypes: ['js', 'jsx', 'ts', 'tsx', 'svelte', 'astro', 'env']
   }
 };
 

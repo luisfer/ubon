@@ -22,7 +22,12 @@ const connection = createConnection(ProposedFeatures.all);
 const documents: TextDocuments<TextDocument> = new TextDocuments(TextDocument);
 
 let workspaceRoot = '';
+// Cross-file persistence: keep the most recent scan results per URI even
+// after a document is closed, so a "go to symbol" jump still surfaces stale
+// findings instead of a blank squiggle list.
 const resultsByUri = new Map<string, ScanResult[]>();
+const debounceTimers = new Map<string, ReturnType<typeof setTimeout>>();
+const DEBOUNCE_MS = 350;
 
 function toWorkspacePath(uri: string): string {
   const filePath = fileURLToPath(uri);
@@ -87,16 +92,42 @@ connection.onInitialize((params: InitializeParams): InitializeResult => {
   return result;
 });
 
+function scheduleScan(document: TextDocument, delayMs: number = DEBOUNCE_MS): void {
+  const existing = debounceTimers.get(document.uri);
+  if (existing) clearTimeout(existing);
+  const timer = setTimeout(() => {
+    debounceTimers.delete(document.uri);
+    runScan(document).catch((error) => {
+      connection.console.error(String(error));
+    });
+  }, delayMs);
+  debounceTimers.set(document.uri, timer);
+}
+
 documents.onDidOpen((event) => {
-  runScan(event.document).catch((error) => {
-    connection.console.error(String(error));
-  });
+  // Open is a hard signal — scan immediately so first paint has diagnostics.
+  scheduleScan(event.document, 0);
 });
 
 documents.onDidSave((event) => {
-  runScan(event.document).catch((error) => {
-    connection.console.error(String(error));
-  });
+  scheduleScan(event.document, 0);
+});
+
+documents.onDidChangeContent((event) => {
+  // Throttle live edits — a fresh scan on every keystroke is wasteful and
+  // makes the editor visibly stutter on slower projects.
+  scheduleScan(event.document);
+});
+
+documents.onDidClose((event) => {
+  // Drop the diagnostics envelope from the editor, but keep cached results in
+  // memory so cross-file features (e.g. workspace symbol jumps) still see them.
+  connection.sendDiagnostics({ uri: event.document.uri, diagnostics: [] });
+  const timer = debounceTimers.get(event.document.uri);
+  if (timer) {
+    clearTimeout(timer);
+    debounceTimers.delete(event.document.uri);
+  }
 });
 
 connection.onCodeAction((params) => {
@@ -139,15 +170,24 @@ connection.onHover((params) => {
   const line = params.position.line + 1;
   const hit = results.find((r) => r.line === line);
   if (!hit) return null;
-  const content = [
-    `Rule: ${hit.ruleId}`,
+  const lines = [
+    `**ubon · ${hit.ruleId}** — ${hit.severity.toUpperCase()}`,
+    '',
     hit.message,
-    hit.fix ? `Fix: ${hit.fix}` : undefined
-  ].filter(Boolean);
+  ];
+  if (hit.confidenceReason) {
+    lines.push('', `_Why this fired:_ ${hit.confidenceReason} (confidence ${hit.confidence?.toFixed(2) ?? '—'})`);
+  }
+  if (hit.fix) {
+    lines.push('', `**Fix:** ${hit.fix}`);
+  }
+  if (hit.helpUri) {
+    lines.push('', `[Documentation](${hit.helpUri})`);
+  }
   return {
     contents: {
-      kind: 'plaintext',
-      value: content.join('\n')
+      kind: 'markdown',
+      value: lines.join('\n')
     }
   };
 });

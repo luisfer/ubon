@@ -2,7 +2,7 @@ import { Rule } from '../types';
 import A11Y001 from './A11Y001';
 import A11Y002 from './A11Y002';
 
-const a11yFileTypes = ['jsx', 'tsx', 'vue', 'html'];
+const a11yFileTypes = ['jsx', 'tsx', 'svelte', 'astro', 'html'];
 
 const A11Y003: Rule = {
   meta: {

@@ -1,3 +1,152 @@
+## 3.0.0 — Modernization & AI-Era Edition — 2026-04-18
+
+### 🎯 Major: AI-era detections, MCP server, Cursor hooks, deterministic output
+
+This is a focused, breaking release. The toolchain is modernized
+(Node 20+, ESLint 9 flat config, picocolors, glob 11, commander 13),
+the rule pack now covers what AI assistants actually ship in 2026,
+and Ubon can run as a Model Context Protocol server so the agent
+itself can call it.
+
+See [MIGRATION-v3.md](./MIGRATION-v3.md) for the upgrade checklist.
+
+### ✨ New: AI-era rule pack (AI001–AI008)
+
+- **AI001** Hardcoded LLM API key (OpenAI/Anthropic/Google/Groq/etc.)
+- **AI002** Prompt injection sink (user input → system/user message)
+- **AI003** System prompt / model config leaked to client bundle
+- **AI004** Hardcoded vector-DB credential (Pinecone/Qdrant/Weaviate/Chroma)
+- **AI005** MCP server config with literal secret
+- **AI006** LLM tool/function handler with no auth or allowlist
+- **AI007** Streaming LLM endpoint missing auth + rate limit
+- **AI008** Unbounded LLM call (no `max_tokens`/`maxOutputTokens`)
+
+### ✨ New: Modern framework rule pack
+
+- **NEXT212–215** Next 14/15 Server Actions (auth, validation, mass
+  assignment, `use server` leaking into `use client`)
+- **EDGE001–003** Edge runtime: Node-only API misuse, Wrangler secret
+  hygiene, top-level `process.env` reads in middleware
+- **SVELTE001–002** SvelteKit `+page.server` and `+server` checks
+- **ASTRO001** Astro endpoints missing validation
+- **REMIX001** Remix loaders / actions returning secrets
+- **HONO001** Hono CORS / rate-limit hints
+- **DRIZZLE001 / PRISMA001** raw SQL with user input
+
+### ✨ New: AI-native integration
+
+- **`ubon mcp`** — Model Context Protocol server exposing `ubon.scan`,
+  `ubon.check`, `ubon.explain`, `ubon.preview-fixes`,
+  `ubon.apply-fixes`. Ships as an optional dependency
+  (`@modelcontextprotocol/sdk`). See [docs/MCP.md](./docs/MCP.md).
+- **`ubon hooks install --cursor`** — drop-in `.cursor/hooks.json` plus
+  shell scripts for `afterFileEdit` and `beforeSubmitPrompt`.
+- **LSP polish** — `onDidChangeContent` debounce (500 ms), persistent
+  cross-file results, `confidenceReason` in hover content.
+
+### ✨ New: CLI ergonomics
+
+- **`ubon doctor`** — environment diagnostic (Node, git, optional deps)
+- **`--ndjson`** — one finding per line, ideal for streaming agents
+- **`--quiet`** — suppress banners and contextual guidance
+- **`--schema`** — print the JSON Schema for `--json` output and exit
+- **`--allow-config-js`** — gate `ubon.config.js` (executes user code)
+- **`ubon completion <bash|zsh|fish>`** — shell completion scripts
+- **Update notifier** — opt-out via `UBON_DISABLE_UPDATE_NOTIFIER=1`
+- **Homebrew formula** — `scripts/homebrew/ubon.rb` for the upcoming tap
+
+### ✨ New: Output guarantees
+
+- JSON output schema bumped to **`2.0.0`**, published at
+  `docs/schema/ubon-finding.schema.json`.
+- JSON and NDJSON outputs are **byte-for-byte deterministic** across
+  runs (sorted keys, stable severity order, undefined fields stripped).
+- SARIF: `partialFingerprints` is now emitted for every result; secret
+  redaction goes through the centralized `redact()` utility shared
+  with JSON / Markdown output.
+
+### 🛠 Architecture
+
+- **Single source of truth for `RuleCategory`** in `src/rules/types.ts`.
+- **Reporters extracted** from the `UbonScan` orchestrator:
+  `src/reporters/HumanReporter.ts`, `src/reporters/InteractiveReporter.ts`,
+  `src/core/Posture.ts`.
+- **Profile registry** in `src/core/profiles.ts` — adding a profile is
+  now a config change, not a new scanner class.
+- **Shared `FileSourceCache`** with `maxFileSize` (default 1 MiB) to
+  avoid pathological regex backtracking on huge files.
+- **ReDoS audit** — bounded multi-line patterns
+  (`[\s\S]{0,N}?`) in the security and Rails scanners.
+- **Crawler SSRF guard** — `--crawl-start-url` restricted to localhost
+  by default; opt out with `UBON_ALLOW_REMOTE_CRAWL=1`.
+
+### 🧹 Repo hygiene
+
+- Removed `.tmp-cli-output.*`, `test-results.sarif`, empty
+  `scripts/migrate-rules.js` and `src/rules/registry.ts`.
+- Coverage gates raised on critical utilities (`redact`, `sarif`,
+  `Posture`).
+- New fixture-based integration tests for the AI scanner, framework
+  scanner, NDJSON, schema dump, deterministic JSON, and a ReDoS
+  regression test.
+- CI matrix updated to Node 20 / 22 / 24; `npm publish --provenance`
+  on release; Dependabot config added.
+
+### ⚠️ Breaking changes
+
+- **Node 20+** is required (Node 16 and 18 dropped).
+- **`ubon guide`** removed.
+- **JSON output schema** is `2.0.0`. Field set is unchanged but key
+  ordering and the absence of `undefined` fields are now guaranteed.
+- **`ubon.config.js`** is no longer loaded by default; pass
+  `--allow-config-js` or set `UBON_ALLOW_CONFIG_JS=1`.
+- **`chalk`** is no longer a runtime dependency (replaced by
+  `picocolors`). User-visible output is unchanged.
+
+### 🗑 Removed in v3.0.0 — scope cut
+
+v3 narrows Ubon's focus to modern JS/TS web stacks (Next.js, React,
+Vite, SvelteKit, Astro, Remix, Hono, Lovable). The following are gone:
+
+- **`--profile python`** and the entire `PythonSecurityScanner`
+  (`PYSEC001`–`PYSEC005`, `PYNET001`–`PYNET002`, plus the
+  `python-security-scanner.ts` source and tests). Use
+  [Bandit](https://bandit.readthedocs.io/),
+  [Semgrep](https://semgrep.dev), or
+  [`pip-audit`](https://pypi.org/project/pip-audit/) for Python.
+- **`--profile rails`** and the `RailsSecurityScanner` (all `RAILS*`
+  rules, `rails-security-scanner.ts`, and the Rails-faulty fixture
+  app). Use [Brakeman](https://brakemanscanner.org).
+- **`--profile vue`** and the Vue-specific rule `VUE001`
+  (v-html XSS), plus the `vue-faulty` fixture app. Use
+  [`eslint-plugin-vue`](https://eslint.vuejs.org).
+- **`.py` auto-detection** in the `auto` profile. `auto` no longer
+  glob-walks for Python files — it only flips between `lovable` and
+  the JS baseline based on `package.json` and config files.
+- All scanner glob patterns, rule `fileTypes`, and Cursor
+  `.cursor/rules/ubon.mdc` defaults that previously included `vue`,
+  `py`, or `rb` were updated to `svelte` / `astro` / dropped.
+
+Selecting a removed profile via `--profile` exits with code `2` and
+prints the suggested replacement plus a link to
+[`MIGRATION-v3.md`](./MIGRATION-v3.md).
+
+### 🪦 Deprecated (removal in v3.1)
+
+- `--crawl-internal` (Puppeteer crawler) — high-maintenance, low signal.
+- Loading `ubon.config.js` without `--allow-config-js` will hard-fail
+  in v3.1; for now it errors with a clear migration message.
+
+### 📚 Docs
+
+- Consolidated from 13 pages to 8: new
+  [docs/INTEGRATIONS.md](./docs/INTEGRATIONS.md) (Cursor + Lovable +
+  comparison) and [docs/ADVANCED.md](./docs/ADVANCED.md) (profiles +
+  suppressions + baselines + output schemas + release policy).
+- New [MIGRATION-v3.md](./MIGRATION-v3.md) and rewritten README.
+
+---
+
 ## 2.0.0 — The Vibe Code Edition — 2026-02-01
 
 ### 🎯 Major: Vibe Code Detection

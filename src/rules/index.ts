@@ -7,6 +7,8 @@ import { lovableRules } from './lovable';
 import { viteRules } from './vite';
 import { reactRules } from './react';
 import { vibeRules } from './vibe';
+import { aiRules } from './ai';
+import { frameworkRules } from './frameworks';
 
 // Combine all modular rules from different categories
 const allRuleModules = {
@@ -17,7 +19,9 @@ const allRuleModules = {
   ...lovableRules,
   ...viteRules,
   ...reactRules,
-  ...vibeRules
+  ...vibeRules,
+  ...aiRules,
+  ...frameworkRules
 };
 
 // Create rules registry (compatible with existing RULES interface)

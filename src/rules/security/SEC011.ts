@@ -20,7 +20,7 @@ const rule: Rule = {
         fix: 'Use environment variables for GitHub tokens'
       }
     ],
-    fileTypes: ['js', 'jsx', 'ts', 'tsx', 'vue', 'env']
+    fileTypes: ['js', 'jsx', 'ts', 'tsx', 'svelte', 'astro', 'env']
   }
 };
 

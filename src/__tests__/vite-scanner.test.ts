@@ -323,12 +323,12 @@ describe('ViteScanner', () => {
       `);
     });
 
-    it('scans multiple file types (.js, .jsx, .ts, .tsx, .vue)', async () => {
+    it('scans multiple file types (.js, .jsx, .ts, .tsx, .svelte)', async () => {
       const jsFile = join(tmp, 'test.js');
       const tsFile = join(tmp, 'test.ts');
       const jsxFile = join(tmp, 'test.jsx');
       const tsxFile = join(tmp, 'test.tsx');
-      const vueFile = join(tmp, 'test.vue');
+      const svelteFile = join(tmp, 'test.svelte');
 
       const code = `const key = import.meta.env.SECRET_KEY;`;
 
@@ -336,7 +336,7 @@ describe('ViteScanner', () => {
       writeFileSync(tsFile, code);
       writeFileSync(jsxFile, code);
       writeFileSync(tsxFile, code);
-      writeFileSync(vueFile, `<script>${code}</script>`);
+      writeFileSync(svelteFile, `<script>${code}</script>`);
 
       const scanner = new ViteScanner();
       const results = await scanner.scan({ directory: tmp });

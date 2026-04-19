@@ -1,9 +1,0 @@
-{
-  "name": "vue-faulty",
-  "private": true,
-  "type": "module",
-  "dependencies": {
-    "vue": "3.4.0"
-  }
-}
-

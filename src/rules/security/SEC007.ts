@@ -20,7 +20,7 @@ const rule: Rule = {
         fix: 'Use environment variable for database connection'
       }
     ],
-    fileTypes: ['js', 'jsx', 'ts', 'tsx', 'vue', 'env']
+    fileTypes: ['js', 'jsx', 'ts', 'tsx', 'svelte', 'astro', 'env']
   }
 };
 

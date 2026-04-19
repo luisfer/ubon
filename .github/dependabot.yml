@@ -1,0 +1,39 @@
+# Monthly dependency PRs. Grouped to keep CI noise manageable; security
+# updates still raise individual PRs immediately.
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: monthly
+    open-pull-requests-limit: 10
+    groups:
+      typescript:
+        patterns:
+          - 'typescript'
+          - '@types/*'
+          - '@typescript-eslint/*'
+      jest:
+        patterns:
+          - 'jest'
+          - 'ts-jest'
+          - '@types/jest'
+      runtime:
+        patterns:
+          - 'commander'
+          - 'glob'
+          - 'chokidar'
+          - 'picocolors'
+          - 'update-notifier'
+      lsp:
+        patterns:
+          - 'vscode-languageserver*'
+    labels:
+      - 'dependencies'
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+    labels:
+      - 'github-actions'

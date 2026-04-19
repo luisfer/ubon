@@ -1,5 +1,22 @@
 export type RuleSeverity = 'high' | 'medium' | 'low';
-export type RuleCategory = 'security' | 'accessibility' | 'links' | 'performance' | 'seo' | 'development';
+/**
+ * Canonical rule category union used by every scanner, rule, and reporter.
+ *
+ * `'config'` covers infra / Dockerfile / .env-drift style rules where the
+ * underlying issue is a misconfiguration rather than a code-level vulnerability.
+ *
+ * Keep this list small and stable — adding a category implies adding a
+ * dedicated section in human reports and a new `rule.category` value clients
+ * may already filter on.
+ */
+export type RuleCategory =
+  | 'security'
+  | 'accessibility'
+  | 'links'
+  | 'performance'
+  | 'seo'
+  | 'development'
+  | 'config';
 
 export interface RuleMeta {
   id: string;

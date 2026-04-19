@@ -2,7 +2,21 @@ import { existsSync, readFileSync } from 'fs';
 import { join } from 'path';
 import { ScanOptions } from '../types';
 
-export function loadConfig(directory: string): Partial<ScanOptions> {
+/**
+ * Load Ubon configuration. Order of precedence:
+ *   1. `ubon.config.json` (always loaded — pure data)
+ *   2. `ubon.config.js`   (only loaded if `--allow-config-js` was passed or
+ *                          `UBON_ALLOW_CONFIG_JS=1` is set; executes user code)
+ *   3. `package.json` "ubon" field (always loaded — pure data)
+ *
+ * Gating the JS variant matters because Ubon is frequently invoked in CI
+ * against untrusted PR branches; loading arbitrary user JS at config time
+ * would expand the supply-chain attack surface.
+ */
+export function loadConfig(
+  directory: string,
+  opts: { allowConfigJs?: boolean } = {}
+): Partial<ScanOptions> {
   try {
     const jsonPath = join(directory, 'ubon.config.json');
     if (existsSync(jsonPath)) {
@@ -11,9 +25,18 @@ export function loadConfig(directory: string): Partial<ScanOptions> {
     }
     const jsPath = join(directory, 'ubon.config.js');
     if (existsSync(jsPath)) {
-      // eslint-disable-next-line @typescript-eslint/no-var-requires
-      const data = require(jsPath);
-      return (data && data.default) ? data.default : data;
+      const allowed = opts.allowConfigJs === true || process.env.UBON_ALLOW_CONFIG_JS === '1';
+      if (!allowed) {
+        if (process.env.UBON_VERBOSE) {
+          console.error(
+            `🪷 ubon: ignoring ubon.config.js (untrusted code). Pass --allow-config-js or set UBON_ALLOW_CONFIG_JS=1 to opt in.`
+          );
+        }
+      } else {
+         
+        const data = require(jsPath);
+        return (data && data.default) ? data.default : data;
+      }
     }
     const pkgPath = join(directory, 'package.json');
     if (existsSync(pkgPath)) {

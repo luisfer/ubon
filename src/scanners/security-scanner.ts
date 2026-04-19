@@ -1,9 +1,11 @@
 import { glob } from 'glob';
-import { readFileSync } from 'fs';
+import { statSync } from 'fs';
+import { join } from 'path';
 import { Scanner, ScanResult, ScanOptions } from '../types';
 import { RULES, getRule } from '../rules';
 import { extractQuotedLiterals, shannonEntropy } from '../utils/entropy';
 import { ResultCache } from '../utils/result-cache';
+import { FileSourceCache, DEFAULT_MAX_FILE_SIZE } from '../utils/file-source-cache';
 
 export class SecurityScanner implements Scanner {
   name = 'Security Scanner';
@@ -12,7 +14,8 @@ export class SecurityScanner implements Scanner {
   private readonly modularRuleIds = [
     'SEC001', 'SEC002', 'SEC003', 'SEC004', 'SEC005', 'SEC006', 'SEC007',
     'SEC008', 'SEC009', 'SEC010', 'SEC011', 'SEC012', 'SEC013', 'SEC014',
-    'SEC015', 'SEC016', 'SEC017'
+    'SEC015', 'SEC016', 'SEC017',
+    'AI001', 'AI004'
   ];
 
   // Confidence reasons for each rule
@@ -38,13 +41,15 @@ export class SecurityScanner implements Scanner {
     'NEXT201': 'Missing 404/not-found page in Next.js app',
     'NEXT202': 'Missing error boundary in Next.js app',
     'JSNET001': 'HTTP request without timeout can hang indefinitely',
-    'COOKIE001': 'Cookie missing security attributes (HttpOnly, Secure, SameSite)'
+    'COOKIE001': 'Cookie missing security attributes (HttpOnly, Secure, SameSite)',
+    'AI001': 'String matches an LLM provider key prefix (sk-, sk-ant-, AIza, gsk_, r8_, etc.)',
+    'AI004': 'String matches a known vector DB credential format (Pinecone, Qdrant, Weaviate)'
   };
 
   async scan(options: ScanOptions): Promise<ScanResult[]> {
     const results: ScanResult[] = [];
     
-    const files = await glob('**/*.{js,jsx,ts,tsx,vue,env}', {
+    const files = await glob('**/*.{js,jsx,ts,tsx,svelte,astro,env}', {
       cwd: options.directory,
       ignore: ['node_modules/**', 'dist/**', 'build/**', '.next/**', 'examples/**']
     });
@@ -68,9 +73,18 @@ export class SecurityScanner implements Scanner {
     let emittedP5_error = false;
     let emittedP5_document = false;
 
+    const sourceCache = FileSourceCache.forDirectory(options.directory);
+    const maxSize = options.maxFileSize || DEFAULT_MAX_FILE_SIZE;
     for (const file of files) {
       try {
-        const content = readFileSync(`${options.directory}/${file}`, 'utf-8');
+        const absolute = join(options.directory, file);
+        try {
+          if (statSync(absolute).size > maxSize) continue;
+        } catch {
+          continue;
+        }
+        const content = sourceCache.read(absolute);
+        if (content === undefined) continue;
         const contentHash = ResultCache.hashContent(content);
         const cached = resultCache?.get(file, contentHash);
         if (cached) {
@@ -89,7 +103,7 @@ export class SecurityScanner implements Scanner {
         const fileExt = file.split('.').pop()?.toLowerCase() || '';
 
         let ubonDisableAll = false;
-        lines.forEach((line, index) => {
+        lines.forEach((line) => {
           if (/ubon-disable-file/.test(line)) { ubonDisableAll = true; }
         });
         if (ubonDisableAll) continue;
@@ -382,27 +396,6 @@ export class SecurityScanner implements Scanner {
           }
         });
 
-        // Vue v-html binding (XSS risk)
-        if (file.endsWith('.vue')) {
-          lines.forEach((line, index) => {
-            if (/v-html\s*=\s*\"|v-html\s*=\s*\'/.test(line)) {
-              const meta = RULES.VUE001;
-              results.push({
-                type: 'error',
-                category: meta.category,
-                message: meta.message,
-                file,
-                line: index + 1,
-                range: { startLine: index + 1, startColumn: 1, endLine: index + 1, endColumn: Math.max(1, line.length) },
-                severity: meta.severity,
-                ruleId: meta.id,
-                confidence: 0.9,
-                fix: meta.fix
-              });
-            }
-          });
-        }
-
         // Next.js SSR secrets heuristic (legacy NEXT006)
         if (/get(ServerSideProps|StaticProps)\s*\(/.test(content) && /process\.env\./.test(content)) {
           const meta = RULES.NEXT006;
@@ -412,7 +405,14 @@ export class SecurityScanner implements Scanner {
         // Experimental P5: Server -> Client secret bleed (NEXT210)
         if (/\bexport\s+async\s+function\s+get(ServerSideProps|StaticProps)\b|\bexport\s+const\s+get(ServerSideProps|StaticProps)\b/.test(content)) {
           const readsSecret = /(process\.env\.(?!NEXT_PUBLIC_)[A-Z0-9_]+|secret|apiKey|token)/.test(content);
-          const returnsPropsWithSensitive = /return\s*\{\s*props\s*:\s*\{[\s\S]*\b(secret|token|apiKey|password|auth|key)\b/.test(content);
+          // Bounded-greedy variant of the historical NEXT210 regex. The old
+          // pattern (`[\s\S]*` between `props: {` and the sensitive
+          // identifier) could backtrack catastrophically on adversarially
+          // long single-line minified bundles. We cap to 2000 chars and use
+          // a lazy quantifier — false negatives in pathological files are an
+          // acceptable trade for a hard ReDoS ceiling.
+          const returnsPropsWithSensitive =
+            /return\s*\{\s*props\s*:\s*\{[\s\S]{0,2000}?\b(secret|token|apiKey|password|auth|key)\b/.test(content);
           if (readsSecret && returnsPropsWithSensitive) {
             const meta = RULES.NEXT210;
             results.push({ type: 'error', category: meta.category, message: meta.message, file, severity: meta.severity, ruleId: meta.id, confidence: 0.7, fix: meta.fix });

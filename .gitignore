@@ -61,10 +61,6 @@ temp/
 yarn.lock
 pnpm-lock.yaml
 
-# Testing
-coverage/
-.nyc_output/
-
 # Cache directories
 .npm
 .cache

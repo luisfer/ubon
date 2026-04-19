@@ -1,8 +1,10 @@
 import { glob } from 'glob';
-import { readFileSync } from 'fs';
+import { statSync } from 'fs';
+import { join } from 'path';
 import type ts from 'typescript';
 import { Scanner, ScanOptions, ScanResult } from '../types';
 import { RULES } from '../rules';
+import { FileSourceCache, DEFAULT_MAX_FILE_SIZE } from '../utils/file-source-cache';
 
 export class AstSecurityScanner implements Scanner {
   name = 'AST Security Scanner';
@@ -11,7 +13,7 @@ export class AstSecurityScanner implements Scanner {
     // Lazily require TypeScript at runtime; if unavailable (global install without dev deps), skip AST checks gracefully
     let tsReal: typeof import('typescript');
     try {
-      // eslint-disable-next-line @typescript-eslint/no-var-requires
+       
       tsReal = require('typescript') as typeof import('typescript');
     } catch {
       return [];
@@ -23,13 +25,19 @@ export class AstSecurityScanner implements Scanner {
       ignore: ['node_modules/**', 'dist/**', 'build/**', '.next/**', 'examples/**']
     });
 
+    const sourceCache = FileSourceCache.forDirectory(options.directory);
+    const maxSize = options.maxFileSize || DEFAULT_MAX_FILE_SIZE;
     for (const file of files) {
-      let sourceText = '';
+      const absolute = join(options.directory, file);
       try {
-        sourceText = readFileSync(`${options.directory}/${file}`, 'utf-8');
-      } catch (error) {
+        if (statSync(absolute).size > maxSize) continue;
+      } catch {
+        continue;
+      }
+      const sourceText = sourceCache.read(absolute);
+      if (sourceText === undefined) {
         if (options.verbose) {
-          console.error(`🪷 AstSecurityScanner: failed to read ${file}:`, error);
+          console.error(`🪷 AstSecurityScanner: failed to read ${file}`);
         }
         continue;
       }

@@ -101,7 +101,7 @@ const rule: Rule = {
 
       return results;
     },
-    fileTypes: ['js', 'jsx', 'ts', 'tsx', 'vue']
+    fileTypes: ['js', 'jsx', 'ts', 'tsx', 'svelte', 'astro']
   }
 };
 

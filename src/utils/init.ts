@@ -3,9 +3,9 @@ import { join } from 'path';
 import { UbonScan } from '..';
 import { ScanResult, ScanOptions } from '../types';
 
-export interface InitOptions { profile?: 'auto'|'react'|'next'|'python'; interactive?: boolean }
+export interface InitOptions { profile?: 'auto'|'react'|'next'; interactive?: boolean }
 interface ProjectAnalysis {
-  detectedProfile: 'react' | 'next' | 'python' | 'node';
+  detectedProfile: 'react' | 'next' | 'node';
   commonFalsePositives: string[];
   recommendedMinConfidence: number;
   suggestedDisabledRules: string[];
@@ -28,7 +28,7 @@ export async function initializeConfig(options: InitOptions) {
 }
 
 function analyzeProject(results: ScanResult[]): ProjectAnalysis {
-  const detectedProfile: ProjectAnalysis['detectedProfile'] = results.some(r => (r.file||'').endsWith('.py')) ? 'python' : 'next';
+  const detectedProfile: ProjectAnalysis['detectedProfile'] = 'next';
   const noisy = new Map<string, number>();
   for (const r of results) noisy.set(r.ruleId, (noisy.get(r.ruleId)||0)+1);
   const suggestedDisabledRules = Array.from(noisy.entries()).filter(([id,count]) => id==='SEC018' && count>5).map(([id])=>id);

@@ -1,4 +1,4 @@
-import { Rule, RuleMeta } from '../types';
+import { Rule } from '../types';
 
 import VIBE001 from './VIBE001';
 import VIBE002 from './VIBE002';

@@ -20,7 +20,7 @@ const rule: Rule = {
         fix: 'Use environment variable for Stripe keys'
       }
     ],
-    fileTypes: ['js', 'jsx', 'ts', 'tsx', 'vue', 'env']
+    fileTypes: ['js', 'jsx', 'ts', 'tsx', 'svelte', 'astro', 'env']
   }
 };
 

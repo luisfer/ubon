@@ -1,15 +1,8 @@
-export type RuleSeverity = 'high' | 'medium' | 'low';
-export type RuleCategory = 'security' | 'accessibility' | 'links' | 'performance' | 'seo';
-
-export interface RuleMeta {
-  id: string;
-  category: RuleCategory;
-  severity: RuleSeverity;
-  message: string;
-  fix?: string;
-  helpUri?: string;
-  impact?: string; // "why it matters" explanation
-}
+// Legacy rule registry. Prefer `src/rules/*` (modular registry) for new rules.
+// Categories/severities are re-exported from the canonical source of truth so
+// adding a new category requires updating exactly one file.
+export type { RuleSeverity, RuleCategory, RuleMeta } from '../rules/types';
+import type { RuleMeta } from '../rules/types';
 
 // Central registry of rules used across scanners.
 export const RULES: Record<string, RuleMeta> = {
@@ -72,18 +65,6 @@ export const RULES: Record<string, RuleMeta> = {
   NEXT005: { id: 'NEXT005', category: 'accessibility', severity: 'low', message: 'External <img> used in Next.js app (consider next/image)', fix: 'Use next/image for external sources with proper config' },
   NEXT006: { id: 'NEXT006', category: 'security', severity: 'high', message: 'Sensitive data exposed via getStaticProps/getServerSideProps', fix: 'Do not include secrets/env in returned props' },
 
-  // Python
-  PYSEC001: { id: 'PYSEC001', category: 'security', severity: 'high', message: 'Potential API key exposed', fix: 'Move secrets to environment variables' },
-  PYSEC002: { id: 'PYSEC002', category: 'security', severity: 'high', message: 'Use of exec() detected', fix: 'Avoid exec(); use safer alternatives' },
-  PYSEC003: { id: 'PYSEC003', category: 'security', severity: 'high', message: 'Use of eval() detected', fix: 'Avoid eval(); use safer alternatives' },
-  PYSEC004: { id: 'PYSEC004', category: 'security', severity: 'high', message: 'subprocess with shell=True', fix: 'Avoid shell=True; pass args as list' },
-  PYSEC005: { id: 'PYSEC005', category: 'security', severity: 'medium', message: 'yaml.load() unsafe without Loader', fix: 'Use yaml.safe_load()' },
-  PYSEC006: { id: 'PYSEC006', category: 'security', severity: 'medium', message: 'Insecure pickle usage', fix: 'Avoid pickle with untrusted data' },
-  PYSEC007: { id: 'PYSEC007', category: 'security', severity: 'medium', message: 'TLS verification disabled', fix: 'Remove verify=False' },
-  PYSEC009: { id: 'PYSEC009', category: 'security', severity: 'medium', message: 'DEBUG=True in settings', fix: 'Disable DEBUG in production' },
-  PYSEC010: { id: 'PYSEC010', category: 'security', severity: 'low', message: 'ALLOWED_HOSTS includes *', fix: 'Restrict ALLOWED_HOSTS' },
-  PYNET001: { id: 'PYNET001', category: 'security', severity: 'medium', message: 'requests call without timeout', fix: 'Add timeout= to requests.* calls' }
-  ,
   // Docker / CI
   DOCKER001: { id: 'DOCKER001', category: 'security', severity: 'medium', message: 'Dockerfile runs as root (USER root or no USER)', fix: 'Add a non-root USER' },
   DOCKER002: { id: 'DOCKER002', category: 'security', severity: 'high', message: 'Secrets defined via ENV in Dockerfile', fix: 'Avoid embedding secrets in Docker images' },
@@ -91,8 +72,6 @@ export const RULES: Record<string, RuleMeta> = {
   DOCKER004: { id: 'DOCKER004', category: 'security', severity: 'low', message: 'apt-get install without cleaning apt cache', fix: 'Run rm -rf /var/lib/apt/lists/* after apt-get' },
   // Env drift
   ENV007: { id: 'ENV007', category: 'security', severity: 'low', message: 'Environment variable drift between .env and .env.example', fix: 'Align keys in .env and .env.example' },
-  // Vue
-  VUE001: { id: 'VUE001', category: 'security', severity: 'high', message: 'v-html binding (XSS risk)', fix: 'Avoid v-html or sanitize input before binding' },
   // CI
   GHA001: { id: 'GHA001', category: 'security', severity: 'high', message: 'Secrets may be echoed in GitHub Actions workflow', fix: 'Do not print secrets to logs; remove echo/printf of secrets' },
   

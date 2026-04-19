@@ -31,11 +31,11 @@ describe('CLI smoke', () => {
     expect(data.schemaVersion).toBeTruthy();
   });
 
-  (hasDist ? it : it.skip)('runs python profile on python example', () => {
-    const res = run(['check', '--directory', 'examples/python-bad-app', '--json', '--profile', 'python']);
-    expect(res.status === 0 || res.status === 1).toBe(true);
-    const obj = JSON.parse(res.stdout.trim());
-    expect(obj.summary).toBeTruthy();
+  (hasDist ? it : it.skip)('errors out when a removed profile is requested', () => {
+    const res = run(['check', '--directory', 'examples/faulty-nextjs-app', '--profile', 'python']);
+    // exit 2 = removed profile (see src/cli/shared.ts)
+    expect(res.status).toBe(2);
+    expect(res.stderr).toMatch(/removed in v3\.0\.0/);
   });
 
   (hasDist ? it : it.skip)('supports changed-files filtering', () => {

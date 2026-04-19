@@ -1,4 +1,4 @@
-import { Rule, DetectionResult } from '../types';
+import { Rule } from '../types';
 
 /**
  * VIBE004: Orphaned exports

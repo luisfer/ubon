@@ -10,7 +10,7 @@ export class AccessibilityScanner extends BaseScanner {
     const results: ScanResult[] = [];
     const rules = this.ruleIds.map((id) => getRule(id)).filter(Boolean);
 
-    for await (const ctx of this.iterateFiles(options, '**/*.{js,jsx,ts,tsx,vue,html}', ['node_modules/**', 'dist/**', 'build/**', '.next/**', 'examples/**'])) {
+    for await (const ctx of this.iterateFiles(options, '**/*.{js,jsx,ts,tsx,svelte,astro,html}', ['node_modules/**', 'dist/**', 'build/**', '.next/**', 'examples/**'])) {
       const fileExt = ctx.file.split('.').pop()?.toLowerCase();
       if (this.hasFileSuppression(ctx.lines)) continue;
 

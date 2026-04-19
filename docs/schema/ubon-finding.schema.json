@@ -1,0 +1,102 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/luisfer/ubon/blob/main/docs/schema/ubon-finding.schema.json",
+  "title": "UbonScanReport",
+  "description": "Schema for the JSON output of `ubon check --json` and `ubon scan --json` (schemaVersion 2.0.0). MCP clients and CI agents should validate against this schema before parsing.",
+  "type": "object",
+  "required": ["schemaVersion", "toolVersion", "summary", "issues"],
+  "properties": {
+    "schemaVersion": {
+      "type": "string",
+      "const": "2.0.0",
+      "description": "Schema version. Bumped to 2.0.0 in Ubon v3."
+    },
+    "toolVersion": {
+      "type": "string",
+      "description": "The Ubon version that produced this report (semver)."
+    },
+    "summary": {
+      "type": "object",
+      "required": ["total", "errors", "warnings", "info"],
+      "properties": {
+        "total": { "type": "integer", "minimum": 0 },
+        "errors": { "type": "integer", "minimum": 0 },
+        "warnings": { "type": "integer", "minimum": 0 },
+        "info": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "issues": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/Issue" }
+    },
+    "recommendations": {
+      "type": "array",
+      "items": { "type": "string" }
+    }
+  },
+  "$defs": {
+    "Issue": {
+      "type": "object",
+      "required": ["type", "category", "message", "severity", "ruleId", "confidence"],
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": ["error", "warning", "info"]
+        },
+        "category": {
+          "type": "string",
+          "enum": ["security", "accessibility", "links", "performance", "seo", "development", "config"]
+        },
+        "severity": {
+          "type": "string",
+          "enum": ["high", "medium", "low"]
+        },
+        "ruleId": {
+          "type": "string",
+          "pattern": "^[A-Z]+[0-9]+$"
+        },
+        "message": { "type": "string" },
+        "file": { "type": "string" },
+        "line": { "type": "integer", "minimum": 1 },
+        "range": {
+          "type": "object",
+          "required": ["startLine", "startColumn", "endLine", "endColumn"],
+          "properties": {
+            "startLine": { "type": "integer", "minimum": 1 },
+            "startColumn": { "type": "integer", "minimum": 1 },
+            "endLine": { "type": "integer", "minimum": 1 },
+            "endColumn": { "type": "integer", "minimum": 1 }
+          }
+        },
+        "confidence": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "confidenceReason": { "type": "string" },
+        "match": { "type": "string", "description": "Redacted snippet that triggered the rule." },
+        "fingerprint": { "type": "string" },
+        "fix": { "type": "string" },
+        "fixEdits": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/FixEdit" }
+        },
+        "helpUri": { "type": "string", "format": "uri" },
+        "suppressed": { "type": "boolean" },
+        "suppressionReason": { "type": "string" }
+      }
+    },
+    "FixEdit": {
+      "type": "object",
+      "required": ["file", "startLine", "startColumn", "endLine", "endColumn", "replacement"],
+      "properties": {
+        "file": { "type": "string" },
+        "startLine": { "type": "integer", "minimum": 1 },
+        "startColumn": { "type": "integer", "minimum": 1 },
+        "endLine": { "type": "integer", "minimum": 1 },
+        "endColumn": { "type": "integer", "minimum": 1 },
+        "replacement": { "type": "string" }
+      }
+    }
+  }
+}

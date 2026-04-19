@@ -43,7 +43,7 @@ const rule: Rule = {
       while ((match = processEnvPattern.exec(content)) !== null) {
         const beforeMatch = content.substring(0, match.index);
         const lineNumber = beforeMatch.split('\n').length;
-        const line = lines[lineNumber - 1];
+        const _line = lines[lineNumber - 1];
 
         // Only flag if this is clearly client-side code (not in /api/ or server files)
         const isClientSide = !/(\/api\/|\.server\.|server\/)/.test(file);
@@ -59,7 +59,7 @@ const rule: Rule = {
 
       return results;
     },
-    fileTypes: ['js', 'jsx', 'ts', 'tsx', 'vue']
+    fileTypes: ['js', 'jsx', 'ts', 'tsx', 'svelte', 'astro']
   }
 };
 

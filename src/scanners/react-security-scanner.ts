@@ -9,7 +9,7 @@ export class ReactSecurityScanner implements Scanner {
   async scan(options: ScanOptions): Promise<ScanResult[]> {
     const results: ScanResult[] = [];
 
-    const files = await glob('**/*.{jsx,tsx,vue}', {
+    const files = await glob('**/*.{jsx,tsx}', {
       cwd: options.directory,
       ignore: ['node_modules/**', 'dist/**', 'build/**', '.next/**', 'examples/**']
     });

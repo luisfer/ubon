@@ -20,7 +20,7 @@ const rule: Rule = {
         fix: 'Use NEXT_PUBLIC_SUPABASE_ANON_KEY environment variable'
       }
     ],
-    fileTypes: ['js', 'jsx', 'ts', 'tsx', 'vue', 'env']
+    fileTypes: ['js', 'jsx', 'ts', 'tsx', 'svelte', 'astro', 'env']
   }
 };
 

@@ -10,8 +10,34 @@ const program = new Command();
 
 program
   .name('ubon')
-  .description('Ubon 🪷 — peace of mind for vibe-coded apps\n  • Run "ubon guide" for integration documentation\n  • Try "ubon scan --interactive" for guided debugging')
+  .description('Ubon 🪷 — peace of mind for AI-generated apps\n  • Try "ubon scan --interactive" for guided debugging\n  • Try "ubon mcp" to expose the scanner to your AI assistant')
   .version((pkg as any).version);
+
+// One-shot, best-effort update notifier. Runs after the command completes
+// so it never blocks the user; fails silently in air-gapped environments.
+function maybeNotifyUpdate(): void {
+  if (process.env.UBON_DISABLE_UPDATE_NOTIFIER === '1') return;
+  if (process.env.CI || process.env.NODE_ENV === 'test') return;
+  process.on('exit', () => {
+    try {
+      // Lazy-require so the dep stays optional and doesn't slow down startup.
+      const updateNotifier = require('update-notifier');
+      updateNotifier({ pkg, updateCheckInterval: 1000 * 60 * 60 * 24 }).notify({ defer: false });
+    } catch {
+      /* ignore — notifier is best-effort */
+    }
+  });
+}
+maybeNotifyUpdate();
+
+program
+  .command('doctor')
+  .description('Diagnose the local Ubon environment (Node version, optional deps, git, etc.)')
+  .option('-d, --directory <path>', 'Project directory', process.cwd())
+  .action(async (opts: { directory: string }) => {
+    const { runDoctor } = await import('./cli/doctor');
+    await runDoctor(opts.directory);
+  });
 
 // Shared options for scan and check commands
 const addCommonOptions = (cmd: Command): Command => {
@@ -33,10 +59,10 @@ const addCommonOptions = (cmd: Command): Command => {
     .option('--fix-dry-run', 'Compute and print auto-fix plan without writing files')
     .option('--preview-fixes', 'Show diff-like preview of fixes without applying')
     .option('--apply-fixes', 'Apply available safe auto-fixes to the codebase')
-    .option('--profile <name>', 'Scan profile: auto|lovable|react|next|vue|python|rails', 'auto')
+    .option('--profile <name>', 'Scan profile: auto|lovable|react|next|sveltekit|astro|remix|hono', 'auto')
     .option('--git-history-depth <n>', 'Scan last N commits for leaked secrets')
     .option('--fast', 'Skip expensive checks (OSV, links) for faster results')
-    .option('--crawl-internal', 'Crawl internal links with a headless browser')
+    .option('--crawl-internal', '[deprecated v3] Crawl internal links with a headless browser (puppeteer)')
     .option('--crawl-start-url <url>', 'Starting URL for internal crawl')
     .option('--crawl-depth <n>', 'Max crawl depth', '2')
     .option('--crawl-timeout <ms>', 'Per-page timeout in ms', '10000')
@@ -58,7 +84,11 @@ const addCommonOptions = (cmd: Command): Command => {
     .option('--no-cache', 'Disable OSV caching for this scan')
     .option('--no-result-cache', 'Disable per-file result caching')
     .option('--pr-comment', 'Output a Markdown summary suitable for PR comments')
-    .option('--interactive', 'Walk through issues interactively with explanations and fix options');
+    .option('--interactive', 'Walk through issues interactively with explanations and fix options')
+    .option('--ndjson', 'Output one JSON-encoded finding per line (streaming-friendly)')
+    .option('--quiet', 'Suppress banners, suggestions, and contextual guidance (CI-friendly)')
+    .option('--allow-config-js', 'Permit loading ubon.config.js (executes user-supplied code)')
+    .option('--schema', 'Print the JSON Schema for --json output and exit');
 };
 
 // Scan command
@@ -143,51 +173,15 @@ program
 
 program
   .command('guide')
-  .description('Show integration guide for developers and AI agents')
+  .description('[deprecated in v3] Print pointer to the docs site')
   .action(async () => {
-    const { join } = await import('path');
-    const { existsSync } = await import('fs');
-    
-    const guidePaths = [
-      join(__dirname, '..', 'GUIDE.md'),
-      join(process.cwd(), 'node_modules', 'ubon', 'GUIDE.md'),
-      join(process.cwd(), 'GUIDE.md')
-    ];
-    
-    let guidePath = null;
-    for (const path of guidePaths) {
-      if (existsSync(path)) {
-        guidePath = path;
-        break;
-      }
-    }
-    
-    if (guidePath) {
-      console.log(`🪷 Ubon Integration Guide location:`);
-      console.log(`📍 ${guidePath}`);
-      console.log('');
-      console.log('💡 Quick commands:');
-      console.log('   ubon check --json          # Quick analysis');
-      console.log('   ubon scan --interactive    # Guided debugging');  
-      console.log('   ubon check --apply-fixes   # Auto-fix issues');
-      console.log('');
-      console.log('🔗 Online: https://github.com/luisfer/ubon/blob/main/GUIDE.md');
-    } else {
-      console.log('🪷 Ubon Integration Guide');
-      console.log('');
-      console.log('💡 Essential commands:');
-      console.log('   ubon check --json          # Quick static analysis');
-      console.log('   ubon scan --interactive    # Guided issue walkthrough');
-      console.log('   ubon check --apply-fixes   # Apply safe auto-fixes');
-      console.log('   ubon check --focus-critical --focus-security  # Security focus');
-      console.log('');
-      console.log('🤖 AI workflow:');
-      console.log('   1. Run: ubon check --ai-friendly');
-      console.log('   2. Share output with AI assistant');
-      console.log('   3. Ask: "Help me fix these issues, starting with high severity"');
-      console.log('');
-      console.log('🔗 Full guide: https://github.com/luisfer/ubon/blob/main/GUIDE.md');
-    }
+    // The interactive `guide` command shipped a lot of duplicated copy
+    // and the rotating "tip of the day" suggestion. v3 collapses both
+    // into a single pointer; the canonical content lives in docs/ and on
+    // the README so we don't have three sources of truth.
+    console.error('🪷 `ubon guide` is deprecated and will be removed in v3.1.');
+    console.error('   See: https://github.com/luisfer/ubon#readme');
+    console.error('   Or: https://github.com/luisfer/ubon/tree/main/docs');
   });
 
 program
@@ -198,12 +192,57 @@ program
     startServer();
   });
 
+const hooksCmd = program.command('hooks').description('Manage Ubon editor hook integrations');
+hooksCmd
+  .command('install')
+  .description('Install a Cursor hooks template that runs Ubon on every file edit and prompt')
+  .option('--cursor', 'Install Cursor hooks (.cursor/hooks.json + scripts) — default', true)
+  .option('-d, --directory <path>', 'Project directory', process.cwd())
+  .option('--force', 'Overwrite existing files instead of merging', false)
+  .action(async (opts: { cursor?: boolean; directory: string; force?: boolean }) => {
+    if (!opts.cursor) {
+      console.error('🪷 Only --cursor hooks are supported right now.');
+      process.exit(1);
+    }
+    const { installCursorHooks } = await import('./cli/hooks');
+    const { wrote, skipped } = installCursorHooks({
+      directory: opts.directory,
+      cursor: true,
+      force: !!opts.force
+    });
+    for (const file of wrote) console.log('🪷 wrote   ', file);
+    for (const file of skipped) console.log('🪷 skipped ', file, '(exists; use --force to overwrite)');
+    console.log('\n🪷 Cursor will pick up hooks.json automatically. Restart Cursor if not.');
+  });
+
+program
+  .command('mcp')
+  .description('Start the Ubon MCP (Model Context Protocol) server over stdio')
+  .action(async () => {
+    const { startMcpServer } = await import('./mcp/server');
+    await startMcpServer();
+  });
+
+program
+  .command('completion <shell>')
+  .description('Print shell completion script (bash | zsh | fish)')
+  .action(async (shell: string) => {
+    const { emit } = await import('./cli/completion');
+    const { ok, output } = emit(shell);
+    if (ok) {
+      process.stdout.write(output);
+    } else {
+      process.stderr.write(output);
+      process.exit(1);
+    }
+  });
+
 program
   .command('explain <ruleId>')
   .description('Show detailed information about a rule')
   .action(async (ruleId: string) => {
     const { getRule, RULES } = await import('./rules');
-    const chalk = (await import('chalk')).default;
+    const { default: chalk } = await import('./utils/colors');
     
     const rule = getRule(ruleId.toUpperCase());
     const legacyRule = RULES[ruleId.toUpperCase() as keyof typeof RULES];
@@ -212,13 +251,26 @@ program
       console.error(chalk.red(`❌ Rule "${ruleId}" not found`));
       console.log('');
       console.log('💡 Available rule prefixes:');
-      console.log('   SEC001-019   Security rules');
-      console.log('   A11Y001-007  Accessibility rules');
-      console.log('   DEV001-005   Development rules');
-      console.log('   VIBE001-004  Vibe code detection');
-      console.log('   NEXT001-203  Next.js specific');
-      console.log('   ENV001-005   Environment variables');
-      console.log('   LINK001-002  Broken links');
+      const ids = Object.keys(RULES);
+      const buckets = new Map<string, string[]>();
+      for (const id of ids) {
+        const m = id.match(/^([A-Z]+)\d+/);
+        const prefix = m ? m[1] : id;
+        const arr = buckets.get(prefix) || [];
+        arr.push(id);
+        buckets.set(prefix, arr);
+      }
+      const sorted = Array.from(buckets.entries()).sort((a, b) => a[0].localeCompare(b[0]));
+      const pad = sorted.reduce((max, [p]) => Math.max(max, p.length), 0);
+      const numericTail = (id: string) => parseInt(id.replace(/^[A-Z]+/, ''), 10) || 0;
+      for (const [prefix, list] of sorted) {
+        const nums = list.map(numericTail).filter(n => n > 0).sort((a, b) => a - b);
+        const range = nums.length === 0
+          ? `(${list.length} rules)`
+          : nums.length === 1 ? `${prefix}${String(nums[0]).padStart(3, '0')}`
+            : `${prefix}${String(nums[0]).padStart(3, '0')}-${String(nums[nums.length - 1]).padStart(3, '0')} (${list.length})`;
+        console.log(`   ${prefix.padEnd(pad)}  ${range}`);
+      }
       process.exit(1);
     }
     

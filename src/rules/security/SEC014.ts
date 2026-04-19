@@ -21,7 +21,7 @@ const rule: Rule = {
         fix: 'Use OPENAI_API_KEY environment variable'
       }
     ],
-    fileTypes: ['js', 'jsx', 'ts', 'tsx', 'vue', 'env']
+    fileTypes: ['js', 'jsx', 'ts', 'tsx', 'svelte', 'astro', 'env']
   }
 };
 

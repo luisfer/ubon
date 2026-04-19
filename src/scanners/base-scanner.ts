@@ -1,7 +1,9 @@
 import { glob } from 'glob';
-import { readFileSync } from 'fs';
+import { readFileSync, statSync } from 'fs';
+import { join } from 'path';
 import { Scanner, ScanOptions, ScanResult } from '../types';
 import { ResultCache } from '../utils/result-cache';
+import { FileSourceCache, DEFAULT_MAX_FILE_SIZE } from '../utils/file-source-cache';
 
 export interface FileContext {
   file: string;
@@ -34,11 +36,37 @@ export abstract class BaseScanner implements Scanner {
   protected async *iterateFiles(options: ScanOptions, pattern: string, ignore: string[]): AsyncGenerator<FileContext> {
     const files = await glob(pattern, {
       cwd: options.directory,
-      ignore: [...ignore, ...(options.exclude || [])]
+      // dot:true so files like .cursor/mcp.json or .env.local are reachable;
+      // we still ignore noisy hidden dirs (.git, .next, etc.) explicitly.
+      dot: true,
+      ignore: [
+        '.git/**',
+        '.next/**',
+        '.svelte-kit/**',
+        '.turbo/**',
+        '.cache/**',
+        '.parcel-cache/**',
+        '.nuxt/**',
+        '.output/**',
+        '.vercel/**',
+        '.netlify/**',
+        ...ignore,
+        ...(options.exclude || [])
+      ]
     });
+    const maxSize = options.maxFileSize || DEFAULT_MAX_FILE_SIZE;
+    const cache = FileSourceCache.forDirectory(options.directory);
     for (const file of files) {
+      const absolute = join(options.directory, file);
       try {
-        const content = readFileSync(`${options.directory}/${file}`, 'utf-8');
+        const stat = statSync(absolute);
+        if (stat.size > maxSize) {
+          if (options.verbose) {
+            console.error(`🪷 ${this.name}: skipping ${file} (size ${stat.size} > ${maxSize} bytes)`);
+          }
+          continue;
+        }
+        const content = cache.read(absolute) ?? readFileSync(absolute, 'utf-8');
         const contentHash = ResultCache.hashContent(content);
         yield { file, content, lines: content.split('\n'), contentHash };
       } catch (error) {

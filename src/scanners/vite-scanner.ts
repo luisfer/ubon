@@ -14,7 +14,7 @@ export class ViteScanner implements Scanner {
     const viteConfigExists = existsSync(join(options.directory, 'vite.config.ts')) ||
                             existsSync(join(options.directory, 'vite.config.js'));
 
-    const files = await glob('**/*.{js,jsx,ts,tsx,vue}', {
+    const files = await glob('**/*.{js,jsx,ts,tsx,svelte}', {
       cwd: options.directory,
       ignore: ['node_modules/**', 'dist/**', 'build/**', '.next/**', 'examples/**', 'vite.config.*']
     });

@@ -1,11 +1,15 @@
+import type { RuleCategory, RuleSeverity } from '../rules/types';
+
+export type { RuleCategory, RuleSeverity } from '../rules/types';
+
 export interface ScanResult {
   type: 'error' | 'warning' | 'info';
-  category: 'security' | 'links' | 'performance' | 'accessibility' | 'seo' | 'development';
+  category: RuleCategory;
   message: string;
   file?: string;
   line?: number;
   range?: { startLine: number; startColumn: number; endLine: number; endColumn: number };
-  severity: 'high' | 'medium' | 'low';
+  severity: RuleSeverity;
   ruleId: string;
   confidence: number; // 0.0 - 1.0 likelihood this is a true issue
   confidenceReason?: string; // explanation of why this confidence level was assigned
@@ -38,7 +42,7 @@ export interface ScanOptions {
   changedFiles?: string[]; // limit scanning to these relative file paths
   gitChangedSince?: string; // use git diff --name-only <ref> to populate changedFiles
   // Profile selection
-  profile?: 'auto' | 'react' | 'next' | 'python' | 'vue' | 'rails' | 'lovable';
+  profile?: 'auto' | 'react' | 'next' | 'lovable' | 'sveltekit' | 'astro' | 'remix' | 'hono';
   // History scanning
   gitHistoryDepth?: number; // number of commits to search for secrets
   // Internal crawler (opt-in)
@@ -74,6 +78,10 @@ export interface ScanOptions {
   noResultCache?: boolean; // disable per-file result cache
   // Interactive mode
   interactive?: boolean; // walk through issues interactively
+  // Output verbosity
+  quiet?: boolean; // suppress banners, suggestions, and contextual guidance
+  ndjson?: boolean; // emit one JSON-encoded finding per line (streaming-friendly)
+  allowConfigJs?: boolean; // permit loading ubon.config.js (executes user code)
 }
 
 export interface FixEdit {

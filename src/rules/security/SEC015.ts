@@ -20,7 +20,7 @@ const rule: Rule = {
         fix: 'Remove console statements before production'
       }
     ],
-    fileTypes: ['js', 'jsx', 'ts', 'tsx', 'vue'],
+    fileTypes: ['js', 'jsx', 'ts', 'tsx', 'svelte', 'astro'],
     skipPatterns: [/logger/i]
   }
 };

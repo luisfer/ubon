@@ -20,7 +20,7 @@ const rule: Rule = {
         fix: 'Use process.env.NEXT_PUBLIC_SUPABASE_URL'
       }
     ],
-    fileTypes: ['js', 'jsx', 'ts', 'tsx', 'vue']
+    fileTypes: ['js', 'jsx', 'ts', 'tsx', 'svelte', 'astro']
   }
 };
 

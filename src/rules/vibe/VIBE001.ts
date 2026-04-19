@@ -1,4 +1,4 @@
-import { Rule, DetectionResult } from '../types';
+import { Rule } from '../types';
 
 /**
  * VIBE001: Hallucinated imports

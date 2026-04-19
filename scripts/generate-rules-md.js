@@ -1,75 +1,88 @@
 #!/usr/bin/env node
+/* eslint-disable */
+/**
+ * Auto-generates docs/RULES.md from the live rule registry built into
+ * dist/rules/index.js. Run `npm run build && npm run rules:gen`.
+ *
+ * The buckets below are intentionally tied to the v3 scope (modern JS/TS web
+ * stacks + cross-cutting concerns). Adding a new rule prefix? Either add a
+ * dedicated bucket or it will fall through to "Security (JS/TS)".
+ */
 const fs = require('fs');
 const path = require('path');
-
-// Try modular rules first, fallback to legacy
-let RULES = {};
 
 const modularRulesPath = path.join(__dirname, '..', 'dist', 'rules', 'index.js');
 const legacyRulesPath = path.join(__dirname, '..', 'dist', 'types', 'rules.js');
 
+let RULES = {};
 if (fs.existsSync(modularRulesPath)) {
-  console.log('Using modular rules system');
-  const { RULES: modularRules } = require(modularRulesPath);
-  RULES = modularRules;
+  ({ RULES } = require(modularRulesPath));
 } else if (fs.existsSync(legacyRulesPath)) {
-  console.log('Using legacy rules system');
-  const { RULES: legacyRules } = require(legacyRulesPath);
-  RULES = legacyRules;
+  ({ RULES } = require(legacyRulesPath));
 } else {
   console.error('No rules found. Run `npm run build` first.');
   process.exit(1);
 }
 
-function section(title) {
-  return `\n### ${title}\n`;
+const NEXT_EXPERIMENTAL = new Set(['NEXT201', 'NEXT202', 'NEXT203', 'NEXT205', 'NEXT208', 'NEXT209']);
+
+const MODERN_FRAMEWORK_PREFIXES = ['SVELTE', 'ASTRO', 'REMIX', 'HONO', 'DRIZZLE', 'PRISMA'];
+
+const BUCKETS = [
+  { title: 'Security (JS/TS)', match: (id) => id.startsWith('SEC') || id.startsWith('COOKIE') || id === 'JSNET001' || id === 'LOG001' || id === 'OSV001' },
+  { title: 'AI (LLM era)', match: (id) => id.startsWith('AI') },
+  { title: 'Next.js', match: (id) => id.startsWith('NEXT') && !NEXT_EXPERIMENTAL.has(id) },
+  { title: 'Next.js (experimental)', match: (id) => NEXT_EXPERIMENTAL.has(id) },
+  { title: 'Edge runtime', match: (id) => id.startsWith('EDGE') },
+  { title: 'Modern frameworks (SvelteKit, Astro, Remix, Hono, Drizzle, Prisma)', match: (id) => MODERN_FRAMEWORK_PREFIXES.some((p) => id.startsWith(p)) },
+  { title: 'Lovable / Supabase', match: (id) => id.startsWith('LOVABLE') },
+  { title: 'Vite', match: (id) => id.startsWith('VITE') },
+  { title: 'React / Tailwind', match: (id) => id.startsWith('TAILWIND') || id.startsWith('REACT') },
+  { title: 'Vibe (AI hallucination signals)', match: (id) => id.startsWith('VIBE') },
+  { title: 'Development hygiene', match: (id) => id.startsWith('DEV') },
+  { title: 'Accessibility', match: (id) => id.startsWith('A11Y') },
+  { title: 'Environment variables', match: (id) => id.startsWith('ENV') },
+  { title: 'Links', match: (id) => id.startsWith('LINK') },
+  { title: 'Docker / CI', match: (id) => id.startsWith('DOCKER') || id.startsWith('GHA') }
+];
+
+function bucketFor(id) {
+  return BUCKETS.find((b) => b.match(id));
 }
 
-const groups = {
-  'Security (JS/TS)': [],
-  'Next.js': [],
-  'Accessibility': [],
-  'Environment': [],
-  'Links': [],
-  'Python': [],
-  'Vue': [],
-  'Docker/CI': [],
-  'Rails (experimental)': []
-};
+const grouped = new Map();
+const orphan = [];
 
-const nextExperimental = new Set(['NEXT201','NEXT202','NEXT203','NEXT205','NEXT208','NEXT209']);
-
-Object.values(RULES).forEach(rule => {
-  const id = rule.id;
-  const line = `- ${id}: ${rule.message}${rule.helpUri ? ` ([docs](${rule.helpUri}))` : ''}`;
-  if (id.startsWith('A11Y')) groups['Accessibility'].push(line);
-  else if (id.startsWith('ENV')) groups['Environment'].push(line);
-  else if (id.startsWith('LINK')) groups['Links'].push(line);
-  else if (id.startsWith('PY')) groups['Python'].push(line);
-  else if (id.startsWith('VUE')) groups['Vue'].push(line);
-  else if (id.startsWith('DOCKER') || id.startsWith('GHA')) groups['Docker/CI'].push(line);
-  else if (id.startsWith('RAILS')) groups['Rails (experimental)'].push(line);
-  else if (id.startsWith('NEXT')) {
-    if (nextExperimental.has(id)) groups['Rails (experimental)'].push(line.replace('Rails (experimental)','Next.js (experimental)'));
-    else groups['Next.js'].push(line);
-  } else {
-    groups['Security (JS/TS)'].push(line);
+for (const id of Object.keys(RULES).sort()) {
+  const meta = RULES[id];
+  if (!meta) continue;
+  const line = `- **${id}** — ${meta.message}${meta.helpUri ? ` ([docs](${meta.helpUri}))` : ''}`;
+  const bucket = bucketFor(id);
+  if (!bucket) {
+    orphan.push(line);
+    continue;
   }
-});
+  if (!grouped.has(bucket.title)) grouped.set(bucket.title, []);
+  grouped.get(bucket.title).push(line);
+}
 
-let out = '## Rules Glossary\n\n';
-out += section('Security (JS/TS)') + groups['Security (JS/TS)'].sort().join('\n') + '\n';
-out += section('Next.js') + groups['Next.js'].sort().join('\n') + '\n';
-out += section('Accessibility') + groups['Accessibility'].sort().join('\n') + '\n';
-out += section('Environment') + groups['Environment'].sort().join('\n') + '\n';
-out += section('Links') + groups['Links'].sort().join('\n') + '\n';
-out += section('Python') + groups['Python'].sort().join('\n') + '\n';
-out += section('Vue') + groups['Vue'].sort().join('\n') + '\n';
-out += section('Docker/CI') + groups['Docker/CI'].sort().join('\n') + '\n';
-out += section('Rails (experimental)') + groups['Rails (experimental)'].sort().join('\n') + '\n';
+let out = '# Rules Glossary\n\n';
+out += 'This file is auto-generated from the rule registry by `scripts/generate-rules-md.js`.\n';
+out += 'Do not hand-edit; run `npm run rules:gen` after building.\n\n';
+out += `Total rules: **${Object.keys(RULES).length}**.\n`;
+
+for (const bucket of BUCKETS) {
+  const lines = grouped.get(bucket.title);
+  if (!lines || lines.length === 0) continue;
+  out += `\n## ${bucket.title}\n\n`;
+  out += lines.join('\n') + '\n';
+}
+
+if (orphan.length > 0) {
+  out += '\n## Other\n\n';
+  out += orphan.join('\n') + '\n';
+}
 
 const target = path.join(__dirname, '..', 'docs', 'RULES.md');
-fs.writeFileSync(target, out.trim() + '\n');
-console.log('RULES.md regenerated from code registry.');
-
-
+fs.writeFileSync(target, out);
+console.log(`docs/RULES.md regenerated (${Object.keys(RULES).length} rules across ${grouped.size} buckets).`);

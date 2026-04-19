@@ -1,233 +1,186 @@
 # 🪷 Ubon
 
 <p align="center">
-  <img src="branding/Ubon.png" alt="Ubon — Peace of mind for vibe‑coded apps" width="100%" />
+  <img src="branding/Ubon.png" alt="Ubon — Peace of mind for AI-generated apps" width="100%" />
 </p>
 
-> **TL;DR**
->
-> Fed up with "You're absolutely right!" when debugging vibe‑coded apps with AI?
->
-> ```bash
-> npm i -g ubon@latest
-> ubon scan --interactive  # Guided issue walkthrough
-> ```
->
-> 🪷 Peace of mind for vibe‑coded apps.
+> **Security scanner for AI-generated apps.**
+> Catches the bugs Cursor, Lovable, Windsurf, v0, and Claude routinely
+> ship: hardcoded LLM keys, prompt-injection sinks, leaked Server
+> Actions, hallucinated imports, missing auth on streaming endpoints,
+> and the other "looks fine to a linter" issues that traditional tools
+> miss.
 
 [![npm version](https://badge.fury.io/js/ubon.svg)](https://badge.fury.io/js/ubon)
 [![npm downloads](https://img.shields.io/npm/dm/ubon.svg)](https://npmjs.com/package/ubon)
-[![Test Coverage](https://img.shields.io/badge/coverage-70%25-green.svg)](./coverage)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Node](https://img.shields.io/badge/node-%3E%3D20-brightgreen.svg)](#requirements)
 
-## Contents
-
-- [What is Ubon?](#what-is-ubon)
-- [How Ubon Compares](#how-ubon-compares)
-- [The Problem](#the-reality-of-debugging-ai-generated-code)
-- [About](#about-me-and-ubon)
-- [Quick Start](#quick-start)
-- [What's New in v2.0.0](#whats-new-in-v200)
-- [Commands](#commands)
-- [Configuration](#configuration)
-- [Documentation](#documentation)
-
-## What is Ubon?
-
-**Ubon is a security scanner designed for AI-generated code.** It catches the issues that traditional linters miss: hardcoded secrets, accessibility failures, broken links, and those subtle vulnerabilities that only surface in production.
-
-Ubon is a fast static analysis tool for modern, AI‑generated "vibe‑coded" apps. It finds real, shippable issues—secrets, insecure cookies/redirects, accessibility problems, broken links, and config mistakes—and explains how to fix them with file:line context.
-
-Use the colorized triage in the terminal or JSON/SARIF for CI and AI. Profiles cover Next.js/React, Python, and Rails (experimental). See profiles in `docs/PROFILES.md` and the full capability matrix in `docs/FEATURES.md`.
-
-### At a glance
-
-- Security, accessibility, links, and config checks across Next.js/React, Python, Vue, and Rails (experimental)
-- Human-friendly triage: grouping, color, context, explanations, confidence scores
-- Baselines and inline suppressions for low-noise adoption
-- JSON and SARIF outputs for CI and AI; OSV caching for speed
-- Safe autofixes and optional PR creation; watch mode and changed-files gates
-
-## How Ubon Compares
-
-| Feature | Ubon 🪷 | ESLint | npm audit | Lovable Scanner |
-|---------|---------|--------|-----------|-----------------|
-| **Hardcoded Secrets** | ✅ High accuracy | ❌ No | ❌ No | ⚠️ Basic patterns |
-| **Supabase RLS Validation** | ✅ Deep analysis | ❌ No | ❌ No | ⚠️ Shallow check |
-| **Vite Security** | ✅ Specialized | ❌ No | ❌ No | ❌ No |
-| **Accessibility (a11y)** | ✅ Comprehensive | ⚠️ Plugin only | ❌ No | ❌ No |
-| **AI-Generated Code Issues** | ✅ Purpose-built | ❌ No | ❌ No | ⚠️ Limited |
-| **Link Validation** | ✅ External + Internal | ❌ No | ❌ No | ❌ No |
-| **Placeholder Detection** | ✅ DEV001-005 | ❌ No | ❌ No | ❌ No |
-| **Auto-Fix** | ✅ Safe fixes | ⚠️ Some rules | ❌ No | ❌ No |
-| **Interactive Mode** | ✅ Guided debugging | ❌ No | ❌ No | ❌ No |
-| **CI/CD Integration** | ✅ SARIF, JSON | ✅ Yes | ✅ Yes | ⚠️ Limited |
-| **SQL Injection (Supabase)** | ✅ Query analysis | ❌ No | ❌ No | ❌ No |
-
-**TL;DR**: Use ESLint for code style, npm audit for known CVEs, and Ubon for AI-generated code security.
-
-## The Reality of Debugging AI-Generated Code
-
-### Without Ubon
-
-> **User**: "The payment button doesn't work"
->
-> **AI**: "You're absolutely right! Let me fix that for you..."
->
-> _regenerates the component_
->
-> **User**: "Still broken"
->
-> **AI**: "I apologize! Let me try a different approach..."
->
-> _adds more event handlers_
->
-> **User**: "Nothing happens when I click"
->
-> **AI**: "I see the issue now! Let me update the onClick handler..."
->
-> _rewrites the same broken logic_
->
-> _[3 hours later...]_
->
-> **User**: "PLEASE JUST MAKE IT WORK"
->
-> **AI**: "I understand your frustration! Let me completely refactor..."
-
-### With Ubon
+## Quick start
 
 ```bash
-$ ubon check --group-by severity --min-severity medium
+# One-shot, no install
+npx ubon@latest check
 
-🪷 Ubon — Triage
-High: 1 error   Medium: 1 warning
-
-HIGH
-  ❌ SEC003 Hardcoded OpenAI key (lib/ai.ts:12)
-     fix: Move key to OPENAI_API_KEY env var
-
-MEDIUM
-  ⚠️ A11Y001 Image without alt attribute (components/Hero.tsx:22)
-     fix: Add alt="" or a short descriptive text
-```
-
-**Result**: Issues fixed in minutes, not hours.
-
-## About me and Ubon
-
-Hi, I'm [Luisfer Romero Calero](https://lfrc.me), an experienced software engineer passionate about building products and being creative. I created Ubon in six days, obsessed with solving a problem I kept seeing everywhere: the current wave of AI-generated "vibe-coded" apps that, while incredibly quick to build, are frustrating to deploy and use because AI overlooks so many essential details.
-
-The explosion of AI-generated apps through tools like Lovable, Replit, Cursor and Windsurf has democratized software creation. But it's also created a quiet reliability crisis. Non-technical users prompt AI with "this doesn't work!!!" without knowing what to check, they don't have the vocabulary to prompt precisely, and AI assistants miss the non‑obvious issues that slip past linters: hardcoded secrets, broken links, accessibility failures, and those subtle security vulnerabilities that only surface in production.
-
-I built Ubon after realizing that instead of fighting this AI-powered wave, we should embrace it and make it better. Think of Ubon as a safety net for the age of AI-generated code, a gentle guardian that catches what traditional tools miss. It works seamlessly with the standard Next.js/React repos that agentic AI tools create by default, as well as Python projects and Vue.js ones.
-
-My hope is that Ubon becomes so essential it gets baked into Cursor, Windsurf, and other AI coding tools, automatically scanning every vibe-coded creation before it hits production. Because when anyone can ship software, everyone needs peace of mind.
-
-_Ubon_ means lotus in Thai, inspired by Ubon Ratchathani province where someone very special to me is from. The lotus represents the clarity and peace of mind this tool brings to debugging.
-
-## Quick Start
-
-### Installation
-
-```bash
+# Or install globally
 npm install -g ubon
-```
-
-### Basic Usage
-
-```bash
-ubon check                    # Quick static analysis
-ubon scan --interactive       # Guided issue walkthrough
-ubon check --ai-friendly      # JSON output for AI agents
-ubon explain SEC001           # Learn about a specific rule
-```
-
-## What's New in v2.0.0
-
-**Vibe Code Detection** — 4 new rules for AI-generated code:
-- **VIBE001**: Hallucinated imports — packages not in package.json
-- **VIBE002**: Copy-paste artifacts — repeated code blocks
-- **VIBE003**: Incomplete implementations — placeholders, stubs, "Not implemented"
-- **VIBE004**: Orphaned exports — unused exports
-
-**New Features:**
-- **Security Posture Score**: 0-100 score with visual bar
-- **`--preview-fixes`**: See diff-like preview before applying fixes
-- **`confidenceReason`**: Each finding explains its confidence level
-- **`ubon explain <rule>`**: Get detailed info about any rule
-- **Cursor Integration**: `docs/CURSOR.md` guide and `.cursor/rules/`
-- **All scanners exported**: Use any scanner programmatically
-
-```bash
-# Preview what would be fixed
-ubon check --preview-fixes
-
-# See security posture score
 ubon check
-# 🪷 Security Posture: 85/100 [████████████████░░░░]
-
-# Learn about a specific rule
-ubon explain SEC001
-ubon explain VIBE003
 ```
-
-See `docs/CURSOR.md` for Cursor integration guide and `CHANGELOG.md` for previous releases.
-
-## Commands
 
 ```bash
-ubon check                              # Quick static analysis
-ubon scan                               # Full scan with link checking
-ubon scan --interactive                 # Guided issue walkthrough
-ubon check --git-changed-since main     # Scan only changed files (CI)
-ubon check --apply-fixes                # Apply safe auto-fixes
-ubon check --preview-fixes              # Preview fixes before applying
-ubon explain <rule>                     # Detailed info about a rule
+ubon check                       # fast static scan, exit 1 on errors
+ubon scan --interactive          # walk through findings one by one
+ubon check --json                # deterministic JSON for agents/CI
+ubon check --sarif out.sarif     # SARIF 2.1.0 for GitHub code scanning
+ubon mcp                         # serve as an MCP tool to your AI assistant
+ubon doctor                      # check environment and optional deps
 ```
 
-Output formats:
+## Why Ubon?
+
+Modern AI coding assistants are great at producing **code that runs**.
+They are routinely careless about code that's **safe to deploy**:
+
+- Hardcoded LLM API keys in client bundles
+- Server Actions with no auth check
+- Streaming routes with no rate limit
+- MCP server configs with literal secrets
+- `import.meta.env.PUBLIC_*` reading server-only values
+- `'use client'` files importing from `actions/`
+- Edge runtime routes calling Node-only APIs
+- Hallucinated imports that pass the type checker because the package never gets installed
+
+Ubon's job is to catch those, fast, with high confidence and `file:line`
+context — and to expose them to the agent itself via JSON / NDJSON / MCP
+so the AI can fix what it broke.
+
+## v3.0.0 — what's new
+
+> v3.0.0 is a focused, breaking release. Node 20+ is required and the
+> Python / Rails / Vue profiles are gone — see [MIGRATION-v3.md](MIGRATION-v3.md)
+> for the upgrade checklist.
+
+- **AI-era rule pack** (`AI001`–`AI008`): hardcoded LLM keys, prompt
+  injection, system-prompt leaks to client, vector-DB credentials, MCP
+  secrets, unsafe tool calls, unauthenticated streaming, unbounded
+  generation calls.
+- **Modern framework rules**: Next 14/15 Server Actions
+  (`NEXT212`–`NEXT215`), Edge runtime (`EDGE001`–`EDGE003`), SvelteKit,
+  Astro, Remix, Hono, Drizzle, Prisma.
+- **`ubon mcp`**: ship Ubon as a Model Context Protocol server so
+  Cursor / Claude Desktop / Windsurf can call `ubon.scan`, `ubon.explain`,
+  `ubon.preview-fixes`, and `ubon.apply-fixes` directly. See
+  [docs/MCP.md](docs/MCP.md).
+- **`ubon hooks install --cursor`**: drop-in `.cursor/hooks.json` for
+  `afterFileEdit` and `beforeSubmitPrompt`.
+- **Deterministic output**: `--json` and `--ndjson` are byte-for-byte
+  identical across runs (sorted keys, stable severity order). The JSON
+  Schema is published at `docs/schema/ubon-finding.schema.json` and
+  reachable via `ubon check --schema`.
+- **`ubon doctor`** for fast environment debugging.
+- **CLI cleanup**: `--quiet` for CI, `--ndjson` for streaming agents,
+  `--allow-config-js` to gate `ubon.config.js` (which executes user code).
+- **Toolchain**: Node 20+, ESLint 9 flat config, picocolors instead of
+  chalk, glob 11, commander 13.
+- **Scope cut (breaking)**: removed `--profile python`, `--profile rails`,
+  and `--profile vue` and their scanners. Selecting them now exits with
+  code 2 and points at [MIGRATION-v3.md](MIGRATION-v3.md). Use Bandit,
+  Brakeman, or `eslint-plugin-vue` for those ecosystems.
+- **Deprecations**: Puppeteer crawler (`--crawl-internal`),
+  `ubon.config.js` without `--allow-config-js` — both removed in v3.1.
+
+## How it compares
+
+| Capability                            | Ubon | ESLint        | npm audit | Lovable scanner |
+| ------------------------------------- | ---- | ------------- | --------- | --------------- |
+| LLM / vector-DB hardcoded secrets     | ✅   | ❌            | ❌        | ⚠️ Partial      |
+| Prompt-injection sinks                | ✅   | ❌            | ❌        | ❌              |
+| Server Actions / Edge runtime checks  | ✅   | ❌            | ❌        | ❌              |
+| Supabase RLS validation               | ✅   | ❌            | ❌        | ⚠️ Existence    |
+| Insecure cookies / CORS / redirects   | ✅   | ❌            | ❌        | ❌              |
+| Client env-var leaks (Next/Vite)      | ✅   | ❌            | ❌        | ❌              |
+| Accessibility basics                  | ✅   | ⚠️ Plugins    | ❌        | ❌              |
+| Dependency advisories (OSV)           | ✅   | ❌            | ✅        | ❌              |
+| MCP server for AI agents              | ✅   | ❌            | ❌        | ❌              |
+| Code style / formatting               | ❌   | ✅            | ❌        | ❌              |
+
+**Use them together.** ESLint covers code style; npm audit covers CVEs
+in your dependency tree; Ubon covers the gap that AI assistants
+regularly leave behind.
+
+## Cursor integration
+
 ```bash
-ubon check --json                       # JSON for AI agents
-ubon check --sarif results.sarif        # SARIF for GitHub code scanning
-ubon check --format table               # Table for quick triage
+ubon hooks install --cursor   # writes .cursor/hooks.json + scripts
 ```
 
-See `docs/CLI.md` for full reference.
+Then point Cursor at the MCP server:
+
+```jsonc
+// ~/.cursor/mcp.json
+{
+  "mcpServers": {
+    "ubon": { "command": "npx", "args": ["-y", "ubon@latest", "mcp"] }
+  }
+}
+```
+
+Full Cursor + Lovable + comparison details in
+[docs/INTEGRATIONS.md](docs/INTEGRATIONS.md).
 
 ## Configuration
 
 ```bash
-ubon init                    # Generate project config
-ubon check --update-baseline # Suppress existing issues, focus on new code
+ubon init                          # writes ubon.config.json
+ubon check --update-baseline       # accept current findings as baseline
+ubon check --baseline .ubon-baseline.json --focus-new --fail-on error
 ```
 
-Config file (`ubon.config.json`):
-```json
+```jsonc
+// ubon.config.json
 {
   "profile": "next",
-  "minConfidence": 0.8,
+  "minConfidence": 0.85,
   "failOn": "error",
-  "disabledRules": ["SEC018"]
+  "disabledRules": ["VIBE003"],
+  "exclude": ["legacy/**"]
 }
 ```
 
-See `docs/CONFIG.md` for full options.
+For the JS variant (executes user code), pass `--allow-config-js` or
+set `UBON_ALLOW_CONFIG_JS=1`.
 
 ## Documentation
 
-- [Integration Guide](GUIDE.md) — Comprehensive reference
-- [Cursor Integration](docs/CURSOR.md) — AI-assisted development
-- [CLI Reference](docs/CLI.md) — All commands and flags
-- [Features Matrix](docs/FEATURES.md) — What Ubon checks
-- [Rules Glossary](docs/RULES.md) — All rules with descriptions
-- [Configuration](docs/CONFIG.md) — Setup and customization
+- [docs/CLI.md](docs/CLI.md) — every command and flag
+- [docs/RULES.md](docs/RULES.md) — full rule glossary
+- [docs/CONFIG.md](docs/CONFIG.md) — config file schema
+- [docs/INTEGRATIONS.md](docs/INTEGRATIONS.md) — Cursor / Lovable / comparison
+- [docs/MCP.md](docs/MCP.md) — Model Context Protocol server
+- [docs/ADVANCED.md](docs/ADVANCED.md) — profiles, suppressions, baselines, output schemas, release policy
+- [MIGRATION-v3.md](MIGRATION-v3.md) — upgrading from v2.x
+- [CHANGELOG.md](CHANGELOG.md) — release history
 
 ## Requirements
 
-- Node.js 16+
-- Git (for `--git-changed-since`)
-- Python 3.x (for Python scanning)
+- Node.js **20 or newer** (v3 dropped Node 16/18)
+- Git (for `--git-changed-since` and the `git-history` scanner)
+- Optional: `@modelcontextprotocol/sdk` for `ubon mcp` — installed
+  automatically as an `optionalDependency` of `ubon`. If your install
+  flags skipped it, see [`docs/MCP.md`](docs/MCP.md#install).
+
+Run `ubon doctor` to verify.
+
+## About
+
+I'm [Luisfer Romero Calero](https://lfrc.me). I built Ubon because the
+gap between "AI shipped this" and "this is safe to deploy" keeps
+widening. The tool's name comes from the lotus (อุบล) in Thai —
+clarity in the middle of vibe-coded chaos.
+
+If Ubon helps you ship safer apps, the highest praise is to wire it
+into your CI and your AI assistant — and tell me what it caught.
 
 ## License
 
-MIT — see `LICENSE`.
+MIT — see [LICENSE](LICENSE).

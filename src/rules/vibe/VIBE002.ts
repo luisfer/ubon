@@ -1,4 +1,4 @@
-import { Rule, DetectionResult } from '../types';
+import { Rule } from '../types';
 
 /**
  * VIBE002: Copy-paste artifacts
@@ -14,7 +14,7 @@ const rule: Rule = {
     impact: 'Copy-paste code increases maintenance burden and may contain unadapted placeholders'
   },
   impl: {
-    fileTypes: ['js', 'jsx', 'ts', 'tsx', 'vue'],
+    fileTypes: ['js', 'jsx', 'ts', 'tsx', 'svelte', 'astro'],
     // Detection handled by VibeScanner with block comparison
     detect: undefined
   }

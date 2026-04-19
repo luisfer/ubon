@@ -11,7 +11,7 @@ const rule: Rule = {
     impact: 'SQL injection can allow attackers to bypass RLS, access unauthorized data, or modify database contents.'
   },
   impl: {
-    detect: (content: string, file: string, lines: string[]) => {
+    detect: (content: string, _file: string, _lines: string[]) => {
       const results: import('../types').DetectionResult[] = [];
 
       // Pattern: Template literals in .select(), .filter(), or .rpc() with variables

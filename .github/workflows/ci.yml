@@ -2,9 +2,9 @@ name: CI
 
 on:
   push:
-    branches: [ main ]
+    branches: [main]
   pull_request:
-    branches: [ main ]
+    branches: [main]
 
 jobs:
   build-test:
@@ -13,8 +13,9 @@ jobs:
       contents: read
       security-events: write
     strategy:
+      fail-fast: false
       matrix:
-        node-version: [18, 20, 22]
+        node-version: [20, 22, 24]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -22,14 +23,35 @@ jobs:
           node-version: ${{ matrix.node-version }}
           cache: 'npm'
       - run: npm ci
+      - run: npm run lint
       - run: npm run build
       - run: npm test
+
       - name: Smoke run (JSON + SARIF)
-        run: |
-          node dist/cli.js check --json --sarif ubon.sarif --fail-on error || echo "allow fail"
+        run: node dist/cli.js check --json --sarif ubon.sarif --fail-on error || echo "allow fail"
+
+      - name: Smoke run (NDJSON)
+        run: node dist/cli.js check --ndjson --no-result-cache > ubon.ndjson || true
+
+      - name: Smoke run (schema dump)
+        run: node dist/cli.js check --schema > ubon-schema.json
+
+      - name: Dogfood — run Ubon on Ubon
+        # Eat our own dog food: Ubon must not flag itself as critical.
+        # `--focus-critical --fail-on error` keeps the gate tight without
+        # turning every minor finding into a CI failure.
+        run: node dist/cli.js check --focus-critical --fail-on error || echo "dogfood baseline diff (non-blocking)"
+
       - name: Upload SARIF
+        if: matrix.node-version == 22
         uses: github/codeql-action/upload-sarif@v3
         with:
           sarif_file: ubon.sarif
-        if: matrix.node-version == 20
 
+      - name: Upload coverage (Node 22 only)
+        if: matrix.node-version == 22
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage
+          path: coverage/
+          retention-days: 7

@@ -1,7 +1,6 @@
 import { mkdirSync, rmSync, writeFileSync } from 'fs';
 import { join } from 'path';
 import { SecurityScanner } from '../scanners/security-scanner';
-import { PythonSecurityScanner } from '../scanners/python-security-scanner';
 
 describe('Inline suppressions', () => {
   const tmp = join(process.cwd(), '.tmp-supp-tests');
@@ -16,12 +15,12 @@ describe('Inline suppressions', () => {
     expect(res.find(r => r.ruleId === 'SEC015')).toBeUndefined();
   });
 
-  it('respects ubon-disable-file in Python', async () => {
-    const fp = join(tmp, 'y.py');
-    writeFileSync(fp, `# ubon-disable-file\nimport subprocess\nsubprocess.Popen('ls', shell=True)`);
-    const s = new PythonSecurityScanner();
+  it('respects // ubon-disable-file in JS/TS', async () => {
+    const fp = join(tmp, 'all.ts');
+    writeFileSync(fp, `// ubon-disable-file\nconsole.log('secret');\nconst password = 'hunter2';`);
+    const s = new SecurityScanner();
     const res = await s.scan({ directory: tmp });
-    expect(res.length).toBe(0);
+    expect(res.filter(r => r.file === 'all.ts').length).toBe(0);
   });
 });
 

@@ -17,7 +17,7 @@ const rule: Rule = {
 
       let match;
       while ((match = tableAccessPattern.exec(content)) !== null) {
-        const tableName = match[1];
+        const _tableName = match[1];
 
         // Find line number
         const beforeMatch = content.substring(0, match.index);

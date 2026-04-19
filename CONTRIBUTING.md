@@ -15,19 +15,27 @@ Thank you for your interest in contributing to Ubon! This guide will help you ge
 - Describe the use case and expected behavior
 - Explain why this would be valuable to vibe-coders
 
-### 🔍 Add New Scanners
-We're always looking for new types of issues to detect:
+### 🔍 Add New Scanners or Rules
+Ubon's scope as of v3.0.0 is **modern JavaScript/TypeScript web stacks**:
+Next.js, React, Vite, SvelteKit, Astro, Remix, Hono, Lovable, plus
+cross-cutting concerns (env files, Docker/GHA, AI/LLM patterns, vibe
+hygiene, accessibility, links). New rules and scanners that fall in
+that scope are very welcome:
 
-1. **Security scanners**: New vulnerability patterns
-2. **Accessibility scanners**: Additional a11y checks
-3. **Performance scanners**: Bundle analysis, optimization opportunities
-4. **Framework-specific scanners**: Next.js, Remix, etc.
+1. **Security rules**: new vulnerability patterns relevant to JS/TS apps
+2. **AI-era rules**: prompt-injection, model-routing, MCP misconfig, etc.
+3. **Framework rules**: Next 15/16, Remix v2/RR7, Astro 5, SvelteKit 2
+4. **Accessibility rules**: additional a11y checks for JSX/Svelte/Astro
+
+> **Out of scope** in v3: Python, Ruby on Rails, and Vue. Those profiles
+> were removed — see [`MIGRATION-v3.md`](./MIGRATION-v3.md). For those
+> ecosystems, prefer Bandit, Brakeman, or `eslint-plugin-vue`.
 
 ## 🛠 Development Setup
 
 ### Prerequisites
-- Node.js 16+
-- npm or yarn
+- Node.js **20 or newer** (v3 dropped Node 16/18; both are EOL)
+- npm 10+ recommended (provenance + workspace overrides)
 
 ### Getting Started
 ```bash
@@ -67,28 +75,44 @@ src/
 
 ## 🔍 Creating a New Scanner
 
-1. **Create the scanner file**: `src/scanners/your-scanner.ts`
-2. **Implement the Scanner interface**:
+1. **Create the scanner file**: `src/scanners/your-scanner.ts` and
+   extend `BaseScanner` (gives you `iterateFiles`, `redact`, the
+   `maxFileSize` guard, and result-cache integration for free).
 
 ```typescript
-import { Scanner, ScanResult, ScanOptions } from '../types';
+import { BaseScanner } from './base-scanner';
+import type { ScanOptions, ScanResult } from '../types';
 
-export class YourScanner implements Scanner {
-  name = 'Your Scanner Name';
+export class YourScanner extends BaseScanner {
+  name = 'Your Scanner';
 
   async scan(options: ScanOptions): Promise<ScanResult[]> {
     const results: ScanResult[] = [];
-    
-    // Your scanning logic here
-    
+    for await (const { path, content } of this.iterateFiles(
+      options,
+      '**/*.{js,jsx,ts,tsx,svelte,astro}'
+    )) {
+      // your scanning logic — push ScanResult objects into `results`
+    }
     return results;
   }
 }
 ```
 
-3. **Add to main class**: Update `src/index.ts` to include your scanner
-4. **Write tests**: Create `src/scanners/__tests__/your-scanner.test.ts`
-5. **Update documentation**: Add scanner details to README.md
+2. **Wire it into the profile registry**: add an entry in
+   [`src/core/profiles.ts`](./src/core/profiles.ts). That's the single
+   source of truth for "what runs under this profile" — no other file
+   needs touching to expose your scanner.
+3. **Register the rules** in `src/rules/<bucket>/<RULE_ID>.ts` (one
+   file per rule) and re-export them from `src/rules/index.ts`. Run
+   `npm run rules:gen` to refresh `docs/RULES.md` — the file is
+   generated from the live registry.
+4. **Write tests**: add `src/__tests__/your-scanner.test.ts` covering
+   both true positives and false positives. Snapshot tests for the
+   human reporter are encouraged.
+5. **Update docs**: most user-facing docs (`docs/RULES.md`,
+   integration tables) are generated; you only need to touch
+   `CHANGELOG.md` and, if the rule is opt-in, `docs/CONFIG.md`.
 
 ### Scanner Best Practices
 
