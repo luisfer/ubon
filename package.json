@@ -1,17 +1,17 @@
 {
   "name": "ubon",
-  "version": "3.2.1",
+  "version": "3.2.2",
   "description": "Security scanner for AI-generated apps (Cursor, Lovable, Windsurf, v0). Catches hardcoded secrets, prompt injection, hallucinated imports, Server Actions / Edge runtime mistakes, and the vibe-coded vulnerabilities traditional linters miss.",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "bin": {
-    "ubon": "./dist/cli.js"
+    "ubon": "dist/cli.js"
   },
   "scripts": {
     "build": "tsc && chmod +x dist/cli.js",
     "dev": "tsc --watch",
     "start": "node dist/cli.js",
-    "test": "jest",
+    "test": "jest --runInBand",
     "test:watch": "jest --watch",
     "lint": "eslint 'src/**/*.ts'",
     "lint:fix": "eslint 'src/**/*.ts' --fix",
@@ -59,7 +59,7 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/luisfer/ubon.git"
+    "url": "git+https://github.com/luisfer/ubon.git"
   },
   "bugs": {
     "url": "https://github.com/luisfer/ubon/issues"

@@ -1,3 +1,14 @@
+## 3.2.2 — Release metadata sync — 2026-05-13
+
+### Fixed
+
+- Normalized package metadata so npm no longer rewrites the binary path or
+  repository URL during publish.
+- Fixed the GitHub release workflow so it extracts release notes from both
+  `## 3.2.2` and `## [3.2.2]` changelog header styles.
+- Runs Jest in-band for `npm test` so release verification is stable under
+  local and CI worker load.
+
 ## 3.2.1 — README release notes fix — 2026-05-13
 
 ### Fixed

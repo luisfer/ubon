@@ -21,7 +21,18 @@ jobs:
           registry-url: 'https://registry.npmjs.org'
       - run: npm ci
       - run: npm run verify:release
+      - name: Check npm publication
+        id: npm_package
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          NAME="$(node -p "require('./package.json').name")"
+          if npm view "$NAME@$VERSION" version >/dev/null 2>&1; then
+            echo "published=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "published=false" >> "$GITHUB_OUTPUT"
+          fi
       - run: npm publish --access public --provenance
+        if: steps.npm_package.outputs.published != 'true'
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
       - name: Create GitHub release
@@ -29,7 +40,11 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           VERSION="${GITHUB_REF_NAME#v}"
-          awk "/^## \\[$VERSION\\]/{flag=1; next} /^## \\[/{flag=0} flag" CHANGELOG.md > release-notes.md
+          awk -v version="$VERSION" '
+            $0 ~ "^## (\\[" version "\\]|" version ")([[:space:]]|$)" { flag=1; next }
+            /^## / { flag=0 }
+            flag
+          ' CHANGELOG.md > release-notes.md
           if [ ! -s release-notes.md ]; then
             printf 'Release %s\n' "$GITHUB_REF_NAME" > release-notes.md
           fi
