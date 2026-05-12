@@ -39,6 +39,10 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
+            echo "Release $GITHUB_REF_NAME already exists; skipping."
+            exit 0
+          fi
           VERSION="${GITHUB_REF_NAME#v}"
           awk -v version="$VERSION" '
             $0 ~ "^## (\\[" version "\\]|" version ")([[:space:]]|$)" { flag=1; next }

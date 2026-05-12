@@ -1,3 +1,10 @@
+## 3.2.3 — Idempotent release workflow — 2026-05-13
+
+### Fixed
+
+- Made GitHub release creation idempotent when a release already exists for
+  the pushed tag.
+
 ## 3.2.2 — Release metadata sync — 2026-05-13
 
 ### Fixed
