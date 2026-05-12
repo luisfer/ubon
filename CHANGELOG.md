@@ -1,3 +1,11 @@
+## 3.2.1 — README release notes fix — 2026-05-13
+
+### Fixed
+
+- Updated the README release section from the old v3.0.0 summary to the
+  current v3.2.0 agent harness, MCP, validation, and release-gate features.
+- Updated the Cursor setup example to use `ubon agent install --cursor --write`.
+
 ## 3.2.0 — Agent harness and validation release — 2026-05-12
 
 ### What this release is

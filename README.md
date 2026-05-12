@@ -55,40 +55,34 @@ Ubon's job is to catch those, fast, with high confidence and `file:line`
 context — and to expose them to the agent itself via JSON / NDJSON / MCP
 so the AI can fix what it broke.
 
-## v3.0.0 — what's new
+## v3.2.0 — what's new
 
-> v3.0.0 is a focused, breaking release. Node 20+ is required and the
-> Python / Rails / Vue profiles are gone — see [MIGRATION-v3.md](MIGRATION-v3.md)
-> for the upgrade checklist.
+v3.2.0 is an additive release for agentic development workflows: installable
+guardrails, richer machine-readable output, and a validation harness that
+proves Ubon catches planted AI-era bugs before a release ships.
 
-- **AI-era rule pack** (`AI001`–`AI008`): hardcoded LLM keys, prompt
-  injection, system-prompt leaks to client, vector-DB credentials, MCP
-  secrets, unsafe tool calls, unauthenticated streaming, unbounded
-  generation calls.
-- **Modern framework rules**: Next 14/15 Server Actions
-  (`NEXT212`–`NEXT215`), Edge runtime (`EDGE001`–`EDGE003`), SvelteKit,
-  Astro, Remix, Hono, Drizzle, Prisma.
-- **`ubon mcp`**: ship Ubon as a Model Context Protocol server so
-  Cursor / Claude Desktop / Windsurf can call `ubon.scan`, `ubon.explain`,
-  `ubon.preview-fixes`, and `ubon.apply-fixes` directly. See
-  [docs/MCP.md](docs/MCP.md).
-- **`ubon hooks install --cursor`**: drop-in `.cursor/hooks.json` for
-  `afterFileEdit` and `beforeSubmitPrompt`.
-- **Deterministic output**: `--json` and `--ndjson` are byte-for-byte
-  identical across runs (sorted keys, stable severity order). The JSON
-  Schema is published at `docs/schema/ubon-finding.schema.json` and
-  reachable via `ubon check --schema`.
-- **`ubon doctor`** for fast environment debugging.
-- **CLI cleanup**: `--quiet` for CI, `--ndjson` for streaming agents,
-  `--allow-config-js` to gate `ubon.config.js` (which executes user code).
-- **Toolchain**: Node 20+, ESLint 9 flat config, picocolors instead of
-  chalk, glob 11, commander 13.
-- **Scope cut (breaking)**: removed `--profile python`, `--profile rails`,
-  and `--profile vue` and their scanners. Selecting them now exits with
-  code 2 and points at [MIGRATION-v3.md](MIGRATION-v3.md). Use Bandit,
-  Brakeman, or `eslint-plugin-vue` for those ecosystems.
-- **Deprecations**: Puppeteer crawler (`--crawl-internal`),
-  `ubon.config.js` without `--allow-config-js` — both removed in v3.1.
+- **Agent harness installer**: `ubon agent install --all --write` can generate
+  Cursor, Claude Code, Codex, pre-commit, GitHub Actions, and `.gitignore`
+  harness files from one dry-run-first workflow.
+- **Expanded Cursor hooks**: templates now cover file edits, shell commands,
+  MCP calls, prompt submission, stop gates, and pre-compaction context.
+- **Agent-specific rules** (`CC009`–`CC011`): catches unknown Cursor hook
+  events, broad agent autonomy, and dangerous reusable commands / skills.
+- **Agent-ready CLI**: `ubon changed`, `ubon verify`, `ubon review`,
+  `ubon rules list --json`, and presets for `agent`, `ci`, `release`, and
+  `local` workflows.
+- **MCP upgrade**: tools for changed-file scans, `baseSha`, verification,
+  status, rule catalog access, and fix planning.
+- **Repair context**: JSON / MCP output can include source context so agents
+  have enough local evidence to patch findings.
+- **Validation harness**: fixture benchmarks, CLI/MCP contract tests,
+  deterministic fix/rescan checks, dogfood, and package dry-run verification
+  are wired into `npm run verify:release`.
+- **Release discipline**: `npm run dogfood` scans Ubon itself and must pass
+  with 0 unsuppressed critical findings before publish.
+
+For the original v3 breaking changes (Node 20+, removed Python / Rails / Vue
+profiles), see [MIGRATION-v3.md](MIGRATION-v3.md).
 
 ## How it compares
 
@@ -112,7 +106,7 @@ regularly leave behind.
 ## Cursor integration
 
 ```bash
-ubon hooks install --cursor   # writes .cursor/hooks.json + scripts
+ubon agent install --cursor --write   # writes Cursor hooks + rules
 ```
 
 Then point Cursor at the MCP server:
