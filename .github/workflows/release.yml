@@ -11,7 +11,7 @@ jobs:
     permissions:
       # `id-token: write` is required for `npm publish --provenance`.
       # See https://docs.npmjs.com/generating-provenance-statements
-      contents: read
+      contents: write
       id-token: write
     steps:
       - uses: actions/checkout@v4
@@ -20,9 +20,17 @@ jobs:
           node-version: 22
           registry-url: 'https://registry.npmjs.org'
       - run: npm ci
-      - run: npm run lint
-      - run: npm test
-      - run: npm run build
+      - run: npm run verify:release
       - run: npm publish --access public --provenance
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+      - name: Create GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          awk "/^## \\[$VERSION\\]/{flag=1; next} /^## \\[/{flag=0} flag" CHANGELOG.md > release-notes.md
+          if [ ! -s release-notes.md ]; then
+            printf 'Release %s\n' "$GITHUB_REF_NAME" > release-notes.md
+          fi
+          gh release create "$GITHUB_REF_NAME" --title "$GITHUB_REF_NAME" --notes-file release-notes.md

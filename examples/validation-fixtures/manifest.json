@@ -1,0 +1,139 @@
+{
+  "schemaVersion": 1,
+  "fixtures": [
+    {
+      "name": "ai-harness-demo",
+      "directory": "../ai-harness-demo",
+      "description": "Combined AI route and Cursor harness mistakes.",
+      "expected": [
+        {
+          "ruleId": "AI001",
+          "file": "app/api/chat/route.ts",
+          "severity": "high",
+          "type": "error",
+          "minConfidence": 0.8
+        },
+        {
+          "ruleId": "SEC030",
+          "file": "app/api/chat/route.ts",
+          "severity": "high",
+          "type": "error",
+          "minConfidence": 0.8
+        },
+        {
+          "ruleId": "CC009",
+          "file": ".cursor/hooks.json",
+          "severity": "medium",
+          "type": "warning",
+          "minConfidence": 0.8,
+          "autofixable": true
+        },
+        {
+          "ruleId": "CC011",
+          "file": ".cursor/commands/deploy.md",
+          "severity": "medium",
+          "type": "warning",
+          "minConfidence": 0.8
+        }
+      ]
+    },
+    {
+      "name": "next-server-action",
+      "directory": "next-server-action",
+      "description": "Next Server Action without auth or input validation.",
+      "expected": [
+        {
+          "ruleId": "NEXT212",
+          "file": "app/actions/create-post.ts",
+          "severity": "high",
+          "type": "error",
+          "minConfidence": 0.6
+        },
+        {
+          "ruleId": "NEXT213",
+          "file": "app/actions/create-post.ts",
+          "severity": "high",
+          "type": "error",
+          "minConfidence": 0.5
+        }
+      ]
+    },
+    {
+      "name": "ai-streaming-route",
+      "directory": "ai-streaming-route",
+      "description": "Streaming LLM route without auth, rate limit, or bounded token output.",
+      "expected": [
+        {
+          "ruleId": "AI007",
+          "file": "app/api/chat/route.ts",
+          "severity": "high",
+          "type": "error",
+          "minConfidence": 0.7
+        },
+        {
+          "ruleId": "AI008",
+          "file": "app/api/chat/route.ts",
+          "severity": "medium",
+          "type": "warning",
+          "minConfidence": 0.5
+        }
+      ]
+    },
+    {
+      "name": "mcp-agent-config",
+      "directory": "mcp-agent-config",
+      "description": "MCP env secret and broad agent autonomy in Cursor config.",
+      "expected": [
+        {
+          "ruleId": "AI005",
+          "file": ".cursor/mcp.json",
+          "severity": "high",
+          "type": "error",
+          "minConfidence": 0.8
+        },
+        {
+          "ruleId": "CC005",
+          "file": ".cursor/mcp.json",
+          "severity": "high",
+          "type": "error",
+          "minConfidence": 0.8
+        },
+        {
+          "ruleId": "CC010",
+          "file": ".cursor/settings.json",
+          "severity": "medium",
+          "type": "warning",
+          "minConfidence": 0.7
+        }
+      ]
+    },
+    {
+      "name": "vibe-import",
+      "directory": "vibe-import",
+      "description": "Hallucinated package import that is not declared in package.json.",
+      "expected": [
+        {
+          "ruleId": "VIBE001",
+          "file": "src/page.ts",
+          "severity": "high",
+          "type": "error",
+          "minConfidence": 0.8
+        }
+      ]
+    },
+    {
+      "name": "agent-command",
+      "directory": "agent-command",
+      "description": "Reusable agent command with a dangerous shell pattern.",
+      "expected": [
+        {
+          "ruleId": "CC011",
+          "file": ".cursor/commands/release.md",
+          "severity": "medium",
+          "type": "warning",
+          "minConfidence": 0.8
+        }
+      ]
+    }
+  ]
+}

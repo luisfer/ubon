@@ -1,6 +1,6 @@
 {
   "name": "ubon",
-  "version": "3.1.0",
+  "version": "3.2.0",
   "description": "Security scanner for AI-generated apps (Cursor, Lovable, Windsurf, v0). Catches hardcoded secrets, prompt injection, hallucinated imports, Server Actions / Edge runtime mistakes, and the vibe-coded vulnerabilities traditional linters miss.",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -17,8 +17,14 @@
     "lint:fix": "eslint 'src/**/*.ts' --fix",
     "rules:gen": "node scripts/generate-rules-md.js",
     "rules:sync": "node scripts/check-rules-sync.js",
+    "validate:harness": "npm run build && npm run validate:harness:test",
+    "validate:harness:test": "jest src/__tests__/validation-harness.test.ts src/__tests__/validation-contracts.test.ts --runInBand --coverage=false",
+    "eval:agent": "node scripts/eval-agent.js",
+    "dogfood": "node dist/cli.js check --fast --no-result-cache --focus-critical --fail-on error",
+    "verify": "npm run lint && npm run build && npm run rules:gen && npm run rules:sync && npm test && npm run validate:harness:test && npm run dogfood",
+    "verify:release": "npm run verify && node scripts/verify-package.js",
     "preversion": "node scripts/check-changelog.js",
-    "prepublishOnly": "npm run build && npm run rules:gen && npm run rules:sync"
+    "prepublishOnly": "npm run verify:release"
   },
   "keywords": [
     "security",
@@ -71,12 +77,18 @@
     "docs/INTEGRATIONS.md",
     "docs/MCP.md",
     "docs/ADVANCED.md",
+    "docs/START-HERE.md",
+    "docs/AGENT-HARNESS.md",
+    "docs/AGENT-SEMANTICS.md",
+    "docs/PROGRAMMATIC.md",
+    "docs/RELEASE.md",
+    "docs/VALIDATION.md",
     "docs/schema/ubon-finding.schema.json"
   ],
   "dependencies": {
     "chokidar": "^4.0.3",
     "commander": "^13.1.0",
-    "glob": "^11.0.0",
+    "glob": "^13.0.6",
     "picocolors": "^1.1.1",
     "typescript": "^5.6.3",
     "update-notifier": "^5.1.0",

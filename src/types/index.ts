@@ -20,6 +20,11 @@ export interface ScanResult {
   helpUri?: string; // optional documentation URL for this rule
   suppressed?: boolean; // whether this result was suppressed by inline comment
   suppressionReason?: string; // optional reason for suppression
+  context?: {
+    before: string[];
+    line: string;
+    after: string[];
+  }; // optional source context for JSON/MCP agent consumers
 }
 
 export interface ScanOptions {

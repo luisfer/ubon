@@ -31,6 +31,7 @@ const MODERN_FRAMEWORK_PREFIXES = ['SVELTE', 'ASTRO', 'REMIX', 'HONO', 'DRIZZLE'
 const BUCKETS = [
   { title: 'Security (JS/TS)', match: (id) => id.startsWith('SEC') || id.startsWith('COOKIE') || id === 'JSNET001' || id === 'LOG001' || id === 'OSV001' },
   { title: 'AI (LLM era)', match: (id) => id.startsWith('AI') },
+  { title: 'Agent tooling', match: (id) => id.startsWith('CC') },
   { title: 'Next.js', match: (id) => id.startsWith('NEXT') && !NEXT_EXPERIMENTAL.has(id) },
   { title: 'Next.js (experimental)', match: (id) => NEXT_EXPERIMENTAL.has(id) },
   { title: 'Edge runtime', match: (id) => id.startsWith('EDGE') },

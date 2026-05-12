@@ -1,0 +1,14 @@
+{
+  "exclude": [
+    "src/__tests__/**",
+    "examples/**",
+    "vscode-extension/**",
+    "src/scanners/internal-crawler.ts"
+  ],
+  "disabledRules": [
+    "SEC027"
+  ],
+  "failOn": "error",
+  "minConfidence": 0.8,
+  "profile": "auto"
+}

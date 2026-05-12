@@ -31,6 +31,7 @@ ubon check
 ubon check                       # fast static scan, exit 1 on errors
 ubon scan --interactive          # walk through findings one by one
 ubon check --json                # deterministic JSON for agents/CI
+ubon rules list --json           # machine-readable rule catalog
 ubon check --sarif out.sarif     # SARIF 2.1.0 for GitHub code scanning
 ubon mcp                         # serve as an MCP tool to your AI assistant
 ubon doctor                      # check environment and optional deps
@@ -128,6 +129,19 @@ Then point Cursor at the MCP server:
 Full Cursor + Lovable + comparison details in
 [docs/INTEGRATIONS.md](docs/INTEGRATIONS.md).
 
+## What Ubon catches
+
+The demo fixture in [`examples/ai-harness-demo`](examples/ai-harness-demo)
+contains the kinds of issues AI agents often leave behind: an LLM key in
+source, server-side fetch to a user-controlled URL, a misspelled Cursor hook,
+and a reusable agent command that pipes network output into a shell.
+
+```bash
+ubon check -d examples/ai-harness-demo --preset local
+```
+
+The expected rule IDs are checked by the test suite so the demo stays honest.
+
 ## Configuration
 
 ```bash
@@ -153,11 +167,17 @@ set `UBON_ALLOW_CONFIG_JS=1`.
 ## Documentation
 
 - [docs/CLI.md](docs/CLI.md) — every command and flag
+- [docs/START-HERE.md](docs/START-HERE.md) — two-minute setup and daily commands
+- [docs/AGENT-HARNESS.md](docs/AGENT-HARNESS.md) — Cursor / Claude Code / Codex / MCP / hooks
+- [docs/AGENT-SEMANTICS.md](docs/AGENT-SEMANTICS.md) — how Ubon models agent events, rules, and gates
+- [docs/PROGRAMMATIC.md](docs/PROGRAMMATIC.md) — Node API, JSON/NDJSON, and MCP contracts
 - [docs/RULES.md](docs/RULES.md) — full rule glossary
 - [docs/CONFIG.md](docs/CONFIG.md) — config file schema
 - [docs/INTEGRATIONS.md](docs/INTEGRATIONS.md) — Cursor / Lovable / comparison
 - [docs/MCP.md](docs/MCP.md) — Model Context Protocol server
 - [docs/ADVANCED.md](docs/ADVANCED.md) — profiles, suppressions, baselines, output schemas, release policy
+- [docs/RELEASE.md](docs/RELEASE.md) — release verification and publish checklist
+- [docs/VALIDATION.md](docs/VALIDATION.md) — dogfood, fixtures, contracts, and repair loops
 - [MIGRATION-v3.md](MIGRATION-v3.md) — upgrading from v2.x
 - [CHANGELOG.md](CHANGELOG.md) — release history
 

@@ -73,6 +73,7 @@ Options:
   --watch                     Re-run on file changes
   --quiet                     Suppress banners and contextual guidance (CI-friendly)
   --allow-config-js           Permit loading ubon.config.js (executes user code)
+  --preset agent|ci|release|local
   --ai-friendly               Preset: --json + --show-context + --explain + --group-by severity + --max-issues 15
 ```
 
@@ -102,6 +103,13 @@ ubon check --apply-fixes                   # apply autofixes
 ubon check --pr-comment > ubon-review.md   # PR summary
 ```
 
+Presets:
+
+- `--preset agent` — fast deterministic JSON for agents.
+- `--preset ci` — quiet static gate for CI and pre-commit.
+- `--preset release` — critical release gate.
+- `--preset local` — human output with context, explanations, and confidence.
+
 Exit codes:
 
 - `0` — OK or `--fail-on=none`
@@ -117,6 +125,46 @@ unexpected happens.
 ```bash
 ubon doctor
 ubon doctor -d ./apps/web
+```
+
+Use `ubon agent doctor` to check Cursor hooks, agent guidance, pre-commit,
+GitHub workflow, and `.ubon/` cache ignore status.
+
+### `ubon changed`
+
+Scan files changed since a Git ref. Defaults to `origin/main`.
+
+```bash
+ubon changed
+ubon changed --since HEAD~1
+ubon changed --preset agent
+```
+
+### `ubon verify`
+
+Deterministic gate for agents, pre-commit, CI, and release checks.
+
+```bash
+ubon verify
+ubon verify --preset release
+```
+
+### `ubon review`
+
+Print a Markdown PR summary for changed files.
+
+```bash
+ubon review --since origin/main
+```
+
+### `ubon rules list`
+
+List rule metadata for humans or agents.
+
+```bash
+ubon rules list
+ubon rules list --json
+ubon rules list --category security --severity high
 ```
 
 ### `ubon mcp`
@@ -150,6 +198,22 @@ ubon hooks install --cursor -d ./packages/web
 
 This writes `.cursor/hooks.json` plus shell scripts so every file edit and
 prompt goes through Ubon.
+
+For new projects, prefer `ubon agent install --cursor --write`. It writes the
+same Cursor hooks plus the matching Cursor rule.
+
+### `ubon agent install`
+
+Plan or install the full agent harness. Dry-run is the default.
+
+```bash
+ubon agent install --all
+ubon agent install --cursor --pre-commit --github --write
+ubon agent install --codex --claude --write
+```
+
+Targets: `--cursor`, `--claude`, `--codex`, `--pre-commit`, `--github`,
+`--all`. Use `--force` to overwrite existing files.
 
 ### `ubon completion <shell>`
 

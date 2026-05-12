@@ -143,7 +143,10 @@ export const RULES: Record<string, RuleMeta> = {
   CC005: { id: 'CC005', category: 'security', severity: 'high', message: 'MCP server config exposes a secret in its env block', fix: "Resolve ${VAR} from the shell env instead of committing the literal" },
   CC006: { id: 'CC006', category: 'security', severity: 'high', message: 'Secret-shaped string inside .cursorrules / .windsurfrules / .aiderconfig', fix: 'Remove the secret from the rules file' },
   CC007: { id: 'CC007', category: 'security', severity: 'low', message: 'Claude Code session transcripts or TODO state committed', fix: 'Add .claude/todos/ and .claude/history/ to .gitignore' },
-  CC008: { id: 'CC008', category: 'security', severity: 'medium', message: 'Prompt-injection marker inside agent rules / memory file', fix: 'Remove lines that try to override the agent behavior' }
+  CC008: { id: 'CC008', category: 'security', severity: 'medium', message: 'Prompt-injection marker inside agent rules / memory file', fix: 'Remove lines that try to override the agent behavior' },
+  CC009: { id: 'CC009', category: 'config', severity: 'medium', message: 'Cursor hooks config uses an unknown hook event', fix: 'Use a supported Cursor hook event name' },
+  CC010: { id: 'CC010', category: 'security', severity: 'medium', message: 'Agent config grants broad autonomous write or network access', fix: 'Use the narrowest sandbox / approval policy that supports the workflow' },
+  CC011: { id: 'CC011', category: 'security', severity: 'medium', message: 'Agent skill or command runs a dangerous shell pattern', fix: 'Replace raw network shell execution, destructive commands, or publishing steps with explicit reviewed scripts' }
 };
 
 

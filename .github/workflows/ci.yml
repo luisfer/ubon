@@ -25,13 +25,15 @@ jobs:
       - run: npm ci
       - run: npm run lint
       - run: npm run build
+      - run: npm run rules:gen
+      - run: npm run rules:sync
       - run: npm test
 
       - name: Smoke run (JSON + SARIF)
-        run: node dist/cli.js check --json --sarif ubon.sarif --fail-on error || echo "allow fail"
+        run: node dist/cli.js check --json --sarif ubon.sarif --fail-on none
 
       - name: Smoke run (NDJSON)
-        run: node dist/cli.js check --ndjson --no-result-cache > ubon.ndjson || true
+        run: node dist/cli.js check --ndjson --no-result-cache --fail-on none > ubon.ndjson
 
       - name: Smoke run (schema dump)
         run: node dist/cli.js check --schema > ubon-schema.json
@@ -40,7 +42,7 @@ jobs:
         # Eat our own dog food: Ubon must not flag itself as critical.
         # `--focus-critical --fail-on error` keeps the gate tight without
         # turning every minor finding into a CI failure.
-        run: node dist/cli.js check --focus-critical --fail-on error || echo "dogfood baseline diff (non-blocking)"
+        run: node dist/cli.js check --focus-critical --fail-on error
 
       - name: Upload SARIF
         if: matrix.node-version == 22

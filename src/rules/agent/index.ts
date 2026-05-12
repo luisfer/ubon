@@ -93,5 +93,32 @@ export const agentRules: Record<string, Rule> = {
     impact:
       'Agent memory files are concatenated into the prompt. An injection line there redirects the model on every run.',
     helpUri: 'https://simonwillison.net/2023/May/2/prompt-injection-explained/'
+  }),
+  CC009: make({
+    id: 'CC009',
+    category: 'config',
+    severity: 'medium',
+    message: 'Cursor hooks config uses an unknown hook event',
+    fix: 'Use a supported Cursor hook event name (`afterFileEdit`, `beforeShellExecution`, `stop`, etc.).',
+    impact:
+      'A misspelled hook event silently removes the guardrail you expected agents to run.'
+  }),
+  CC010: make({
+    id: 'CC010',
+    category: 'security',
+    severity: 'medium',
+    message: 'Agent config grants broad autonomous write or network access',
+    fix: 'Use the narrowest sandbox / approval policy that supports the workflow.',
+    impact:
+      'Broad agent permissions turn prompt mistakes and compromised context into filesystem or network side effects.'
+  }),
+  CC011: make({
+    id: 'CC011',
+    category: 'security',
+    severity: 'medium',
+    message: 'Agent skill or command runs a dangerous shell pattern',
+    fix: 'Replace raw network shell execution, destructive commands, or publishing steps with explicit reviewed scripts.',
+    impact:
+      'Skills and commands are reusable agent affordances. A dangerous command there becomes a repeatable foot-gun.'
   })
 };

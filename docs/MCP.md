@@ -35,11 +35,17 @@ status under "optional dependencies".
 | `ubon.explain`        | Returns rule metadata (`severity`, `fix`, `impact`, `helpUri`)                     |
 | `ubon.preview-fixes`  | Returns file-level diffs for auto-fixable findings (no disk write)                 |
 | `ubon.apply-fixes`    | Writes the auto-fixes. **Defaults to dry-run**; pass `apply: true` to confirm.     |
+| `ubon.plan-fixes`     | Returns ordered fix steps without writing to disk                                  |
+| `ubon.status`         | Returns config, harness, cache, baseline, and rule-count status                    |
+| `ubon.rule-catalog`   | Returns the machine-readable rule catalog                                          |
+| `ubon.verify`         | Returns a compact deterministic verification gate result                           |
 
 All tools accept `directory` (defaults to the assistant's CWD) and most accept
 `profile` (`auto`, `lovable`, `next`, `react`, `sveltekit`, `astro`,
-`remix`, `hono`). The `python`, `rails`, and `vue` profiles were removed
-in v3.0.0 — see [`MIGRATION-v3.md`](../MIGRATION-v3.md).
+`remix`, `hono`). Scan tools also accept `changedFiles`, `gitChangedSince`,
+`enabledRules`, `disabledRules`, `baseline`, and focus flags so agents can run
+incremental checks without shelling out. The `python`, `rails`, and `vue`
+profiles were removed in v3.0.0 — see [`MIGRATION-v3.md`](../MIGRATION-v3.md).
 
 ## Cursor configuration
 

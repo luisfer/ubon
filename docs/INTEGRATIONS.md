@@ -20,6 +20,14 @@ Ubon ships first-class hooks for Cursor:
 - **LSP** — `ubon lsp` provides inline diagnostics with `confidenceReason`
   in hover text. Use it from any LSP-aware editor including Cursor.
 
+Fast path:
+
+```bash
+ubon agent install --cursor --write
+```
+
+This writes the Cursor hooks, hook scripts, and `.cursor/rules/ubon.mdc`.
+
 ### Recommended `.cursor/rules/ubon.mdc`
 
 ```markdown

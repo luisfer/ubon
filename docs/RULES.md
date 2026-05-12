@@ -3,7 +3,7 @@
 This file is auto-generated from the rule registry by `scripts/generate-rules-md.js`.
 Do not hand-edit; run `npm run rules:gen` after building.
 
-Total rules: **152**.
+Total rules: **155**.
 
 ## Security (JS/TS)
 
@@ -56,6 +56,20 @@ Total rules: **152**.
 - **AI006** — LLM tool/function handler missing auth or capability allowlist ([docs](https://owasp.org/www-project-top-10-for-large-language-model-applications/))
 - **AI007** — LLM streaming endpoint missing auth and/or rate limiting ([docs](https://vercel.com/docs/security/ddos-mitigation))
 - **AI008** — LLM call without max_tokens / input length guard (cost-amplification risk)
+
+## Agent tooling
+
+- **CC001** — Secret literal inside `.claude/settings*.json` ([docs](https://docs.claude.com/en/docs/claude-code/settings))
+- **CC002** — Claude Code hook shell script uses unquoted variable in a destructive command (`rm`/`mv`/`cp`/`eval`) ([docs](https://www.shellcheck.net/wiki/SC2086))
+- **CC003** — Claude Code hook executes `curl | sh` or pipes remote content to a shell ([docs](https://docs.claude.com/en/docs/claude-code/hooks))
+- **CC004** — Secret-shaped string inside `CLAUDE.md` / `.claude/agents/*.md` ([docs](https://docs.claude.com/en/docs/claude-code/memory))
+- **CC005** — MCP server config exposes a secret in its `env` block ([docs](https://modelcontextprotocol.io/docs/concepts/configuration))
+- **CC006** — Secret-shaped string inside `.cursorrules` / `.cursor/rules/*.mdc` / `.windsurfrules` / `.aiderconfig`
+- **CC007** — Claude Code session transcripts or TODO state committed to the repo ([docs](https://docs.claude.com/en/docs/claude-code/overview))
+- **CC008** — Prompt-injection marker inside agent rules / memory file ([docs](https://simonwillison.net/2023/May/2/prompt-injection-explained/))
+- **CC009** — Cursor hooks config uses an unknown hook event
+- **CC010** — Agent config grants broad autonomous write or network access
+- **CC011** — Agent skill or command runs a dangerous shell pattern
 
 ## Next.js
 
@@ -192,14 +206,6 @@ Total rules: **152**.
 
 ## Other
 
-- **CC001** — Secret literal inside `.claude/settings*.json` ([docs](https://docs.claude.com/en/docs/claude-code/settings))
-- **CC002** — Claude Code hook shell script uses unquoted variable in a destructive command (`rm`/`mv`/`cp`/`eval`) ([docs](https://www.shellcheck.net/wiki/SC2086))
-- **CC003** — Claude Code hook executes `curl | sh` or pipes remote content to a shell ([docs](https://docs.claude.com/en/docs/claude-code/hooks))
-- **CC004** — Secret-shaped string inside `CLAUDE.md` / `.claude/agents/*.md` ([docs](https://docs.claude.com/en/docs/claude-code/memory))
-- **CC005** — MCP server config exposes a secret in its `env` block ([docs](https://modelcontextprotocol.io/docs/concepts/configuration))
-- **CC006** — Secret-shaped string inside `.cursorrules` / `.cursor/rules/*.mdc` / `.windsurfrules` / `.aiderconfig`
-- **CC007** — Claude Code session transcripts or TODO state committed to the repo ([docs](https://docs.claude.com/en/docs/claude-code/overview))
-- **CC008** — Prompt-injection marker inside agent rules / memory file ([docs](https://simonwillison.net/2023/May/2/prompt-injection-explained/))
 - **MOD001** — Module-level side effect (`fs.*Sync`, `db.exec`, `fetch`) runs at import time
 - **MOD002** — `async function` body contains no `await` / `for await` (unnecessary wrapper)
 - **MOD003** — Silent `.catch(() => …)` on a DB/fetch call hides real errors from the caller

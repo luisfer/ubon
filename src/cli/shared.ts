@@ -5,6 +5,7 @@ import { getChangedFilesSince, createBranchCommitPush, tryOpenPullRequest, ensur
 import { loadConfig, mergeOptions } from '../utils/config';
 import { applyFixes, previewFixes, printFixPreviews } from '../utils/fix';
 import { redact as sharedRedact } from '../utils/redact';
+import { buildIssueContext } from '../utils/issue-context';
 import { REMOVED_PROFILES } from '../core/profiles';
 import pkg from '../../package.json';
 
@@ -157,6 +158,37 @@ export interface CliOptions {
   quiet?: boolean;
   allowConfigJs?: boolean;
   schema?: boolean;
+  preset?: string;
+  since?: string;
+}
+
+export function applyPresetOptions(options: CliOptions): void {
+  const preset = options.preset;
+  if (!preset) return;
+  if (!['agent', 'ci', 'release', 'local'].includes(preset)) {
+    throw new Error(`Unknown preset "${preset}". Expected agent|ci|release|local.`);
+  }
+  if (preset === 'agent') {
+    options.json = true;
+    options.quiet = true;
+    options.fast = true;
+    options.showContext = true;
+    options.explain = true;
+    options.groupBy = options.groupBy || 'severity';
+    options.maxIssues = options.maxIssues || '15';
+  } else if (preset === 'ci') {
+    options.quiet = true;
+    options.fast = true;
+    options.failOn = options.failOn || 'error';
+  } else if (preset === 'release') {
+    options.quiet = true;
+    options.focusCritical = true;
+    options.failOn = options.failOn || 'error';
+  } else if (preset === 'local') {
+    options.showContext = true;
+    options.explain = true;
+    options.showConfidence = true;
+  }
 }
 
 export function buildScanOptions(options: CliOptions, defaults: Partial<ScanOptions> = {}): ScanOptions {
@@ -253,7 +285,11 @@ export async function outputResults(
       a.ruleId.localeCompare(b.ruleId)
     );
 
-    const issues = sorted.map(r => normaliseIssue({ ...r, match: redact(r.match) }));
+    const issues = sorted.map(r => normaliseIssue({
+      ...r,
+      context: scanOptions.showContext ? buildIssueContext(scanOptions.directory, r.file, r.line) : undefined,
+      match: redact(r.match)
+    }));
 
     if (options.ndjson) {
       // Each finding must serialise on a single line so consumers can
@@ -339,7 +375,7 @@ export function checkExitCondition(
   results: ScanResult[],
   options: CliOptions
 ): boolean {
-  let considered = results;
+  let considered = options.showSuppressed ? results : results.filter((r) => !r.suppressed);
   
   if (options.baseSha) {
     const changed = getChangedFilesSince(options.baseSha, options.directory);
@@ -360,6 +396,7 @@ export async function runScanCommand(
   options: CliOptions,
   defaults: Partial<ScanOptions> = {}
 ): Promise<void> {
+  applyPresetOptions(options);
   if (options.schema) {
     if (await dumpSchema()) return;
   }
@@ -441,6 +478,7 @@ export async function dumpSchema(): Promise<boolean> {
 }
 
 export async function runCheckCommand(options: CliOptions): Promise<void> {
+  applyPresetOptions(options);
   if (options.schema) {
     if (await dumpSchema()) return;
   }

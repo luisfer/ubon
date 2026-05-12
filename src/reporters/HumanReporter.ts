@@ -57,11 +57,11 @@ export class HumanReporter {
 
     const quiet = !!options?.quiet;
     if (activeResults.length === 0 && suppressedCount === 0) {
-      if (!quiet) this.logger.success('🪷 No issues found! Your app is blooming beautifully! ✨');
+      if (!quiet) this.logger.success('🪷 0 critical findings. No active issues found.');
       return;
     }
     if (activeResults.length === 0 && suppressedCount > 0) {
-      if (!quiet) this.logger.success(`🪷 No active issues found! ${suppressedCount} issues suppressed. ✨`);
+      if (!quiet) this.logger.success(`🪷 0 critical findings. ${suppressedCount} issues suppressed.`);
       return;
     }
 
@@ -238,7 +238,7 @@ export class HumanReporter {
     console.log(`   ${this.colorize(chalk.gray, posture.summary)}`);
 
     if (errors > 0) this.logger.error('Critical issues found that should be fixed immediately');
-    else this.logger.success('No critical issues found');
+    else this.logger.success('0 critical findings');
   }
 
   private renderPostureBar(score: number): string {

@@ -22,7 +22,7 @@ export class AstSecurityScanner implements Scanner {
     const results: ScanResult[] = [];
     const files = await glob('**/*.{js,jsx,ts,tsx,mjs,cjs}', {
       cwd: options.directory,
-      ignore: ['node_modules/**', 'dist/**', 'build/**', '.next/**', 'examples/**']
+      ignore: ['node_modules/**', 'dist/**', 'build/**', '.next/**', 'examples/**', ...(options.exclude || [])]
     });
 
     const sourceCache = FileSourceCache.forDirectory(options.directory);

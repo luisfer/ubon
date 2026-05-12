@@ -51,7 +51,7 @@ export class SecurityScanner implements Scanner {
     
     const files = await glob('**/*.{js,jsx,ts,tsx,svelte,astro,env}', {
       cwd: options.directory,
-      ignore: ['node_modules/**', 'dist/**', 'build/**', '.next/**', 'examples/**']
+      ignore: ['node_modules/**', 'dist/**', 'build/**', '.next/**', 'examples/**', ...(options.exclude || [])]
     });
     const signature = `sec:2:profile:${options.profile || 'auto'}`;
     const resultCache = options.noResultCache ? null : new ResultCache(options.directory, signature);

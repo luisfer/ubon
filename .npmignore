@@ -28,11 +28,6 @@ __tests__/
 *.test.ts
 *.spec.ts
 
-# Documentation (keep only README and LICENSE)
+# Documentation is controlled by package.json "files".
 .docs/
-docs/
 CONTRIBUTING.md
-AI-INTEGRATION.md  
-SUPABASE-SECURITY.md
-CHANGELOG.md
-SECURITY.md

@@ -33,14 +33,20 @@ export class AgentSettingsScanner implements Scanner {
       '.claude/**/*.js',
       '.cursor/**/*.json',
       '.cursor/**/*.mdc',
+      '.cursor/**/*.sh',
+      '.cursor/commands/**/*',
+      '.cursor/skills/**/*',
       '.cursor/rules/*',
       '.cursorrules',
       '.cursor-rules',
+      '.codex/**/*.toml',
+      '.codex/**/*.md',
       '.windsurf/**/*.json',
       '.windsurfrules',
       '.aider.conf.yml',
       '.aider.conf.yaml',
       '.aiderconfig',
+      '.agents/skills/**/*',
       '.continue/**/*.json',
       '.cline/**/*.json',
       'cline_mcp_settings.json',
@@ -157,6 +163,58 @@ export class AgentSettingsScanner implements Scanner {
         results.push(this.result('CC007', rel, 0, lines, 0.7, rel,
           'Claude Code session state committed to the repo (expected to be .gitignored).'
         ));
+      }
+
+      // --- CC009: stale Cursor hook event names ------------------------
+      if (/\.cursor\/hooks\.json$/.test(rel)) {
+        this.findUnknownCursorHookEvents(content, lines).forEach(({ lineIndex, match }) => {
+          const finding = this.result('CC009', rel, lineIndex, lines, 0.85, match,
+            'The hook event is not in Cursor\'s known hook lifecycle.'
+          );
+          const replacement = this.cursorHookEventReplacement(match);
+          if (replacement) {
+            const line = lines[lineIndex] ?? '';
+            const startColumn = line.indexOf(`"${match}"`) + 2;
+            if (startColumn > 1) {
+              finding.fixEdits = [{
+                file: rel,
+                startLine: lineIndex + 1,
+                startColumn,
+                endLine: lineIndex + 1,
+                endColumn: startColumn + match.length,
+                replacement
+              }];
+            }
+          }
+          results.push(finding);
+        });
+      }
+
+      // --- CC010: broad agent autonomy in Codex / Cursor configs -------
+      if (/\.codex\/.*\.toml$/.test(rel) || /\.cursor\/.*\.json$/.test(rel) || /AGENTS\.md$/.test(rel)) {
+        lines.forEach((line, lineIndex) => {
+          if (/(approval[_-]?policy|ask[_-]?for[_-]?approval)["']?\s*[:=]\s*["']?(never|on-request)["']?/i.test(line) ||
+              /(sandbox[_-]?mode)["']?\s*[:=]\s*["']?(danger-full-access|workspace-write)["']?/i.test(line) ||
+              /full\s+auto(?:nomy|approval)?/i.test(line)) {
+            results.push(this.result('CC010', rel, lineIndex, lines, 0.75, line.trim(),
+              'Agent configuration appears to allow broad autonomous side effects.'
+            ));
+          }
+        });
+      }
+
+      // --- CC011: reusable agent skills / commands with dangerous shell -
+      if (/\.cursor\/commands\//.test(rel) || /\.cursor\/skills\//.test(rel) ||
+          /\.agents\/skills\//.test(rel) || /\.claude\/commands\//.test(rel)) {
+        lines.forEach((line, lineIndex) => {
+          if (/\b(?:curl|wget)\b[^|]*\|\s*(?:sh|bash|zsh)\b/i.test(line) ||
+              /\brm\s+-rf\s+(?:\/|\$[A-Za-z_]|\.{1,2})/i.test(line) ||
+              /\b(?:npm publish|git push --force|gh release create)\b/i.test(line)) {
+            results.push(this.result('CC011', rel, lineIndex, lines, 0.85, line.trim(),
+              'A reusable agent command contains a dangerous shell pattern.'
+            ));
+          }
+        });
       }
     }
 
@@ -306,5 +364,58 @@ export class AgentSettingsScanner implements Scanner {
       }
     }
     return out;
+  }
+
+  private findUnknownCursorHookEvents(content: string, lines: string[]): Array<{ lineIndex: number; match: string }> {
+    const known = new Set([
+      'sessionStart',
+      'sessionEnd',
+      'preToolUse',
+      'postToolUse',
+      'postToolUseFailure',
+      'subagentStart',
+      'subagentStop',
+      'beforeShellExecution',
+      'afterShellExecution',
+      'beforeMCPExecution',
+      'afterMCPExecution',
+      'beforeReadFile',
+      'afterFileEdit',
+      'beforeSubmitPrompt',
+      'preCompact',
+      'stop',
+      'afterAgentResponse',
+      'afterAgentThought',
+      'beforeTabFileRead',
+      'afterTabFileEdit',
+      'workspaceOpen'
+    ]);
+    try {
+      const parsed = JSON.parse(content);
+      const hooks = parsed?.hooks && typeof parsed.hooks === 'object' ? parsed.hooks : {};
+      const out: Array<{ lineIndex: number; match: string }> = [];
+      for (const event of Object.keys(hooks)) {
+        if (known.has(event)) continue;
+        const lineIndex = Math.max(0, lines.findIndex((line) => line.includes(`"${event}"`)));
+        out.push({ lineIndex, match: event });
+      }
+      return out;
+    } catch {
+      return [];
+    }
+  }
+
+  private cursorHookEventReplacement(event: string): string | undefined {
+    const replacements: Record<string, string> = {
+      afterFileEdt: 'afterFileEdit',
+      afterFileEdited: 'afterFileEdit',
+      beforeShellExec: 'beforeShellExecution',
+      afterShellExec: 'afterShellExecution',
+      beforeMcpExecution: 'beforeMCPExecution',
+      afterMcpExecution: 'afterMCPExecution',
+      beforePromptSubmit: 'beforeSubmitPrompt',
+      preCompaction: 'preCompact'
+    };
+    return replacements[event];
   }
 }

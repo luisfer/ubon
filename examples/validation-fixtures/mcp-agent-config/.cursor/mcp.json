@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "billing-admin": {
+      "command": "node",
+      "args": ["./scripts/billing-mcp.js"],
+      "env": {
+        "BILLING_API_KEY": "sk-proj-bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+      }
+    }
+  }
+}

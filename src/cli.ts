@@ -88,6 +88,7 @@ const addCommonOptions = (cmd: Command): Command => {
     .option('--ndjson', 'Output one JSON-encoded finding per line (streaming-friendly)')
     .option('--quiet', 'Suppress banners, suggestions, and contextual guidance (CI-friendly)')
     .option('--allow-config-js', 'Permit loading ubon.config.js (executes user-supplied code)')
+    .option('--preset <name>', 'Apply opinionated defaults: agent|ci|release|local')
     .option('--schema', 'Print the JSON Schema for --json output and exit');
 };
 
@@ -115,14 +116,108 @@ addCommonOptions(checkCmd).action(async (options: CliOptions) => {
   await runCheckCommand(options);
 });
 
+const changedCmd = program
+  .command('changed')
+  .description('Scan files changed since a Git ref (default: origin/main)');
+addCommonOptions(changedCmd)
+  .option('--since <ref>', 'Git ref to compare against', 'origin/main')
+  .action(async (options: CliOptions) => {
+    await runCheckCommand({
+      ...options,
+      gitChangedSince: options.since || options.gitChangedSince || 'origin/main',
+      preset: options.preset || 'local'
+    });
+  });
+
+const verifyCmd = program
+  .command('verify')
+  .description('Deterministic Ubon gate for CI, pre-commit, and release checks');
+addCommonOptions(verifyCmd).action(async (options: CliOptions) => {
+  await runCheckCommand({
+    ...options,
+    preset: options.preset || 'ci'
+  });
+});
+
+const reviewCmd = program
+  .command('review')
+  .description('Produce a PR-ready Markdown review summary');
+addCommonOptions(reviewCmd)
+  .option('--since <ref>', 'Git ref to compare against', 'origin/main')
+  .action(async (options: CliOptions) => {
+    await runCheckCommand({
+      ...options,
+      gitChangedSince: options.since || options.gitChangedSince || 'origin/main',
+      prComment: true,
+      failOn: options.failOn || 'none',
+      preset: options.preset || 'local'
+    });
+  });
+
+const rulesCmd = program.command('rules').description('Inspect the Ubon rule catalog');
+rulesCmd
+  .command('list')
+  .description('List rules for humans or agents')
+  .option('--json', 'Output the rule catalog as deterministic JSON', false)
+  .option('--category <name>', 'Filter by category')
+  .option('--severity <level>', 'Filter by severity: low|medium|high')
+  .action(async (options: { json?: boolean; category?: string; severity?: string }) => {
+    const { RULES } = await import('./rules');
+    const rules = Object.values(RULES)
+      .filter((rule) => !options.category || rule.category === options.category)
+      .filter((rule) => !options.severity || rule.severity === options.severity)
+      .sort((a, b) => a.id.localeCompare(b.id))
+      .map((rule) => ({
+        category: rule.category,
+        fix: rule.fix,
+        id: rule.id,
+        impact: rule.impact,
+        message: rule.message,
+        severity: rule.severity
+      }));
+
+    if (options.json) {
+      const stable = JSON.stringify(
+        rules,
+        (_key, value) => {
+          if (value && typeof value === 'object' && !Array.isArray(value)) {
+            return Object.keys(value as object)
+              .sort()
+              .reduce<Record<string, unknown>>((acc, key) => {
+                acc[key] = (value as Record<string, unknown>)[key];
+                return acc;
+              }, {});
+          }
+          return value;
+        },
+        2
+      );
+      process.stdout.write(`${stable}\n`);
+      return;
+    }
+
+    for (const rule of rules) {
+      console.log(`${rule.id.padEnd(8)} ${rule.severity.padEnd(6)} ${rule.category.padEnd(14)} ${rule.message}`);
+    }
+  });
+
 program
   .command('install-hooks')
   .description('Install git pre-commit hooks for Ubon scanning')
   .option('--mode <type>', 'Hook mode: fast|full', 'fast')
   .option('--fail-on <level>', 'Fail on: error|warning', 'error')
+  .option('-d, --directory <path>', 'Project directory', process.cwd())
+  .option('--dry-run', 'Print the pre-commit config without writing files', false)
+  .option('--no-install', 'Write .pre-commit-config.yaml but do not run pre-commit install')
   .action(async (options) => {
     try {
-      installPreCommitHooks({ mode: options.mode, failOn: options.failOn });
+      installPreCommitHooks({
+        mode: options.mode,
+        failOn: options.failOn,
+        directory: options.directory,
+        dryRun: !!options.dryRun,
+        install: options.install
+      });
     } catch (e: any) {
       console.error('❌ Failed to install hooks:', e?.message || e);
       process.exit(1);
@@ -213,6 +308,49 @@ hooksCmd
     for (const file of wrote) console.log('🪷 wrote   ', file);
     for (const file of skipped) console.log('🪷 skipped ', file, '(exists; use --force to overwrite)');
     console.log('\n🪷 Cursor will pick up hooks.json automatically. Restart Cursor if not.');
+  });
+
+const agentCmd = program.command('agent').description('Install and diagnose Ubon agent harness integrations');
+agentCmd
+  .command('install')
+  .description('Plan or write Cursor/Codex/Claude/pre-commit/GitHub harness files (dry-run by default)')
+  .option('-d, --directory <path>', 'Project directory', process.cwd())
+  .option('--cursor', 'Include Cursor hooks and rules')
+  .option('--claude', 'Include Claude Code guidance')
+  .option('--codex', 'Include AGENTS.md guidance')
+  .option('--pre-commit', 'Include .pre-commit-config.yaml')
+  .option('--github', 'Include GitHub Actions workflow')
+  .option('--all', 'Include every supported harness target')
+  .option('--write', 'Write files to disk (default is dry-run)', false)
+  .option('--force', 'Overwrite existing files instead of skipping', false)
+  .action(async (opts: any) => {
+    const { installAgentHarness } = await import('./cli/agent');
+    const result = installAgentHarness({
+      directory: opts.directory,
+      cursor: !!opts.cursor,
+      claude: !!opts.claude,
+      codex: !!opts.codex,
+      preCommit: !!opts.preCommit,
+      github: !!opts.github,
+      all: !!opts.all,
+      write: !!opts.write,
+      force: !!opts.force
+    });
+    if (!opts.write) {
+      console.log('🪷 Ubon agent harness dry-run. Use --write to create files.');
+      for (const file of result.planned) console.log('🪷 would write ', file);
+      return;
+    }
+    for (const file of result.wrote) console.log('🪷 wrote   ', file);
+    for (const file of result.skipped) console.log('🪷 skipped ', file, '(exists; use --force to overwrite)');
+  });
+agentCmd
+  .command('doctor')
+  .description('Check whether this repo is ready for Ubon agent harnessing')
+  .option('-d, --directory <path>', 'Project directory', process.cwd())
+  .action(async (opts: { directory: string }) => {
+    const { runDoctor } = await import('./cli/doctor');
+    await runDoctor(opts.directory, { agentHarness: true });
   });
 
 program

@@ -43,6 +43,7 @@ export class EnvScanner implements Scanner {
       message: 'Client-exposed env var carries a database/service connection URL (leaks to browser bundle)',
       severity: 'high',
       fix: 'Rename without the `NEXT_PUBLIC_`/`VITE_`/`PUBLIC_` prefix so the value stays server-only; rotate the credential if it has already shipped.',
+      // ubon-disable-next-line SEC018 documented detector wording, not a credential
       confidenceReason: 'NEXT_PUBLIC_/VITE_/PUBLIC_ env with a postgres://, mongodb://, redis://… value ships to the client bundle.'
     }
   ];

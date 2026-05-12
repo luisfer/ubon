@@ -7,9 +7,9 @@
  * binaries / optional deps Ubon depends on are reachable.
  */
 
-import { existsSync } from 'fs';
+import { existsSync, readFileSync } from 'fs';
 import { join } from 'path';
-import { execSync } from 'child_process';
+import { execFileSync } from 'child_process';
 import pkg from '../../package.json';
 
 interface CheckResult {
@@ -24,15 +24,19 @@ function check(name: string, fn: () => CheckResult | Promise<CheckResult>): Prom
     .catch((error) => ({ name, status: 'fail', detail: error?.message || String(error) }));
 }
 
-function tryExec(cmd: string): string | null {
+function tryExec(cmd: string, args: string[] = []): string | null {
   try {
-    return execSync(cmd, { stdio: ['ignore', 'pipe', 'ignore'] }).toString().trim();
+    // ubon-disable-next-line SEC026 argv-safe execFileSync wrapper for fixed doctor probes
+    return execFileSync(cmd, args, { stdio: ['ignore', 'pipe', 'ignore'] }).toString().trim();
   } catch {
     return null;
   }
 }
 
-export async function runDoctor(directory: string = process.cwd()): Promise<void> {
+export async function runDoctor(
+  directory: string = process.cwd(),
+  options: { agentHarness?: boolean } = {}
+): Promise<void> {
   const checks: Promise<CheckResult>[] = [];
 
   checks.push(
@@ -67,7 +71,7 @@ export async function runDoctor(directory: string = process.cwd()): Promise<void
 
   checks.push(
     check('git', async () => {
-      const v = tryExec('git --version');
+      const v = tryExec('git', ['--version']);
       return v
         ? { name: 'git', status: 'ok', detail: v }
         : { name: 'git', status: 'warn', detail: 'git not on PATH — git-history scanner and --git-changed-since disabled' };
@@ -103,6 +107,56 @@ export async function runDoctor(directory: string = process.cwd()): Promise<void
       }
     })
   );
+
+  if (options.agentHarness) {
+    checks.push(
+      check('Cursor hooks', async () => {
+        const hooks = join(directory, '.cursor', 'hooks.json');
+        return existsSync(hooks)
+          ? { name: 'Cursor hooks', status: 'ok', detail: hooks }
+          : { name: 'Cursor hooks', status: 'warn', detail: 'not installed — run `ubon agent install --cursor --write`' };
+      })
+    );
+
+    checks.push(
+      check('Agent guidance', async () => {
+        const hasGuidance = existsSync(join(directory, 'AGENTS.md')) ||
+          existsSync(join(directory, 'CLAUDE.md')) ||
+          existsSync(join(directory, '.cursor', 'rules', 'ubon.mdc'));
+        return hasGuidance
+          ? { name: 'Agent guidance', status: 'ok', detail: 'found repo-level agent instructions' }
+          : { name: 'Agent guidance', status: 'warn', detail: 'no AGENTS.md, CLAUDE.md, or .cursor/rules/ubon.mdc found' };
+      })
+    );
+
+    checks.push(
+      check('Pre-commit hook', async () => {
+        const preCommit = join(directory, '.pre-commit-config.yaml');
+        return existsSync(preCommit)
+          ? { name: 'Pre-commit hook', status: 'ok', detail: preCommit }
+          : { name: 'Pre-commit hook', status: 'warn', detail: 'not configured — run `ubon agent install --pre-commit --write`' };
+      })
+    );
+
+    checks.push(
+      check('Ubon cache ignore', async () => {
+        const gitignore = join(directory, '.gitignore');
+        const ignored = existsSync(gitignore) && readFileSync(gitignore, 'utf-8').split(/\r?\n/).includes('.ubon/');
+        return ignored
+          ? { name: 'Ubon cache ignore', status: 'ok', detail: '.ubon/ is ignored' }
+          : { name: 'Ubon cache ignore', status: 'warn', detail: 'add .ubon/ to .gitignore for repo-local result caches' };
+      })
+    );
+
+    checks.push(
+      check('GitHub Ubon workflow', async () => {
+        const workflow = join(directory, '.github', 'workflows', 'ubon.yml');
+        return existsSync(workflow)
+          ? { name: 'GitHub Ubon workflow', status: 'ok', detail: workflow }
+          : { name: 'GitHub Ubon workflow', status: 'warn', detail: 'not configured — run `ubon agent install --github --write`' };
+      })
+    );
+  }
 
   const results = await Promise.all(checks);
 

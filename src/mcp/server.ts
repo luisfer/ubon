@@ -15,10 +15,13 @@
  * never touch MCP don't carry the extra weight.
  */
 
-import { resolve } from 'path';
+import { existsSync, readFileSync } from 'fs';
+import { join, resolve } from 'path';
 import { UbonScan } from '..';
 import { RULES, getRule } from '../rules';
 import { applyFixes, previewFixes } from '../utils/fix';
+import { getChangedFilesSince } from '../utils/git';
+import { buildIssueContext } from '../utils/issue-context';
 import { ScanOptions } from '../types';
 
 interface ToolHandlerArgs {
@@ -28,6 +31,18 @@ interface ToolHandlerArgs {
   ruleId?: string;
   apply?: boolean;
   minConfidence?: number;
+  changedFiles?: string[];
+  gitChangedSince?: string;
+  baseSha?: string;
+  enabledRules?: string[];
+  disabledRules?: string[];
+  baseline?: string;
+  focusNew?: boolean;
+  focusSecurity?: boolean;
+  focusCritical?: boolean;
+  failOn?: 'none' | 'warning' | 'error';
+  showContext?: boolean;
+  explain?: boolean;
 }
 
 interface ToolHandlerResult {
@@ -38,13 +53,49 @@ function resolveDirectory(input?: string): string {
   return resolve(input || process.cwd());
 }
 
+function stableStringify(value: unknown, indent: number = 2): string {
+  const replacer = (_key: string, v: unknown) => {
+    if (v && typeof v === 'object' && !Array.isArray(v)) {
+      return Object.keys(v as object)
+        .sort()
+        .reduce<Record<string, unknown>>((acc, k) => {
+          acc[k] = (v as Record<string, unknown>)[k];
+          return acc;
+        }, {});
+    }
+    return v;
+  };
+  return JSON.stringify(value, replacer, indent);
+}
+
+function json(payload: unknown): ToolHandlerResult {
+  return { content: [{ type: 'text', text: stableStringify(payload, 2) }] };
+}
+
 function buildScanOptions(args: ToolHandlerArgs): ScanOptions {
+  const directory = resolveDirectory(args.directory);
+  const changedFiles = args.changedFiles && args.changedFiles.length > 0
+    ? args.changedFiles
+    : (args.gitChangedSince || args.baseSha)
+      ? getChangedFilesSince((args.gitChangedSince || args.baseSha) as string, directory)
+      : undefined;
   return {
-    directory: resolveDirectory(args.directory),
+    directory,
     profile: (args.profile as ScanOptions['profile']) || 'auto',
     fast: !!args.fast,
     skipBuild: true,
-    minConfidence: typeof args.minConfidence === 'number' ? args.minConfidence : undefined
+    minConfidence: typeof args.minConfidence === 'number' ? args.minConfidence : undefined,
+    changedFiles,
+    gitChangedSince: args.gitChangedSince || args.baseSha,
+    enabledRules: args.enabledRules,
+    disabledRules: args.disabledRules,
+    baselinePath: args.baseline,
+    focusNew: !!args.focusNew,
+    focusSecurity: !!args.focusSecurity,
+    focusCritical: !!args.focusCritical,
+    showContext: !!args.showContext,
+    explain: !!args.explain,
+    quiet: true
   };
 }
 
@@ -61,23 +112,26 @@ async function runScan(args: ToolHandlerArgs): Promise<ToolHandlerResult> {
       warnings: results.filter((r) => r.type === 'warning').length,
       info: results.filter((r) => r.type === 'info').length
     },
-    issues: results
+    issues: results.map((result) => ({
+      ...result,
+      context: args.showContext ? buildIssueContext(options.directory, result.file, result.line) : undefined
+    }))
   };
-  return { content: [{ type: 'text', text: JSON.stringify(payload, null, 2) }] };
+  return json(payload);
 }
 
 async function runExplain(args: ToolHandlerArgs): Promise<ToolHandlerResult> {
   const id = args.ruleId;
   if (!id) {
     return {
-      content: [{ type: 'text', text: JSON.stringify({ error: 'missing ruleId' }) }]
+      content: [{ type: 'text', text: stableStringify({ error: 'missing ruleId' }) }]
     };
   }
   const rule = getRule(id);
   if (!rule) {
     return {
       content: [
-        { type: 'text', text: JSON.stringify({ error: `unknown rule ${id}`, knownRules: Object.keys(RULES).slice(0, 50) }) }
+        { type: 'text', text: stableStringify({ error: `unknown rule ${id}`, knownRules: Object.keys(RULES).sort() }) }
       ]
     };
   }
@@ -85,19 +139,15 @@ async function runExplain(args: ToolHandlerArgs): Promise<ToolHandlerResult> {
     content: [
       {
         type: 'text',
-        text: JSON.stringify(
-          {
-            id: rule.meta.id,
-            category: rule.meta.category,
-            severity: rule.meta.severity,
-            message: rule.meta.message,
-            fix: rule.meta.fix,
-            impact: rule.meta.impact,
-            helpUri: rule.meta.helpUri
-          },
-          null,
-          2
-        )
+        text: stableStringify({
+          id: rule.meta.id,
+          category: rule.meta.category,
+          severity: rule.meta.severity,
+          message: rule.meta.message,
+          fix: rule.meta.fix,
+          impact: rule.meta.impact,
+          helpUri: rule.meta.helpUri
+        })
       }
     ]
   };
@@ -108,7 +158,7 @@ async function runPreviewFixes(args: ToolHandlerArgs): Promise<ToolHandlerResult
   const options = buildScanOptions(args);
   const results = await scanner.diagnose(options);
   const previews = previewFixes(results, options.directory);
-  return { content: [{ type: 'text', text: JSON.stringify({ previews }, null, 2) }] };
+  return json({ previews });
 }
 
 async function runApplyFixes(args: ToolHandlerArgs): Promise<ToolHandlerResult> {
@@ -122,10 +172,89 @@ async function runApplyFixes(args: ToolHandlerArgs): Promise<ToolHandlerResult> 
     content: [
       {
         type: 'text',
-        text: JSON.stringify({ dryRun, changedFiles, appliedEditCount }, null, 2)
+        text: stableStringify({ dryRun, changedFiles, appliedEditCount })
       }
     ]
   };
+}
+
+async function runPlanFixes(args: ToolHandlerArgs): Promise<ToolHandlerResult> {
+  const scanner = new UbonScan(false, true);
+  const options = buildScanOptions({ ...args, fast: true });
+  const results = await scanner.diagnose(options);
+  const steps = results
+    .filter((result) => result.fix)
+    .map((result) => ({
+      ruleId: result.ruleId,
+      severity: result.severity,
+      confidence: result.confidence,
+      file: result.file,
+      line: result.line,
+      fix: result.fix,
+      autofixable: !!result.fixEdits?.length
+    }));
+  return json({ steps });
+}
+
+async function runStatus(args: ToolHandlerArgs): Promise<ToolHandlerResult> {
+  const directory = resolveDirectory(args.directory);
+  return json({
+    directory,
+    toolVersion: require('../../package.json').version,
+    config: {
+      json: existsSync(join(directory, 'ubon.config.json')),
+      js: existsSync(join(directory, 'ubon.config.js')),
+      packageJson: existsSync(join(directory, 'package.json'))
+    },
+    harness: {
+      cursorHooks: existsSync(join(directory, '.cursor', 'hooks.json')),
+      cursorRule: existsSync(join(directory, '.cursor', 'rules', 'ubon.mdc')),
+      agentsMd: existsSync(join(directory, 'AGENTS.md')),
+      claudeMd: existsSync(join(directory, 'CLAUDE.md')),
+      preCommit: existsSync(join(directory, '.pre-commit-config.yaml')),
+      githubWorkflow: existsSync(join(directory, '.github', 'workflows', 'ubon.yml')),
+      baseline: existsSync(join(directory, '.ubon.baseline.json')),
+      cacheIgnored: existsSync(join(directory, '.gitignore')) &&
+        readFileSync(join(directory, '.gitignore'), 'utf-8').split(/\r?\n/).includes('.ubon/')
+    },
+    ruleCount: Object.keys(RULES).length
+  });
+}
+
+async function runRuleCatalog(): Promise<ToolHandlerResult> {
+  return json({
+    rules: Object.values(RULES)
+      .map((rule) => ({
+        id: rule.id,
+        category: rule.category,
+        severity: rule.severity,
+        message: rule.message,
+        fix: rule.fix,
+        helpUri: rule.helpUri
+      }))
+      .sort((a, b) => a.id.localeCompare(b.id))
+  });
+}
+
+async function runVerify(args: ToolHandlerArgs): Promise<ToolHandlerResult> {
+  const scanner = new UbonScan(false, true);
+  const options = buildScanOptions({ ...args, fast: true, focusCritical: args.focusCritical ?? true });
+  const results = await scanner.diagnose(options);
+  const errors = results.filter((r) => r.type === 'error').length;
+  const warnings = results.filter((r) => r.type === 'warning').length;
+  const failOn = args.failOn || 'error';
+  const ok = failOn === 'none' || (failOn === 'error' ? errors === 0 : errors + warnings === 0);
+  return json({
+    ok,
+    failOn,
+    summary: {
+      total: results.length,
+      errors,
+      warnings,
+      info: results.filter((r) => r.type === 'info').length
+    },
+    issues: results
+  });
 }
 
 const TOOLS = [
@@ -139,7 +268,18 @@ const TOOLS = [
         directory: { type: 'string', description: 'Absolute path to scan (defaults to CWD).' },
         profile: { type: 'string', enum: ['auto', 'lovable', 'react', 'next', 'sveltekit', 'astro', 'remix', 'hono'] },
         fast: { type: 'boolean', description: 'Skip OSV / link checks for a faster loop.' },
-        minConfidence: { type: 'number', minimum: 0, maximum: 1 }
+        minConfidence: { type: 'number', minimum: 0, maximum: 1 },
+        changedFiles: { type: 'array', items: { type: 'string' } },
+        gitChangedSince: { type: 'string' },
+        baseSha: { type: 'string' },
+        enabledRules: { type: 'array', items: { type: 'string' } },
+        disabledRules: { type: 'array', items: { type: 'string' } },
+        baseline: { type: 'string' },
+        focusNew: { type: 'boolean' },
+        focusSecurity: { type: 'boolean' },
+        focusCritical: { type: 'boolean' },
+        showContext: { type: 'boolean' },
+        explain: { type: 'boolean' }
       }
     },
     handler: runScan
@@ -152,7 +292,16 @@ const TOOLS = [
       properties: {
         directory: { type: 'string' },
         profile: { type: 'string' },
-        minConfidence: { type: 'number', minimum: 0, maximum: 1 }
+        minConfidence: { type: 'number', minimum: 0, maximum: 1 },
+        changedFiles: { type: 'array', items: { type: 'string' } },
+        gitChangedSince: { type: 'string' },
+        baseSha: { type: 'string' },
+        enabledRules: { type: 'array', items: { type: 'string' } },
+        disabledRules: { type: 'array', items: { type: 'string' } },
+        focusSecurity: { type: 'boolean' },
+        focusCritical: { type: 'boolean' },
+        showContext: { type: 'boolean' },
+        explain: { type: 'boolean' }
       }
     },
     handler: (args: ToolHandlerArgs) => runScan({ ...args, fast: true })
@@ -192,17 +341,72 @@ const TOOLS = [
       }
     },
     handler: runApplyFixes
+  },
+  {
+    name: 'ubon.plan-fixes',
+    description: 'Return ordered fix steps for current findings without writing to disk.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        directory: { type: 'string' },
+        profile: { type: 'string' },
+        changedFiles: { type: 'array', items: { type: 'string' } },
+        gitChangedSince: { type: 'string' },
+        baseSha: { type: 'string' }
+      }
+    },
+    handler: runPlanFixes
+  },
+  {
+    name: 'ubon.status',
+    description: 'Return Ubon config and agent-harness status for the project.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        directory: { type: 'string' }
+      }
+    },
+    handler: runStatus
+  },
+  {
+    name: 'ubon.rule-catalog',
+    description: 'Return the machine-readable rule catalog.',
+    inputSchema: {
+      type: 'object',
+      properties: {}
+    },
+    handler: runRuleCatalog
+  },
+  {
+    name: 'ubon.verify',
+    description: 'Run a compact deterministic verification gate for agents and hooks.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        directory: { type: 'string' },
+        profile: { type: 'string' },
+        changedFiles: { type: 'array', items: { type: 'string' } },
+        gitChangedSince: { type: 'string' },
+        baseSha: { type: 'string' },
+        failOn: { type: 'string', enum: ['none', 'warning', 'error'] },
+        focusCritical: { type: 'boolean' }
+      }
+    },
+    handler: runVerify
   }
 ];
+
+export const MCP_TEST_HANDLERS = Object.fromEntries(
+  TOOLS.map((tool) => [tool.name, tool.handler])
+) as Record<string, (args: ToolHandlerArgs) => Promise<ToolHandlerResult>>;
 
 export async function startMcpServer(): Promise<void> {
   // Dynamic import to keep the SDK truly optional.
   let McpServer: any;
   let StdioServerTransport: any;
   try {
-    const sdkPkg = '@modelcontextprotocol/sdk';
-    const serverMod: any = await import(`${sdkPkg}/server/index.js`);
-    const stdioMod: any = await import(`${sdkPkg}/server/stdio.js`);
+    const serverMod: any = await import('@modelcontextprotocol/sdk/server/index.js');
+    const stdioMod: any = await import('@modelcontextprotocol/sdk/server/stdio.js');
     McpServer = serverMod.Server;
     StdioServerTransport = stdioMod.StdioServerTransport;
   } catch (err) {
@@ -230,8 +434,7 @@ export async function startMcpServer(): Promise<void> {
   // Register tool list + dispatcher. The SDK exposes both `setRequestHandler`
   // and a higher-level helper depending on version; we use the request-handler
   // form for maximum portability across SDK minor versions.
-  const sdkPkg = '@modelcontextprotocol/sdk';
-  const typesMod: any = await import(`${sdkPkg}/types.js`);
+  const typesMod: any = await import('@modelcontextprotocol/sdk/types.js');
 
   server.setRequestHandler(typesMod.ListToolsRequestSchema, async () => ({
     tools: TOOLS.map(({ name, description, inputSchema }) => ({ name, description, inputSchema }))

@@ -1,0 +1,8 @@
+{
+  "name": "ubon-fixture-ai-streaming-route",
+  "private": true,
+  "dependencies": {
+    "ai": "4.0.0",
+    "next": "15.0.0"
+  }
+}

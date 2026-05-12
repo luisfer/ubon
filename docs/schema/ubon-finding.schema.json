@@ -74,6 +74,16 @@
           "maximum": 1
         },
         "confidenceReason": { "type": "string" },
+        "context": {
+          "type": "object",
+          "description": "Optional source context emitted when JSON/MCP output is requested with context enabled.",
+          "required": ["before", "line", "after"],
+          "properties": {
+            "before": { "type": "array", "items": { "type": "string" } },
+            "line": { "type": "string" },
+            "after": { "type": "array", "items": { "type": "string" } }
+          }
+        },
         "match": { "type": "string", "description": "Redacted snippet that triggered the rule." },
         "fingerprint": { "type": "string" },
         "fix": { "type": "string" },

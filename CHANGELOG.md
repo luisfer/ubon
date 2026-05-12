@@ -1,3 +1,50 @@
+## 3.2.0 — Agent harness and validation release — 2026-05-12
+
+### What this release is
+
+An additive minor release that makes Ubon easier to wire into AI-assisted
+development loops and harder to release without proof. It adds a unified agent
+harness installer, broader Cursor/Claude/Codex guidance, richer MCP and CLI
+contracts, and a validation harness that tests Ubon against itself and against
+deliberately faulty examples.
+
+### Agent harness
+
+- Added `ubon agent install` for dry-run-first generation of Cursor, Claude,
+  Codex, pre-commit, GitHub Actions, and `.gitignore` harness files.
+- Expanded Cursor hook templates across shell, MCP, file edit, prompt, stop,
+  and compaction events.
+- Added agent-oriented docs: `START-HERE`, `AGENT-HARNESS`,
+  `AGENT-SEMANTICS`, `PROGRAMMATIC`, `VALIDATION`, and `RELEASE`.
+
+### Validation and release gates
+
+- Added `npm run validate:harness`, fixture benchmarks, CLI/MCP contract tests,
+  and a deterministic fix/rescan loop.
+- Added faulty fixtures for AI routes, Next Server Actions, MCP config,
+  hallucinated imports, and dangerous reusable agent commands.
+- Wired the validation harness into `npm run verify` and kept package dry-run
+  verification in `npm run verify:release`.
+- Added `npm run eval:agent` as an opt-in live-agent evaluation path.
+
+### CLI and MCP
+
+- Added `ubon changed`, `ubon verify`, `ubon review`, and
+  `ubon rules list --json`.
+- Added presets for agent, CI, release, and local workflows.
+- Expanded MCP tools with changed-file options, `baseSha`, verification,
+  status, rule catalog, and fix planning.
+- JSON/MCP agent output can now include source context for repair loops.
+
+### Rules and hardening
+
+- Added agent configuration rules for unknown Cursor hook events, broad agent
+  autonomy, and dangerous reusable commands.
+- Hardened Git shell execution by switching to argument-vector based calls and
+  validating branch names.
+- Tightened dogfood behavior, suppressions, package contents, and scanner
+  exclusions so Ubon can scan itself with 0 unsuppressed critical findings.
+
 ## 3.1.0 — AI-tool coverage: React patterns, agent settings, module hygiene — 2026-04-19
 
 ### 🎯 What this release is

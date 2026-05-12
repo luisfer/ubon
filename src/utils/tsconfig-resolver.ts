@@ -155,6 +155,7 @@ export function resolvesViaTsconfigPaths(specifier: string, directory: string): 
     }
   }
 
+  // ubon-disable-next-line VIBE001 example import specifier in resolver docs
   // Fall back to bare baseUrl resolution: `import X from "lib/db"` where
   // baseUrl is `src/` and `src/lib/db.ts` exists.
   if (cfg.baseUrl) {
