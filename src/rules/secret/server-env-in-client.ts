@@ -1,4 +1,5 @@
 import type { MemberExpression } from '@babel/types';
+import { hasDirective } from '../../core/project.ts';
 import { memberPath } from '../../lang/js.ts';
 import type { Rule } from '../types.ts';
 import { isSecretName, publicPrefixOf } from './names.ts';
@@ -10,7 +11,16 @@ import { isSecretName, publicPrefixOf } from './names.ts';
  * NEXT_PUBLIC_, which publishes the secret. Other variables are left alone:
  * modules shared by server and client code often read server-only flags that
  * only the server uses.
+ *
+ * Client entry points are checked in full: files with 'use client', client
+ * script blocks (Vue, Svelte, Astro), and single-page apps with no server.
+ * Modules that a client file imports are often shared config objects whose
+ * server-only fields are read on the server only, so in those only a direct
+ * `export const X = process.env.SECRET` is reported. Reads inside createEnv()
+ * (t3-env) are skipped: the library keeps server variables on the server.
  */
+
+const SERVER_FRAMEWORKS = ['next', 'nuxt', 'sveltekit', 'remix', 'react-router', 'astro', 'tanstack-start'] as const;
 
 const ALWAYS_AVAILABLE = new Set(['NODE_ENV', 'NEXT_RUNTIME', 'MODE', 'DEV', 'PROD', 'SSR', 'BASE_URL', 'TZ', '__NEXT_ROUTER_BASEPATH']);
 
@@ -40,9 +50,21 @@ export const serverEnvInClient: Rule = {
   appliesTo: (file) => file.client && !file.server && !file.contexts.has('test') && !file.contexts.has('config'),
   js(ctx) {
     let extra: Set<string> | null = null;
+    const frameworks = ctx.project.frameworksFor(ctx.file.path);
+    const spa = !SERVER_FRAMEWORKS.some((f) => frameworks.has(f));
+    const entry = ctx.side === 'client' || hasDirective(ctx.text, 'use client') || spa;
+    /** `export const X = process.env.Y`, allowing `as string` and `!` around the read. */
+    const isDirectExport = (): boolean => {
+      const chain = [...ctx.parents].reverse();
+      let i = 0;
+      while (chain[i] && (chain[i]?.type === 'TSAsExpression' || chain[i]?.type === 'TSNonNullExpression' || chain[i]?.type === 'TSSatisfiesExpression')) i++;
+      return chain[i]?.type === 'VariableDeclarator' && chain[i + 1]?.type === 'VariableDeclaration' && chain[i + 2]?.type === 'ExportNamedDeclaration';
+    };
     return {
       MemberExpression(node: MemberExpression) {
         if (ctx.side === 'server') return;
+        if (!entry && !isDirectExport()) return;
+        if (ctx.parents.some((p) => p.type === 'CallExpression' && p.callee.type === 'Identifier' && p.callee.name === 'createEnv')) return;
         const path = memberPath(node);
         if (!path) return;
         const m = /^(process\.env|import\.meta\.env)\.([A-Za-z_][A-Za-z0-9_]*)$/.exec(path);

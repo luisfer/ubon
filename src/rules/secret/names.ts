@@ -19,7 +19,8 @@ export const PUBLIC_PREFIXES: readonly PublicPrefix[] = [
   { prefix: 'REACT_APP_', frameworks: [], label: 'Create React App' },
   { prefix: 'GATSBY_', frameworks: [], label: 'Gatsby' },
   { prefix: 'VITE_', frameworks: [], label: 'Vite' },
-  { prefix: 'PUBLIC_', frameworks: ['sveltekit', 'astro'], label: 'SvelteKit and Astro' },
+  { prefix: 'PUBLIC_', frameworks: ['sveltekit'], label: 'SvelteKit' },
+  { prefix: 'PUBLIC_', frameworks: ['astro'], label: 'Astro' },
 ];
 
 export function publicPrefixOf(name: string, project?: Project, path?: string): PublicPrefix | null {
@@ -29,7 +30,6 @@ export function publicPrefixOf(name: string, project?: Project, path?: string): 
     if (!project || path === undefined) return null;
     const fw = project.frameworksFor(path);
     if (p.frameworks.some((f) => fw.has(f as never))) return p;
-    return null;
   }
   return null;
 }
@@ -46,6 +46,10 @@ const PROVIDERS =
 
 const PROVIDER_KEY = new RegExp(`^(?:[A-Z0-9]+_)*?(?:${PROVIDERS})(?:_[A-Z0-9]+)*?_(?:API_KEY|APIKEY|KEY|TOKEN|API_TOKEN|ACCESS_TOKEN|AUTH_TOKEN|BOT_TOKEN|REST_TOKEN|REST_API_TOKEN|READ_WRITE_TOKEN|SECRET_KEY|SECRET)$`);
 
+/** Names about a secret rather than holding one: DISABLE_EMAIL_PASSWORD_SIGNUP, PASSWORD_MIN_LENGTH, JWT_SECRET_NAME. */
+const ABOUT_A_SECRET =
+  /^(DISABLE|ENABLE|ALLOW|SHOW|HIDE|USE|REQUIRE|FORCE|SKIP|IS|HAS|CAN|FEATURE|FLAG)_|_(SIGNUP|SIGN_UP|SIGNIN|SIGN_IN|LOGIN|LOGOUT|RESET|ENABLED|DISABLED|LENGTH|MIN_LENGTH|MAX_LENGTH|POLICY|PAGE|PATH|ROUTE|ENDPOINT|LABEL|REQUIRED|EXPIRY|EXPIRES_IN|TTL|NAME|ARN|HEADER|FIELD|PARAM|MODE|TYPE|STRATEGY|VERSION|COUNT|LIMIT|REGEX|PATTERN|HINT)$/;
+
 /**
  * True when an environment variable name says its value is a secret. The name
  * may include a public prefix; the check applies to the rest of the name.
@@ -54,7 +58,9 @@ export function isSecretName(name: string): boolean {
   const upper = name.toUpperCase();
   const bare = stripPublicPrefix(upper);
   if (PUBLIC_BY_DESIGN.test(bare)) return false;
-  return GENERIC_SECRET.test(bare) || DATABASE_URL.test(bare) || PROVIDER_KEY.test(bare);
+  if (DATABASE_URL.test(bare) || PROVIDER_KEY.test(bare)) return true;
+  if (ABOUT_A_SECRET.test(bare)) return false;
+  return GENERIC_SECRET.test(bare);
 }
 
 /** Loose check for config keys and variables: credential-shaped names (token, key, secret, password). */

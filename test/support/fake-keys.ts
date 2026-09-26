@@ -99,6 +99,9 @@ export const FAKE_KEY_GENERATORS: Record<string, Generator> = {
     `${b64url('{"alg":"HS256","typ":"JWT"}')}.${b64url(`{"iss":"supabase","ref":"${randomString(r, 'abcdefghijklmnopqrstuvwxyz', 20)}","role":"service_role","iat":1718000000,"exp":2033576000}`)}.${randomString(r, URLSAFE, 43)}`,
   'supabase-anon-jwt': (r) =>
     `${b64url('{"alg":"HS256","typ":"JWT"}')}.${b64url(`{"iss":"supabase","ref":"${randomString(r, 'abcdefghijklmnopqrstuvwxyz', 20)}","role":"anon","iat":1718000000,"exp":2033576000}`)}.${randomString(r, URLSAFE, 43)}`,
+  // Shaped like the Supabase CLI's local development key (iss supabase-demo), which is the same for everyone.
+  'supabase-demo-service-jwt': (r) =>
+    `${b64url('{"alg":"HS256","typ":"JWT"}')}.${b64url('{"iss":"supabase-demo","role":"service_role","exp":1983812996}')}.${randomString(r, URLSAFE, 43)}`,
   'db-password': (r) => randomString(r, ALNUM, 24),
   'high-entropy': (r) => randomString(r, ALNUM, 40),
 };

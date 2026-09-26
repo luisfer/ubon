@@ -42,7 +42,7 @@ export const publicEnvName: Rule = {
           line: i + 1,
           column: m.index + 1,
           endColumn: m.index + full.length + 1,
-          message: `${full} is shipped to the browser (${prefix.label} exposes every ${prefix.prefix} variable), but its name says it is a secret.`,
+          message: `${full} has the public prefix ${prefix.prefix} (${prefix.label}): any browser code that reads it ships the value to users, and its name says it is a secret.`,
           fix: `Rename it to ${stripPublicPrefix(full)} and read it only in server code; rotate the value if it was ever deployed with the public name.`,
           key: full,
         });

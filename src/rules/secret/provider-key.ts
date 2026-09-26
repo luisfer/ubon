@@ -42,11 +42,15 @@ export function findProviderKeys(text: string): KeyMatch[] {
   while ((m = jwt.exec(text))) {
     const payload = decodeJwtPayload(m[0]);
     if (!payload || payload.role !== 'service_role') continue;
+    // The Supabase CLI's local development keys are published and the same for everyone.
+    if (payload.iss === 'supabase-demo') continue;
     if (overlaps(m.index, m.index + m[0].length)) continue;
     out.push({ format: { id: 'supabase-service-jwt', name: 'Supabase service role key', prefix: 'eyJ' }, value: m[0], index: m.index });
   }
   return out.sort((a, b) => a.index - b.index);
 }
+
+const LABELED_FAKE = /(\/\/|#|\/\*|<!--).*\b(dummy|fake|mock|sample|placeholder|not a real)\b/i;
 
 const FIREBASE_CONFIG = /authDomain|messagingSenderId|storageBucket|measurementId|databaseURL|appId\s*:/;
 const BROWSER_KEY_NAME = /firebase|maps|places|recaptcha|youtube/i;
@@ -124,7 +128,15 @@ export const providerKey: Rule = {
         level = verdict;
         if (verdict === 'warn') note = ' If it is a Firebase or Maps browser key it is public by design; restrict it to your domains in the Google Cloud console.';
       }
+      const lineText = ctx.lines[pos.line - 1] ?? '';
+      // Azurite, the Azure Storage emulator, has one published account key that everyone uses.
+      if (match.format.id === 'azure-storage' && /devstoreaccount1/i.test(lineText)) continue;
+      // A value its author labeled as fake, in a test, an example, or the docs.
+      if (LABELED_FAKE.test(lineText.slice(match.index - (starts[pos.line - 1] ?? 0) + match.value.length)) && (ctx.file.contexts.has('test') || ctx.file.contexts.has('example') || ctx.file.contexts.has('docs'))) continue;
       const masked = maskValue(match.value, match.format.prefix);
+      // Show the line with the key masked; a key that spans lines shows only its masked form.
+      // Private key matches cover the header and the start of the body, so the rest of the line is key material too.
+      const evidence = match.format.id.startsWith('private-key') || !lineText.includes(match.value) ? masked : lineText.split(match.value).join(masked).trim();
       const where = ctx.file.client ? ' in code that ships to the browser' : '';
       ctx.report({
         line: pos.line,
@@ -132,7 +144,7 @@ export const providerKey: Rule = {
         endColumn: pos.column + match.value.length,
         level,
         message: `${match.format.name} in ${ctx.file.lang === 'markdown' ? 'a document' : 'source'}${where}: ${masked}.${note}`,
-        evidence: masked,
+        evidence,
         key: match.format.id,
         fix: match.format.testKey
           ? 'Read the test key from an environment variable too; test keys still give access to your test account.'
