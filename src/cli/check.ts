@@ -1,4 +1,4 @@
-import { mkdirSync, writeFileSync } from 'node:fs';
+import { appendFileSync, mkdirSync, writeFileSync } from 'node:fs';
 import { dirname, isAbsolute, relative, resolve } from 'node:path';
 import { parseArgs } from 'node:util';
 import { levenshtein } from '../core/config.ts';
@@ -24,6 +24,7 @@ Options:
   --staged           Check staged content, for pre-commit
   --format <name>    text, agent, json, sarif, or markdown
   --output <file>    Write the report to a file
+  --summary <file>   Also append a Markdown summary to this file (for CI job summaries)
   --rule <id>        Only run this rule; accepts pack/*. Repeatable
   --online           Allow registry and OSV lookups for this run
   --quiet            Print findings only, no header or footer
@@ -42,6 +43,7 @@ export async function runCheckCommand(argv: string[], io: IO): Promise<number> {
       staged: { type: 'boolean' },
       format: { type: 'string' },
       output: { type: 'string' },
+      summary: { type: 'string' },
       rule: { type: 'string', multiple: true },
       online: { type: 'boolean' },
       quiet: { type: 'boolean' },
@@ -101,6 +103,11 @@ export async function runCheckCommand(argv: string[], io: IO): Promise<number> {
     io.stdout(`ubon: ${block} blocking, ${warn} warnings; report written to ${values.output}\n`);
   } else {
     io.stdout(text);
+  }
+  if (values.summary) {
+    const target = resolve(io.cwd, values.summary);
+    mkdirSync(dirname(target), { recursive: true });
+    appendFileSync(target, formatReport(report, 'markdown'));
   }
   return report.summary.block > 0 ? EXIT.findings : EXIT.ok;
 }
