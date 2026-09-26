@@ -37,10 +37,11 @@
     "test:verbose": "node --test \"test/**/*.test.ts\"",
     "lint:prose": "node scripts/lint-prose.mjs",
     "check:links": "node scripts/check-links.mjs",
+    "check:commands": "node scripts/check-commands.mjs",
     "gen": "node scripts/gen-integrations.mjs && node scripts/gen-docs.mjs",
     "check:gen": "node scripts/gen-integrations.mjs --check && node scripts/gen-docs.mjs --check",
     "check:pack": "node scripts/check-pack.mjs",
-    "verify": "npm run typecheck && npm test && npm run build && npm run check:gen && npm run lint:prose && npm run check:links && npm run check:pack",
+    "verify": "npm run typecheck && npm test && npm run build && npm run check:gen && npm run lint:prose && npm run check:links && npm run check:commands && npm run check:pack",
     "corpus": "node scripts/corpus.mjs",
     "demo": "node scripts/demo.mjs"
   },

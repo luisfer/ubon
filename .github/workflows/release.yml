@@ -1,0 +1,57 @@
+# Publishes a version tag to npm with trusted publishing (OIDC, no token) and
+# provenance. The package is staged: it is not public until the maintainer
+# approves it with a 2FA challenge on npmjs.com, so this workflow alone cannot
+# release. Setup: docs/security.md#releases.
+name: release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+      - run: npm ci
+      - run: npm run verify
+      - name: The tag matches package.json
+        env:
+          TAG: ${{ github.ref_name }}
+        run: test "v$(node -p 'require("./package.json").version')" = "$TAG"
+
+  publish:
+    needs: verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: release
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      # No dependency cache in the release job: a poisoned cache published malware with valid provenance in May 2026.
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+          registry-url: https://registry.npmjs.org
+      - run: npm ci
+      - run: npm run build
+      - name: Stage the release on npm
+        env:
+          VERSION_TAG: ${{ github.ref_name }}
+        run: |
+          dist_tag=latest
+          case "$VERSION_TAG" in *-*) dist_tag=next ;; esac
+          npm stage publish --provenance --access public --tag "$dist_tag"

@@ -1,0 +1,14 @@
+# For the pre-commit framework (https://pre-commit.com). Add to .pre-commit-config.yaml:
+#   - repo: https://github.com/luisfer/ubon
+#     rev: v4.0.0-alpha.0
+#     hooks:
+#       - id: ubon
+# It runs the Ubon release that matches the tag, with npx (Node.js 22.18 or newer on PATH).
+- id: ubon
+  name: ubon
+  description: Check staged changes with Ubon
+  entry: npx --yes ubon@4.0.0-alpha.0 check --staged
+  language: system
+  pass_filenames: false
+  always_run: true
+  stages: [pre-commit]

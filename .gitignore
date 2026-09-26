@@ -3,3 +3,4 @@ dist/
 *.tgz
 coverage/
 .DS_Store
+corpus/.cache/

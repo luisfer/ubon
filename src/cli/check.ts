@@ -23,7 +23,8 @@ Options:
   --base <ref>       Compare against this ref (default: merge base with the default branch)
   --staged           Check staged content, for pre-commit
   --format <name>    text, agent, json, sarif, or markdown
-  --output <file>    Write the report to a file
+  --output <file>    Write the report to a file; repeatable, with the format taken
+                     from each extension (.json, .sarif, .md) when there are several
   --summary <file>   Also append a Markdown summary to this file (for CI job summaries)
   --rule <id>        Only run this rule; accepts pack/*. Repeatable
   --online           Allow registry and OSV lookups for this run
@@ -42,7 +43,7 @@ export async function runCheckCommand(argv: string[], io: IO): Promise<number> {
       base: { type: 'string' },
       staged: { type: 'boolean' },
       format: { type: 'string' },
-      output: { type: 'string' },
+      output: { type: 'string', multiple: true },
       summary: { type: 'string' },
       rule: { type: 'string', multiple: true },
       online: { type: 'boolean' },
@@ -57,7 +58,8 @@ export async function runCheckCommand(argv: string[], io: IO): Promise<number> {
   if (values.all && values.staged) throw new UsageError('--all and --staged cannot be combined.');
   if (values.staged && values.base) throw new UsageError('--staged always compares with HEAD; drop --base.');
 
-  const format = chooseFormat(values.format, values.output, io);
+  const outputs = values.output ?? [];
+  const format = chooseFormat(values.format, outputs.length === 1 ? outputs[0] : undefined, io);
   const selectors = values.rule ?? [];
   validateSelectors(selectors);
 
@@ -94,15 +96,17 @@ export async function runCheckCommand(argv: string[], io: IO): Promise<number> {
     ...(session ? { session, inSession: true } : {}),
   });
   const elapsedMs = performance.now() - started;
-  const text = formatReport(report, format, { elapsedMs, quiet: values.quiet, color: !values.output && io.isTTY });
-  if (values.output) {
-    const target = resolve(io.cwd, values.output);
-    mkdirSync(dirname(target), { recursive: true });
-    writeFileSync(target, text);
+  if (outputs.length > 0) {
+    for (const output of outputs) {
+      const fileFormat = outputs.length === 1 ? format : formatForFile(output, values.format);
+      const target = resolve(io.cwd, output);
+      mkdirSync(dirname(target), { recursive: true });
+      writeFileSync(target, formatReport(report, fileFormat, { elapsedMs, quiet: values.quiet, color: false }));
+    }
     const { block, warn } = report.summary;
-    io.stdout(`ubon: ${block} blocking, ${warn} warnings; report written to ${values.output}\n`);
+    io.stdout(`ubon: ${block} blocking, ${warn} warnings; report written to ${outputs.join(', ')}\n`);
   } else {
-    io.stdout(text);
+    io.stdout(formatReport(report, format, { elapsedMs, quiet: values.quiet, color: io.isTTY }));
   }
   if (values.summary) {
     const target = resolve(io.cwd, values.summary);
@@ -125,6 +129,14 @@ export function chooseFormat(explicit: string | undefined, output: string | unde
     if (/\.md$/i.test(output)) return 'markdown';
   }
   if (detectAgentShell(io.env)) return 'agent';
+  return 'text';
+}
+
+function formatForFile(file: string, explicit: string | undefined): Format {
+  if (/\.json$/i.test(file)) return 'json';
+  if (/\.sarif(\.json)?$/i.test(file)) return 'sarif';
+  if (/\.md$/i.test(file)) return 'markdown';
+  if (explicit && (FORMATS as readonly string[]).includes(explicit)) return explicit as Format;
   return 'text';
 }
 

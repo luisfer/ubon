@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
 import { renameSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { pathToFileURL } from 'node:url';
 import { describe, test } from 'node:test';
 import { runCheck } from '../src/core/engine.ts';
 import { startSession } from '../src/core/session.ts';
@@ -115,7 +116,7 @@ describe('scope', () => {
     commitAll(origin, 'feature');
     const clone = tempDir();
     rmSync(clone, { recursive: true, force: true });
-    execFileSync('git', ['clone', '-q', '--depth', '1', '--branch', 'feature', `file://${origin}`, clone]);
+    execFileSync('git', ['clone', '-q', '--depth', '1', '--branch', 'feature', pathToFileURL(origin).href, clone]);
     writeFileSync(join(clone, 'src/g.ts'), KEY(11));
     const { report } = await runCheck({ cwd: clone, mode: 'diff' });
     assert.equal(report.summary.block, 1);

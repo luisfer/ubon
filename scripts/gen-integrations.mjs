@@ -95,6 +95,11 @@ const configSchema = {
 };
 outputs.set('schema/config.json', `${JSON.stringify(configSchema, null, 2)}\n`);
 
+const action = readFileSync(join(root, 'action.yml'), 'utf8').replace(/(  version:\n    description: [^\n]*\n    default: )\S+/, `$1${pkg.version}`);
+outputs.set('action.yml', action);
+const precommit = readFileSync(join(root, '.pre-commit-hooks.yaml'), 'utf8').replace(/ubon@[\w.-]+/g, `ubon@${pkg.version}`).replace(/rev: v[\w.-]+/, `rev: v${pkg.version}`);
+outputs.set('.pre-commit-hooks.yaml', precommit);
+
 const skillPath = 'skills/ubon/SKILL.md';
 const skill = readFileSync(join(root, skillPath), 'utf8').replace(/ubon-version: "[^"]*"/, `ubon-version: "${pkg.version}"`);
 outputs.set(skillPath, skill);

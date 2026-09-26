@@ -1,0 +1,117 @@
+name: Ubon
+description: Checks pull requests for leaked secrets, trust-boundary bugs, missing data access policies, risky packages and agent configuration, and weakened tests.
+author: Luisfer Romero Calero
+branding:
+  icon: shield
+  color: gray-dark
+
+inputs:
+  version:
+    description: Ubon version to run (an exact version; the default is the version of this action).
+    default: 4.0.0-alpha.0
+  base:
+    description: Git ref to compare against. Default for pull requests is origin/<base branch>.
+    default: ''
+  all:
+    description: Check every file instead of the changes.
+    default: 'false'
+  sarif:
+    description: Upload a SARIF report to GitHub code scanning (needs security-events write permission).
+    default: 'false'
+  summary:
+    description: Write the Markdown report to the job summary.
+    default: 'true'
+  online:
+    description: Allow npm registry and OSV lookups for new packages.
+    default: 'false'
+  fail-on:
+    description: 'block: fail the step when there are blocking findings. never: report only.'
+    default: block
+  working-directory:
+    description: Directory inside the repository to run in.
+    default: .
+
+outputs:
+  blocking:
+    description: Number of blocking findings.
+    value: ${{ steps.ubon.outputs.blocking }}
+  warnings:
+    description: Number of warnings.
+    value: ${{ steps.ubon.outputs.warnings }}
+  report:
+    description: Path of the JSON report.
+    value: ${{ steps.ubon.outputs.report }}
+
+runs:
+  using: composite
+  steps:
+    - name: Check the Node.js version
+      id: node
+      shell: bash
+      run: |
+        if node -e 'const [a,b]=process.versions.node.split(".").map(Number); process.exit(a>22||(a===22&&b>=18)?0:1)' 2>/dev/null; then
+          echo "setup=false" >> "$GITHUB_OUTPUT"
+        else
+          echo "setup=true" >> "$GITHUB_OUTPUT"
+        fi
+
+    - name: Set up Node.js for Ubon
+      if: steps.node.outputs.setup == 'true'
+      uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+      with:
+        node-version: 24
+
+    - name: Run Ubon
+      id: ubon
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      env:
+        UBON_VERSION: ${{ inputs.version }}
+        INPUT_BASE: ${{ inputs.base }}
+        INPUT_ALL: ${{ inputs.all }}
+        INPUT_SARIF: ${{ inputs.sarif }}
+        INPUT_SUMMARY: ${{ inputs.summary }}
+        INPUT_ONLINE: ${{ inputs.online }}
+        PR_BASE_REF: ${{ github.base_ref }}
+      run: |
+        set -uo pipefail
+        out="$RUNNER_TEMP/ubon"
+        mkdir -p "$out"
+        args=(check --output "$out/report.json" --output "$out/ubon.sarif")
+        if [ "$INPUT_ALL" = "true" ]; then
+          args+=(--all)
+        elif [ -n "$INPUT_BASE" ]; then
+          args+=(--base "$INPUT_BASE")
+        elif [ -n "$PR_BASE_REF" ]; then
+          args+=(--base "origin/$PR_BASE_REF")
+        fi
+        if [ "$INPUT_ONLINE" = "true" ]; then args+=(--online); fi
+        if [ "$INPUT_SUMMARY" = "true" ] && [ -n "${GITHUB_STEP_SUMMARY:-}" ]; then args+=(--summary "$GITHUB_STEP_SUMMARY"); fi
+        npx --yes "ubon@${UBON_VERSION}" "${args[@]}"
+        code=$?
+        echo "exit=$code" >> "$GITHUB_OUTPUT"
+        echo "report=$out/report.json" >> "$GITHUB_OUTPUT"
+        if [ -f "$out/report.json" ]; then
+          node -e 'const r=require(process.argv[1]); console.log("blocking="+r.summary.block); console.log("warnings="+r.summary.warn)' "$out/report.json" >> "$GITHUB_OUTPUT"
+        fi
+        exit 0
+
+    - name: Upload SARIF
+      if: inputs.sarif == 'true' && steps.ubon.outputs.exit != '' && steps.ubon.outputs.exit != '2' && steps.ubon.outputs.exit != '3'
+      uses: github/codeql-action/upload-sarif@2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2 # v4.38.2
+      with:
+        sarif_file: ${{ runner.temp }}/ubon/ubon.sarif
+        category: ubon
+
+    - name: Result
+      shell: bash
+      env:
+        UBON_EXIT: ${{ steps.ubon.outputs.exit }}
+        FAIL_ON: ${{ inputs.fail-on }}
+      run: |
+        case "$UBON_EXIT" in
+          0) echo "ubon: no blocking findings." ;;
+          1) if [ "$FAIL_ON" = "never" ]; then echo "ubon: blocking findings (fail-on: never)."; else echo "::error::ubon found blocking findings. See the job summary or the log above."; exit 1; fi ;;
+          2) echo "::error::ubon could not run: usage or configuration error (see the log above)."; exit 1 ;;
+          *) echo "::error::ubon failed (exit code ${UBON_EXIT:-unknown}). See the log above."; exit 1 ;;
+        esac
