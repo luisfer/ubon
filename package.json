@@ -1,0 +1,86 @@
+{
+  "name": "ubon",
+  "version": "4.0.0-alpha.0",
+  "description": "Checks the work of coding agents: secrets, trust boundaries, data access policies, risky packages and commands, and weakened tests. Runs inside Claude Code, Codex, Cursor, Gemini CLI, GitHub Copilot, and CI.",
+  "type": "module",
+  "bin": {
+    "ubon": "dist/ubon.mjs"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.mjs"
+    },
+    "./package.json": "./package.json",
+    "./schema/*": "./schema/*"
+  },
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist/ubon.mjs",
+    "dist/index.mjs",
+    "dist/index.d.ts",
+    "schema/config.json",
+    "schema/report.json",
+    "llms.txt",
+    "THIRD_PARTY_NOTICES.md"
+  ],
+  "sideEffects": false,
+  "engines": {
+    "node": ">=22.18.0"
+  },
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "node --test --test-reporter=dot \"test/**/*.test.ts\"",
+    "test:verbose": "node --test \"test/**/*.test.ts\"",
+    "lint:prose": "node scripts/lint-prose.mjs",
+    "check:links": "node scripts/check-links.mjs",
+    "gen": "node scripts/gen-integrations.mjs && node scripts/gen-docs.mjs",
+    "check:gen": "node scripts/gen-integrations.mjs --check && node scripts/gen-docs.mjs --check",
+    "check:pack": "node scripts/check-pack.mjs",
+    "verify": "npm run typecheck && npm test && npm run build && npm run check:gen && npm run lint:prose && npm run check:links && npm run check:pack",
+    "corpus": "node scripts/corpus.mjs",
+    "demo": "node scripts/demo.mjs"
+  },
+  "keywords": [
+    "ai-agents",
+    "claude-code",
+    "codex",
+    "cursor",
+    "copilot",
+    "gemini-cli",
+    "agent-skills",
+    "hooks",
+    "mcp",
+    "security",
+    "secrets",
+    "supply-chain",
+    "supabase",
+    "nextjs",
+    "static-analysis",
+    "sarif"
+  ],
+  "author": "Luisfer Romero Calero <luisfer.romero.calero@gmail.com>",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/luisfer/ubon.git"
+  },
+  "bugs": {
+    "url": "https://github.com/luisfer/ubon/issues"
+  },
+  "homepage": "https://github.com/luisfer/ubon#readme",
+  "mcpName": "io.github.luisfer/ubon",
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "devDependencies": {
+    "@babel/parser": "7.29.9",
+    "@modelcontextprotocol/client": "2.1.0",
+    "@types/node": "22.20.4",
+    "esbuild": "0.28.2",
+    "typescript": "7.0.2",
+    "yaml": "2.9.1"
+  }
+}

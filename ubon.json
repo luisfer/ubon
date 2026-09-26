@@ -1,0 +1,4 @@
+{
+  "$schema": "./schema/config.json",
+  "ignore": ["fixtures/**", "corpus/**"]
+}
