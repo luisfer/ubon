@@ -1,0 +1,19 @@
+{
+  "$comment": "Public repositories that measure Ubon's precision. Each is pinned by commit. `paths` limits the check to part of a repository. See corpus/README.md.",
+  "repos": [
+    { "name": "vercel/ai-chatbot", "commit": "c2f8235e1f3ea903ad8b7f61447c4f74164b5c58", "kind": "reference app" },
+    { "name": "documenso/documenso", "commit": "a1d4bec1430a937395db9a4aae28979cd71c2831", "kind": "product" },
+    { "name": "dubinc/dub", "commit": "ac13d86c09664909db8aa88e9c601070660aede0", "kind": "product" },
+    { "name": "formbricks/formbricks", "commit": "bfe7933cb2882c99f2196aa6a46edd104cd7fbb8", "kind": "product" },
+    { "name": "t3-oss/create-t3-app", "commit": "4709861f7e67a15564c0460c13e7b4b6cfcae40d", "kind": "template" },
+    { "name": "vercel/nextjs-subscription-payments", "commit": "bdd0813206e47e6b218d42f15a7976c8a0d3c3eb", "kind": "template" },
+    { "name": "mckaywrigley/chatbot-ui", "commit": "81328b61d2a4ab597a7a057be70e785cf756d9f8", "kind": "AI app" },
+    { "name": "usebasejump/basejump", "commit": "7a1f95ccef74eb2e638d5e4233b66b6cbbe175e6", "kind": "Supabase schema" },
+    { "name": "juice-shop/juice-shop", "commit": "1618a611b173b4bf114028e6e02549950606e29d", "kind": "intentionally vulnerable" },
+    { "name": "vitejs/vite", "commit": "bc598a6a8a6b7d6e157e9f19c16911cff8d2360c", "kind": "workflows", "paths": [".github"] },
+    { "name": "withastro/astro", "commit": "4ce2fca6edac7ac56c410b8d853a3968cc34b046", "kind": "workflows", "paths": [".github"] },
+    { "name": "TanStack/router", "commit": "1e113034bdeccf696e6658d0b886439deb023bfd", "kind": "workflows", "paths": [".github"] },
+    { "name": "zizmorcore/zizmor", "commit": "3f912c75d558005a72f638a8af39ed5b3465a762", "kind": "workflows", "paths": [".github"] },
+    { "name": "actions/checkout", "commit": "f548e57e544e1ff5a4c46bf1e1b8685f8e4a348a", "kind": "workflows", "paths": [".github"] }
+  ]
+}

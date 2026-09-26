@@ -1,0 +1,45 @@
+# Ubon
+
+> Ubon checks the work of coding agents. It runs in agent hooks (Claude Code, Codex, Cursor, Gemini CLI, GitHub Copilot), git hooks, and CI, and reports leaked secrets, trust-boundary bugs, missing data access policies, risky packages and commands, and weakened tests. It is deterministic and local.
+
+Run `npx ubon check` to check the changes since the base branch. Exit code 1 means there is a `block` finding. Fix every `block` finding before you finish a task; `ubon explain <rule>` shows how.
+
+## Docs
+
+- [Overview](https://github.com/luisfer/ubon/blob/main/README.md): What Ubon checks, how to install it for each agent, and its commands.
+- [For agents](https://github.com/luisfer/ubon/blob/main/docs/agents.md): What an agent does with Ubon: when to run what, how to read findings, how to fix or suppress them, and what never to do.
+- [Getting started](https://github.com/luisfer/ubon/blob/main/docs/getting-started.md): Install Ubon and watch it stop an agent in an example app.
+- [Configuration](https://github.com/luisfer/ubon/blob/main/docs/config.md): Every key of ubon.json, suppressions, and baselines.
+- [Output](https://github.com/luisfer/ubon/blob/main/docs/output.md): Text, agent, JSON, SARIF, and Markdown formats, exit codes, and fingerprints.
+- [CI](https://github.com/luisfer/ubon/blob/main/docs/ci.md): The GitHub Action, other CI systems, SARIF upload, and git hooks.
+- [MCP server](https://github.com/luisfer/ubon/blob/main/docs/mcp.md): Client configuration and the check, explain, map, and vet tools.
+- [How it works](https://github.com/luisfer/ubon/blob/main/docs/how-it-works.md): Scope, file contexts, sessions, and why some rules only warn.
+- [Security](https://github.com/luisfer/ubon/blob/main/docs/security.md): The threat model for Ubon itself and how releases are built.
+- [Compatibility](https://github.com/luisfer/ubon/blob/main/docs/compatibility.md): Node.js, Git, operating systems, and agent versions.
+- [Upgrade from Ubon 3](https://github.com/luisfer/ubon/blob/main/docs/upgrade.md): Commands, options, configuration, and files that changed.
+- [Claude Code](https://github.com/luisfer/ubon/blob/main/docs/integrations/claude-code.md): The plugin, its hooks, the skill, and commands.
+- [Codex](https://github.com/luisfer/ubon/blob/main/docs/integrations/codex.md): Hooks and the skill for Codex.
+- [Cursor](https://github.com/luisfer/ubon/blob/main/docs/integrations/cursor.md): Hooks and the skill for Cursor.
+- [Gemini CLI](https://github.com/luisfer/ubon/blob/main/docs/integrations/gemini-cli.md): Hooks and the skill for Gemini CLI.
+- [GitHub Copilot](https://github.com/luisfer/ubon/blob/main/docs/integrations/github-copilot.md): Hooks for Copilot CLI and the cloud agent.
+- [Other agents](https://github.com/luisfer/ubon/blob/main/docs/integrations/other-agents.md): The skill, AGENTS.md, git hooks, and MCP for agents without hooks.
+- [The ubon skill](https://github.com/luisfer/ubon/blob/main/skills/ubon/SKILL.md): The skill agents load: when to check, how to triage, and the playbooks.
+
+## Rules
+
+- [secret/provider-key](https://github.com/luisfer/ubon/blob/main/docs/rules/secret/provider-key.md): Provider credential in source (block).
+- [secret/db-url-password](https://github.com/luisfer/ubon/blob/main/docs/rules/secret/db-url-password.md): Database URL with a password (block).
+- [secret/public-env-name](https://github.com/luisfer/ubon/blob/main/docs/rules/secret/public-env-name.md): Secret in a browser-exposed env variable (block).
+- [secret/env-file-committed](https://github.com/luisfer/ubon/blob/main/docs/rules/secret/env-file-committed.md): .env file with secrets that git can commit (block).
+- [secret/key-file-committed](https://github.com/luisfer/ubon/blob/main/docs/rules/secret/key-file-committed.md): Private key or credential file in git (block).
+- [secret/server-env-in-client](https://github.com/luisfer/ubon/blob/main/docs/rules/secret/server-env-in-client.md): Server env variable read in browser code (warn).
+- [secret/in-prompt](https://github.com/luisfer/ubon/blob/main/docs/rules/secret/in-prompt.md): Provider key in a prompt (block).
+- [secret/in-tool-output](https://github.com/luisfer/ubon/blob/main/docs/rules/secret/in-tool-output.md): Provider key in tool output (warn).
+- [secret/read-sensitive-file](https://github.com/luisfer/ubon/blob/main/docs/rules/secret/read-sensitive-file.md): Agent reads a secrets file (block).
+- [integrity/invalid-suppression](https://github.com/luisfer/ubon/blob/main/docs/rules/integrity/invalid-suppression.md): Suppression without a valid reason (warn).
+- [integrity/unused-suppression](https://github.com/luisfer/ubon/blob/main/docs/rules/integrity/unused-suppression.md): Suppression that no longer matches a finding (warn).
+
+## Optional
+
+- [Full text of the docs](https://github.com/luisfer/ubon/blob/main/llms-full.txt): every page above in one file.
+- [Changelog](https://github.com/luisfer/ubon/blob/main/CHANGELOG.md)

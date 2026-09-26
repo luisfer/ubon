@@ -1,0 +1,1647 @@
+<!-- README.md -->
+
+# Ubon
+
+Ubon checks the work of coding agents. It runs inside Claude Code, Codex, Cursor, Gemini CLI, GitHub Copilot, git hooks, and CI, and looks at what the agent changed and the commands it runs. It stops the agent when it leaks a secret, exposes data, adds a risky package, runs a destructive command, or weakens the tests.
+
+Ubon is deterministic and runs locally. It has no dependencies, calls no language model, and makes no network requests unless you ask it to.
+
+<!-- ubon:demo:begin -->
+```text
+$ npx ubon check
+ubon 4.0.0-alpha.0: 2 changed files since main
+
+block  secret/provider-key  lib/openai.ts:3
+       OpenAI API key in source: sk-proj-...MsGg.
+       3   export const openai = new OpenAI({ apiKey: 'sk-proj-...MsGg' });
+       Fix: Move it to an environment variable (for example process.env.OPENAI_API_KEY) and rotate the key, because it is exposed.
+
+1 blocking.
+```
+
+The exit code is 1 because there are blocking findings. This output is generated from [fixtures/demo](fixtures/demo), where `before/` is the base commit and `after/` is what an agent changed.
+<!-- ubon:demo:end -->
+
+## Add it to your agent
+
+Ubon needs Node.js 22.18 or newer.
+
+| Agent | Install |
+| --- | --- |
+| Claude Code | `/plugin marketplace add luisfer/ubon`, then `/plugin install ubon@ubon` |
+| Codex | `npx ubon@4 init --codex --yes` |
+| Cursor | `npx ubon@4 init --cursor --yes` |
+| Gemini CLI | `npx ubon@4 init --gemini --yes` |
+| GitHub Copilot (CLI and cloud agent) | `npx ubon@4 init --copilot --yes` |
+| Other agents with skills | `npx skills add luisfer/ubon` |
+| Git pre-commit and GitHub Actions | `npx ubon@4 init --git-hooks --github --yes` |
+
+Without `--yes`, `ubon init` prints what it would change and writes nothing. For faster hooks and a version pinned by your lockfile, add Ubon as a dev dependency first (`npm install --save-dev ubon`). After installing, `npx ubon doctor` shows whether the hooks are firing.
+
+Version 4 is in alpha. Until 4.0.0 is published, use `ubon@next` in place of `ubon@4`.
+
+## What happens in an agent session
+
+- Before a command runs, Ubon checks it. `rm -rf` outside the project, `git push --force`, `git commit --no-verify`, and secrets piped to the network are denied or sent to you for approval. Package installs are checked for packages that do not exist or were published hours ago.
+- After each edit, Ubon checks the edited files and tells the agent what it found, with the rule, the line, and a fix.
+- When the agent tries to finish, Ubon checks everything it changed in the session. A `block` finding sends the agent back to fix it. Findings that were already in the code before the session are reported, not blocked.
+- Prompts that contain a provider key are stopped before they reach the model (in every agent above except GitHub Copilot, which ignores the answer of prompt hooks).
+
+If Ubon itself fails, the hook lets the agent continue and prints a message. [docs/agents.md](docs/agents.md) describes what agents are told to do with each finding.
+
+## What it checks
+
+| Pack | Examples |
+| --- | --- |
+| `secret` | provider keys in code, config, and prompts; secrets behind `NEXT_PUBLIC_` and `VITE_`; committed `.env` files and private keys |
+| `web` | SQL and command injection, SSRF, path traversal, open redirects, unverified webhooks and JWTs, credentialed CORS wildcards |
+| `data` | Supabase tables without row level security, permissive policies, service role keys in the browser, Firebase rules in test mode |
+| `llm` | API keys in the browser, model output reaching `eval` or SQL, tools with unrestricted shell or file access |
+| `deps` | packages that do not exist, packages published hours ago, names close to popular packages, install scripts |
+| `agent` | hidden Unicode in instruction files, `curl \| sh` in hooks and skills, secrets and unpinned servers in MCP config, destructive commands |
+| `ci` | workflows that run untrusted code with secrets, unpinned actions, secrets in logs |
+| `integrity` | new `.skip` and `.only`, deleted tests, `@ts-nocheck`, lowered coverage thresholds, removed CI checks, suppressions without a reason |
+| `hygiene` | debug output of secrets, TLS verification turned off, placeholder auth checks |
+
+Each rule has fixtures that show what it flags and what it leaves alone. [docs/rules](docs/rules/README.md) lists every rule with its examples, and `ubon explain <rule>` prints one.
+
+## Commands
+
+| Command | What it does |
+| --- | --- |
+| `ubon check` | Check the changes since the base branch, including new files. `--all` checks every file, `--staged` checks what the next commit records. |
+| `ubon init` | Set up agents, git hooks, and CI. Dry run unless `--yes`. |
+| `ubon vet <package...>` | Check packages before you install them. |
+| `ubon map` | List entry points, their auth checks, data access, environment variables, and model calls. |
+| `ubon explain <rule>` | Show what a rule checks, why, how to fix it, and tested examples. |
+| `ubon rules` | List rules and their levels. |
+| `ubon baseline` | Record existing findings so `ubon check --all` reports only new ones. |
+| `ubon doctor` | Check the installation and recent hook activity. |
+| `ubon mcp` | Run the MCP server for clients without shell access. |
+| `ubon hook <agent> <event>` | Handle one hook event. `ubon init` writes these for you. |
+
+Exit codes: 0 when there is no `block` finding, 1 when there is one, 2 for a usage or configuration error, 3 when Ubon fails. `--format` selects `text`, `agent`, `json`, `sarif`, or `markdown`; see [docs/output.md](docs/output.md).
+
+## What it does not do
+
+- It does not prove that your app is secure. It checks specific rules, and every report lists what it could not check.
+- It does not replace ESLint, TypeScript, your tests, or `npm audit`.
+- It is not a sandbox. Command checks catch mistakes and obvious attacks. Use your agent's sandbox for containment.
+- It does not edit your code. The agent makes the fixes.
+- It does not send your code anywhere.
+
+## Configuration
+
+Ubon works without configuration. To change a rule's level, skip files, or name your own auth helpers, create `ubon.json`. [docs/config.md](docs/config.md) lists every key.
+
+```json
+{
+  "$schema": "./node_modules/ubon/schema/config.json",
+  "rules": { "hygiene/*": "off" },
+  "ignore": ["legacy/**"]
+}
+```
+
+A finding that is wrong for your code can be suppressed with a comment that says who decided and why:
+
+```ts
+// ubon-ignore web/ssrf: user confirmed: the URL comes from our own config table
+```
+
+## For agents
+
+If you are an AI agent working in a repository that uses Ubon, read [docs/agents.md](docs/agents.md). In short: run `ubon check` before you say a task is done, fix every `block` finding, run `ubon vet` before you install a package, and never suppress a finding or edit `ubon.json` without the user's agreement. [llms.txt](llms.txt) indexes the docs.
+
+## Docs
+
+- [Getting started](docs/getting-started.md): install Ubon and watch it stop an agent in an example app.
+- Integrations: [Claude Code](docs/integrations/claude-code.md), [Codex](docs/integrations/codex.md), [Cursor](docs/integrations/cursor.md), [Gemini CLI](docs/integrations/gemini-cli.md), [GitHub Copilot](docs/integrations/github-copilot.md), [other agents](docs/integrations/other-agents.md).
+- [CI and the GitHub Action](docs/ci.md), [MCP server](docs/mcp.md), [configuration](docs/config.md), [output formats](docs/output.md).
+- [How it works](docs/how-it-works.md), [security of Ubon itself](docs/security.md), [compatibility](docs/compatibility.md).
+- [Upgrade from Ubon 3](docs/upgrade.md) and [history](docs/history.md).
+
+## Security
+
+How Ubon handles your code, what it sends where, and how releases are built and verified: [docs/security.md](docs/security.md). Report vulnerabilities privately as described in [SECURITY.md](SECURITY.md).
+
+## Contributing
+
+[AGENTS.md](AGENTS.md) explains how to build, test, and add a rule. Report false positives at https://github.com/luisfer/ubon/issues with the smallest code that triggers them.
+
+## About the name
+
+Ubon (อุบล) is Thai for lotus.
+
+## License
+
+MIT
+
+<!-- docs/agents.md -->
+
+# For agents
+
+This page is for AI coding agents working in a repository that uses Ubon. It says when to run what, how to read the output, and what to do with a finding. People can read it too; it is the protocol the Ubon skill and the `AGENTS.md` block describe in short.
+
+## When to run what
+
+| Moment | Command |
+| --- | --- |
+| After you change code, and before you say a task is done | `ubon check` |
+| Before you install or add a package | `ubon vet <package>` |
+| When a finding is unclear or looks wrong | `ubon explain <rule>` |
+| When asked for a security review | `ubon check --all`, then `ubon map` |
+
+Use `ubon` when it is on your PATH, otherwise `npx ubon`. Inside Claude Code with the Ubon plugin, and in any agent set up with `ubon init`, hooks also run Ubon for you: before shell commands, after file edits, and before you finish.
+
+If Ubon cannot run, say so in the first line of your reply (`Ubon did not run: <reason>.`) and do not present your own review as Ubon's result.
+
+## Reading the output
+
+In your shell, `ubon check` prints one line per finding:
+
+```
+ubon: 1 blocking, 1 warning in 3 changed files (base origin/main)
+BLOCK web/ssrf app/api/preview/route.ts:12 fetch() uses a URL from the request body (line 9: url from the request body). Fix: allowlist the host before fetching.
+WARN web/open-redirect app/auth/callback/route.ts:18 redirect() uses the next parameter from the query string. Fix: allow only paths that start with a single slash.
+Not checked: registry lookups for new packages (offline; run with --online or set packages.online).
+```
+
+- `BLOCK`: fix it before you finish. The stop hook will not let you finish while one remains in code changed in the session (after two attempts it lets you stop and records the finding as unresolved for the pull request).
+- `WARN`: information. Fix it when the fix is small and clearly right; otherwise mention it.
+- `[already at the base]`: the finding existed before this change. It does not block you.
+- `Not checked:` lists what Ubon could not check. Pass it on in your report.
+
+The same report is available as JSON (`ubon check --format json`); the fields are described in [output.md](output.md).
+
+Exit codes: 0 no blocking findings, 1 blocking findings, 2 usage or configuration error, 3 Ubon failed.
+
+## What to do with a finding
+
+1. Read the code at the line, and the lines in the trace when there is one.
+2. If the finding is right, fix the code. The `Fix:` text says how; `ubon explain <rule>` has more.
+3. If the finding is wrong, add a suppression on the line above, in the file's comment syntax, with a reason in the form `<who decided>: <evidence>`:
+
+   ```ts
+   // ubon-ignore web/ssrf: agent: host is checked against ALLOWED_HOSTS in lib/net.ts before this call
+   const res = await fetch(url)
+   ```
+
+   Use `agent` as who decided when you decided from the code. Use the user's name or `user confirmed` only when the user told you. Tell the user about every suppression you add. A suppression without a reason suppresses nothing.
+4. If you cannot tell, ask the user once, with the rule, the location, and what you need to know.
+
+## What never to do
+
+- Edit `ubon.json`, hook settings (`.claude/settings.json`, `.codex/hooks.json`, `.cursor/hooks.json`, `.gemini/settings.json`, `.github/hooks/`), or CI workflows to get past a finding. Ubon asks a person before those files change, and reports removed hooks.
+- Edit, skip, or delete a test to make it pass. Ask the user when a test looks wrong.
+- Rewrite code into a form Ubon does not recognize but that is just as unsafe.
+- Print or repeat a secret value, even one that appeared in tool output.
+- Suppress a finding with a reason you cannot back with evidence.
+
+## Hooks, from the agent's side
+
+| Hook | What you see |
+| --- | --- |
+| Session start | One line saying Ubon is active. |
+| Before a shell command | Nothing, or a denial or a question to the user with the reason (for example `git commit --no-verify`, or installing a package that does not exist). |
+| Before a file read | A question to the user for `.env` files and private keys. |
+| Before a file write | A denial when the content contains a provider key or hidden Unicode in an agent file, with what to do instead. |
+| After a file edit | The findings for that file, while you still have the context to fix them. |
+| Before you finish | The blocking findings in everything changed in the session, or nothing. |
+| Prompt submitted | A prompt that contains a provider key is blocked before it reaches the model; the user sees why. |
+
+<!-- docs/config.md -->
+
+# Configuration
+
+Ubon works without configuration. To change it, create `ubon.json` at the root of the repository. It is plain JSON; Ubon never runs code from your project to read settings, and it does not read settings from `package.json`.
+
+Unknown keys are an error (exit code 2, with the key named), so a typo cannot switch a check off without anyone noticing. Editors can complete and check the file with the JSON Schema that ships in the package:
+
+```json
+{
+  "$schema": "./node_modules/ubon/schema/config.json"
+}
+```
+
+## Example
+
+```json
+{
+  "$schema": "./node_modules/ubon/schema/config.json",
+  "rules": {
+    "web/open-redirect": "block",
+    "hygiene/*": "off"
+  },
+  "ignore": ["legacy/**"],
+  "auth": {
+    "functions": ["requireUser", "getCurrentOrg"],
+    "public": ["app/api/health/route.ts"]
+  },
+  "packages": {
+    "online": false,
+    "minAgeDays": 7,
+    "minReleaseAgeHours": 48,
+    "allow": ["@acme/*"]
+  },
+  "commands": {
+    "ask": ["npm publish", "vercel --prod"],
+    "deny": ["prisma migrate reset"],
+    "allow": ["rm -rf .next", "rm -rf dist"]
+  },
+  "suppressions": { "agent": "allow" },
+  "session": { "stop": "block" },
+  "prompts": { "secrets": "block" }
+}
+```
+
+## Keys
+
+| Key | Type | Default | Meaning |
+| --- | --- | --- | --- |
+| `rules` | object | `{}` | Level per rule ID or pack selector (`pack/*`): `block`, `warn`, or `off`. An exact ID wins over a pack selector. `block` raises every finding of the rule to block; `warn` lowers them; `off` stops the rule from running. |
+| `ignore` | string[] | `[]` | Glob patterns of files not to check. A pattern without a slash matches at any depth, as in `.gitignore`. Git-ignored files are never checked. |
+| `auth.functions` | string[] | `[]` | Names of your own auth helpers, so `ubon map` recognizes calls to them as auth checks. |
+| `auth.public` | string[] | `[]` | Glob patterns of entry point files that are public on purpose; `ubon map` marks them. |
+| `packages.online` | boolean | `false` | Allow npm registry and OSV lookups for new packages, in `ubon check` and in install commands in hooks. `ubon vet` always looks up. |
+| `packages.minAgeDays` | number | `7` | A newly added package must have existed for at least this many days (`deps/young-package`). |
+| `packages.minReleaseAgeHours` | number | `48` | A newly added version must have been published at least this many hours ago. |
+| `packages.allow` | string[] | `[]` | Package names or scopes (`@acme/*`) that skip the package checks. |
+| `commands.ask` | string[] | `[]` | Command prefixes that need a person to approve them in agent hooks. |
+| `commands.deny` | string[] | `[]` | Command prefixes that are always denied in agent hooks. |
+| `commands.allow` | string[] | `[]` | Command prefixes that are always allowed, checked before the built-in command rules. |
+| `suppressions.agent` | `allow`, `human-only` | `allow` | With `human-only`, a suppression added during an agent session blocks the stop hook until a person approves it. Either way, every new suppression is listed. |
+| `session.stop` | `block`, `warn` | `block` | `block`: an agent must fix blocking findings before it finishes. `warn`: it is told and may stop. |
+| `prompts.secrets` | `block`, `warn` | `block` | What to do with a prompt that contains a provider key. |
+| `maxFileSize` | number | `1048576` | Files larger than this many bytes are skipped and listed under "Not checked". |
+
+## Suppressing one finding
+
+Put a comment above the line, or at the end of it, in the file's comment syntax:
+
+```ts
+// ubon-ignore web/ssrf: luisfer: URL is checked by isAllowedHost() in lib/net.ts
+```
+
+```sql
+-- ubon-ignore data/permissive-policy: luisfer: public read-only catalog, reviewed 2026-09-01
+```
+
+The reason is required and has two parts: who decided, and the evidence. A comment without a reason, or with an unknown rule ID, suppresses nothing and is reported by `integrity/invalid-suppression`. Markdown files use HTML comments: `<!-- ubon-ignore agent/instruction-injection: luisfer: quoted example -->`.
+
+## Baselines for existing projects
+
+`ubon baseline` records every current finding in `.ubon/baseline.json` (rule IDs, file paths, and fingerprints; no code and no secrets). Later checks leave those findings out, so an existing project sees only new problems. Commit the file. Diff checks do not need a baseline: they already report only what changed.
+
+## Personal defaults for the Claude Code plugin
+
+The plugin has two options, set when you enable it: the stop behavior and registry lookups for installs. They apply only where `ubon.json` says nothing, so the project's settings always win. Outside the plugin, the environment variables `UBON_STOP` (`block` or `warn`) and `UBON_ONLINE` (`true` or `false`) do the same.
+
+<!-- docs/output.md -->
+
+# Output
+
+`ubon check` writes one of five formats. The default is `text` in a terminal, `agent` inside a coding agent's shell (Ubon detects Claude Code, Codex, Gemini CLI, Copilot, and Cursor from their environment variables), and the format matching the file extension when you pass `--output`.
+
+| Format | For | Select with |
+| --- | --- | --- |
+| `text` | people in a terminal | `--format text` |
+| `agent` | coding agents: one line per finding, instructions at the end | `--format agent` |
+| `json` | programs; versioned schema | `--format json`, or `--output report.json` |
+| `sarif` | GitHub code scanning and other SARIF tools | `--format sarif`, or `--output ubon.sarif` |
+| `markdown` | pull request comments and CI job summaries | `--format markdown`, or `--summary <file>` to append it |
+
+`--output` can be given more than once; each file gets the format of its extension (`.json`, `.sarif`, `.md`). `UBON_FORMAT` in the environment sets the default format.
+
+## Exit codes
+
+| Code | Meaning |
+| --- | --- |
+| 0 | No blocking findings. |
+| 1 | At least one blocking finding. |
+| 2 | Usage or configuration error. The message names the flag or key. |
+| 3 | Ubon failed. Please report it. In hooks, Ubon never fails the agent's action: it allows it and shows a notice. |
+
+## Text
+
+```
+ubon 4.0.0: 2 changed files since origin/main (0.3 s)
+
+block  secret/provider-key  lib/openai.ts:3
+       OpenAI API key in source: sk-proj-...a1B2.
+       3   sk-proj-...a1B2
+       Fix: Move it to an environment variable (for example process.env.OPENAI_API_KEY) and rotate the key, because it is exposed.
+
+1 blocking.
+```
+
+## JSON
+
+The report has `schemaVersion: "4.0"` and follows [schema/report.json](../schema/report.json).
+
+| Field | Meaning |
+| --- | --- |
+| `scope` | `mode` (`diff`, `all`, `paths`, `staged`, `session`), `base` and `baseCommit` when there is one, and `files` (how many files were checked). |
+| `summary` | Counts: `block`, `warn`, `suppressed`, `baselined`. |
+| `findings[]` | `rule`, `level`, `file`, `range` (1-based line and column), `message`, `evidence` (masked), `trace` (source-to-sink steps, when there are any), `fix`, `docs`, `fingerprint`, `introduced`. |
+| `suppressed[]` | Findings that an `ubon-ignore` comment suppressed, with the comment's line, its reason, and `added` (whether the comment is new in this change). |
+| `notChecked[]` | What Ubon could not check in this run: files over the size limit, files with syntax errors, lookups that did not run. |
+| `notes[]` | Facts about the run, such as a fallback base in a shallow clone. |
+
+`introduced` is `true` for a finding that is new in this change and `false` for one that already existed at the base (such findings are reported as warnings and never block). It is absent when there is no base, as in `--all`.
+
+`fingerprint` is 16 hex characters derived from the rule, the file, the finding's line text (masked), and its position among identical findings. Line numbers are not part of it, so a finding keeps its fingerprint when code above it moves. Baselines and SARIF `partialFingerprints` use it.
+
+## Secrets in output
+
+Every string that leaves Ubon (messages, evidence, traces, SARIF, MCP results, hook output, the session log) goes through one masking function when the finding is created. A key is shown as its documented prefix and last four characters, for example `sk-proj-...a1B2`, so you can tell which key to rotate. Connection strings keep their host and lose their password. The tests check every output format against generated keys of every supported provider format.
+
+<!-- docs/ci.md -->
+
+# CI
+
+In CI, Ubon checks the pull request's changes against the merge base and fails the job when there are blocking findings. It runs independently of any agent, so it also catches what an agent's session let through.
+
+## GitHub Actions
+
+`npx ubon init --github --yes` writes this workflow, or add the action to your own:
+
+```yaml
+name: ubon
+on:
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  ubon:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write # only for sarif: true
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0 # the merge base must be in the clone
+          persist-credentials: false
+      - uses: luisfer/ubon@<commit SHA of a release> # v4.0.0
+        with:
+          sarif: true
+```
+
+| Input | Default | Meaning |
+| --- | --- | --- |
+| `version` | the action's own version | Ubon version to run (exact). |
+| `base` | `origin/<pull request base branch>` | Ref to compare against. |
+| `all` | `false` | Check every file instead of the changes. |
+| `sarif` | `false` | Upload SARIF to code scanning. Needs `security-events: write`. |
+| `summary` | `true` | Write the Markdown report to the job summary. |
+| `online` | `false` | Allow registry and OSV lookups for new packages. |
+| `fail-on` | `block` | `block` fails the step on blocking findings; `never` only reports. |
+| `working-directory` | `.` | Where to run. |
+
+Outputs: `blocking`, `warnings`, and `report` (the path of the JSON report).
+
+The job summary lists every suppression added in the pull request in its own section, so a reviewer sees what was waved through and by whom.
+
+Pin the action to a commit SHA, not a tag: a tag can be moved to different code.
+
+## Other CI systems
+
+Any CI with Node.js 22.18 or newer:
+
+```sh
+npx --yes ubon@4.0.0 check --base "origin/$BASE_BRANCH" --output ubon.sarif --output ubon.json
+```
+
+- Fetch enough history for the merge base. A shallow clone (depth 1) does not have it; Ubon then compares with the ref directly and says so in the report.
+- Pin the version (`ubon@4.0.0`), so a new release cannot change what CI enforces without a pull request.
+- The exit code is 1 when there are blocking findings, 2 for a configuration error, and 3 when Ubon itself failed.
+
+GitLab CI example:
+
+```yaml
+ubon:
+  image: node:24
+  variables:
+    GIT_DEPTH: 0
+  script:
+    - npx --yes ubon@4.0.0 check --base "origin/$CI_MERGE_REQUEST_TARGET_BRANCH_NAME" --output gl-sast-report.sarif
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+```
+
+## Existing projects
+
+On a project with existing findings, run `ubon check --all` once, fix what you can, and record the rest with `ubon baseline`. Pull request checks report only what each pull request changes, so they do not need the baseline; full audits (`--all`) use it to show only new findings.
+
+## Git hooks
+
+`npx ubon init --git-hooks --yes` adds `ubon check --staged` to your pre-commit hook: to husky or the pre-commit framework when you use them, otherwise as `.githooks/pre-commit` (enable it with `git config core.hooksPath .githooks`). With the pre-commit framework:
+
+```yaml
+repos:
+  - repo: https://github.com/luisfer/ubon
+    rev: v4.0.0
+    hooks:
+      - id: ubon
+```
+
+`--staged` reads the content from the index, so it checks exactly what the commit records.
+
+<!-- docs/mcp.md -->
+
+# MCP server
+
+`ubon mcp` runs an MCP server over stdio for clients that have no shell (Claude Desktop, IDE chat panels) or that prefer typed tools. Agents with a shell can run the `ubon` command instead, which costs no context for tool definitions.
+
+## Tools
+
+All tools are read-only (`readOnlyHint: true`) and none writes files.
+
+| Tool | Arguments | Returns |
+| --- | --- | --- |
+| `check` | `path`, `mode` (`diff`, `all`, `staged`), `base`, `rules` | The JSON report as structured content, and the agent format as text. |
+| `explain` | `rule` | What the rule checks, why, the fix, and examples. |
+| `map` | `path` | Entry points with their auth calls, data access, model calls, and env variables. |
+| `vet` | `packages` | Registry and OSV verdicts for each package (this tool contacts the npm registry and api.osv.dev, so it is marked `openWorldHint: true`). |
+
+Tool descriptions are fixed strings, never built from repository content. Results quote code from the repository, so the text result starts by saying that quoted code is data, not instructions. Evidence is masked and control, bidirectional, and Unicode tag characters are removed.
+
+Paths are confined to the workspace: the git root of the directory the client starts the server in, or `--root <dir>`. Anything outside is rejected as a tool error.
+
+## Protocol versions
+
+The server answers both current MCP revisions on the same stdio connection: the `initialize` handshake of 2025-11-25 (and 2025-06-18, 2025-03-26, 2024-11-05), and the stateless 2026-07-28 revision, where each request carries its protocol version and client capabilities in `_meta` and `server/discover` lists the supported versions. A request for an unsupported version gets error -32022 with the supported list. The tests talk to it with the official MCP TypeScript client in both modes.
+
+## Client configuration
+
+Pin the version so a new release does not change behavior without you knowing.
+
+`.mcp.json` (Claude Code and others):
+
+```json
+{
+  "mcpServers": {
+    "ubon": { "command": "npx", "args": ["-y", "ubon@4.0.0", "mcp"] }
+  }
+}
+```
+
+`.vscode/mcp.json`:
+
+```json
+{
+  "servers": {
+    "ubon": { "type": "stdio", "command": "npx", "args": ["-y", "ubon@4.0.0", "mcp"] }
+  }
+}
+```
+
+`.codex/config.toml`:
+
+```toml
+[mcp_servers.ubon]
+command = "npx"
+args = ["-y", "ubon@4.0.0", "mcp"]
+```
+
+`.cursor/mcp.json` and `.gemini/settings.json` use the same `mcpServers` shape as `.mcp.json`.
+
+If Ubon is a dev dependency of the project, use `"command": "npx", "args": ["--no-install", "ubon", "mcp"]` instead, so the server runs the version in your lockfile.
+
+<!-- docs/how-it-works.md -->
+
+# How Ubon works
+
+## One engine, many entry points
+
+`ubon check`, the hooks, the GitHub Action, the pre-commit hook, and the MCP server all call the same engine with the same rules. Only the scope and the output format differ.
+
+```
+scope -> files -> contexts -> rules -> findings -> suppressions -> baseline -> levels -> report
+```
+
+## Scope
+
+Ubon judges the change, not the whole history of the project.
+
+| Mode | Files | Base |
+| --- | --- | --- |
+| `diff` (default) | Files changed since the base, staged or not, plus untracked files that git does not ignore | The merge base with the default branch (`origin/HEAD`, then `origin/main`, `origin/master`, `main`, `master`), or `--base` |
+| `session` | Files changed since the agent session started | The session start record (below) |
+| `staged` | What `git commit` would record, read from the index | `HEAD` |
+| `all` | Every file git tracks or would add | none |
+| `paths` | The files you name | none |
+
+Outside a git repository, every file is checked and the report says so. In a shallow clone without the merge base, Ubon compares with the ref directly or with `HEAD`, and notes it.
+
+## Sessions
+
+When an agent session starts, the session start hook records `HEAD` and a snapshot of every file that already had uncommitted changes (as git blobs, in the object database). The record lives in `.git/ubon/sessions/`, which git never commits or pushes. At the stop hook, Ubon compares the working tree with that record, so work you had in progress before the session is not blamed on the agent, and files the agent created are included.
+
+Without a start record (Ubon was installed mid-session, or the agent has no start event), the base is `HEAD`, and the report says so.
+
+## Contexts
+
+Most false positives in older scanners came from not knowing where code runs. Before rules run, each file gets:
+
+- A language, from the extension (JavaScript and TypeScript variants, Vue, Svelte, Astro, JSON, YAML, TOML, SQL, Markdown, shell, env files, Firebase rules).
+- Path contexts: test, generated, agent configuration, migration, CI, config, docs, example.
+- Client or server. Files with `'use client'`, and every module they import, ship to the browser; so do Vue and Svelte components, pages in the Next.js Pages Router, and the source of single-page apps. Route handlers, Server Actions, `server-only` modules, `+server.ts` files, and the other framework conventions run on the server.
+
+## Rules
+
+Rules for JavaScript and TypeScript share one pass over each file's syntax tree (Babel's parser, bundled, with error recovery). A small taint tracker follows values from sources (request data, model output, tool arguments, network responses) through local variables, destructuring, templates, and a fixed list of pass-through functions to sinks (SQL, shell, `fetch`, file system, `eval`, HTML). Unknown function calls end the flow, which misses some bugs and avoids a class of false positives. Every data-flow finding shows its source and sink lines.
+
+Other rules read text, SQL migrations, YAML workflows, JSON and TOML configuration, lockfiles, and the git diff. Project rules see every file; diff rules compare each changed file with its base version.
+
+## Findings
+
+Findings are masked when they are created. Ubon then applies `ubon-ignore` comments, the baseline, and the levels in `ubon.json`, and marks findings that already existed at the base: those are reported as warnings and never block.
+
+## Why no model calls
+
+The agent in the loop is the model. Ubon's job is the part a model is bad at or should not be trusted with alone: checking the same invariants every time, on every edit and command, in milliseconds, with an answer the agent cannot talk its way around. Judgment (is this route meant to be public?) is left to the model and the reviewer, with `ubon map` and the review playbook as input.
+
+## Why some rules only warn
+
+A rule blocks only when it is right almost every time on real projects. A wrong blocking finding in an agent loop turns into a wrong edit, so rules whose precision is lower, or whose finding depends on intent that code does not show, report warnings. [precision.md](precision.md) has the numbers per rule.
+
+<!-- docs/security.md -->
+
+# Security of Ubon itself
+
+Ubon reads untrusted input by design: repositories it checks, including pull requests from strangers in CI, and hook payloads that an agent under prompt injection may have shaped. This page is the threat model and what Ubon does about each threat.
+
+| Threat | What Ubon does |
+| --- | --- |
+| A scanned repository makes Ubon run code | Configuration is JSON only. Ubon never imports or runs project files or scripts. Git runs with `core.fsmonitor` off and, for diffs and file reads, without external diff programs or text conversion filters (`--no-ext-diff`, `--no-textconv`, `cat-file`). Blob hashes for session snapshots use `--no-filters`. |
+| Command injection through file names, refs, or payloads | Every child process gets an argument array; no shell strings. Refs are checked and passed after `--end-of-options`. |
+| Secrets leak through Ubon's output | Masking when a finding is created, one code path for every output, tests with generated keys of every provider format. Hook recordings are masked before they are written. |
+| Resource exhaustion | A file size limit (1 MB by default), a 10 MB limit on hook payloads and MCP messages, bounded syntax tree depth, linear-time patterns. |
+| Path traversal and symbolic links | Symbolic links are not followed. MCP tool paths are resolved and must stay inside the workspace. |
+| Network use | None unless you ask: `--online`, `packages.online`, or `ubon vet`. Only the npm registry (or the one your `.npmrc` names for a scope) and `api.osv.dev` are contacted, with package names only. Failures are reported as not checked, never as clean. |
+| Writes to your project | Only `ubon init --yes`, `ubon baseline`, and files you name with `--output` or `--summary`. Session state goes to the git directory, or the user cache directory outside git. |
+| An agent turns Ubon off | Edits to `ubon.json`, hook settings, and CI workflows ask a person first (`agent/protected-path-write`); removals of Ubon from those files are reported (`agent/guardrail-removed`); an invalid `ubon.json` makes hooks fall back to the defaults instead of turning off; CI runs independently of the agent. |
+| Ubon crashes in a session | Hooks allow the action, show a notice, and exit 0 (GitHub Copilot denies a tool when its pre-tool hook exits with an error). `ubon check` in CI exits 3, which fails the job. |
+| Ubon's own supply chain | No dependencies at install time; the parser and YAML libraries are bundled at pinned versions. Releases are published by CI with npm trusted publishing and provenance, staged until the maintainer approves them with 2FA. Workflow actions are pinned to commit SHAs. |
+
+## What Ubon is not
+
+Command checks catch mistakes and obvious attacks. They are not a sandbox: a determined or injected agent can find a command Ubon does not recognize. Use your agent's sandbox (Claude Code sandboxing, Codex sandbox modes, containers) for containment.
+
+## Releases
+
+1. The maintainer pushes a signed version tag.
+2. `.github/workflows/release.yml` runs the full check suite on a clean checkout, with no dependency cache, and confirms the tag matches `package.json`.
+3. The publish job runs in the protected `release` environment with `id-token: write` only, and stages the release on npm through trusted publishing (no token) with provenance.
+4. The maintainer approves the staged release on npmjs.com with a 2FA challenge. An OIDC token cannot approve it, so a compromised workflow alone cannot publish.
+
+npm package settings: two-factor authentication required and tokens disallowed; the trusted publisher is `luisfer/ubon`, workflow `release.yml`, environment `release`.
+
+To verify a release: `npm view ubon@<version> dist.attestations` shows the provenance attestation, and `npm audit signatures` in a project that depends on it checks the registry signatures.
+
+## Reporting a vulnerability
+
+See [SECURITY.md](../SECURITY.md).
+
+<!-- docs/compatibility.md -->
+
+# Compatibility
+
+## Runtime
+
+| Requirement | Supported |
+| --- | --- |
+| Node.js | 22.18 or newer. CI tests 22.18, 24, and 26. |
+| Operating systems | Linux, macOS, and Windows. CI runs the tests on all three. |
+| Git | 2.30 or newer, for `ubon check` without `--all` and for session checks. Without git, Ubon checks every file and says so. |
+| Package managers | Any. `ubon vet` and the `deps` rules read `package.json`, `package-lock.json`, `pnpm-lock.yaml`, `yarn.lock`, and `bun.lock`. |
+
+`ubon doctor` checks the Node.js and Git versions.
+
+## Agents
+
+The hook adapters follow each agent's hook documentation or source code. The table lists what they were checked against and the date of the last check. Recorded sessions (`fixtures/sessions/`) replay real payloads through `ubon hook` in the test suite.
+
+| Agent | Checked against | Last checked | Notes |
+| --- | --- | --- | --- |
+| Claude Code | Hook reference and Claude Code 2.1.283 | 2026-09-26 | Plugin or project hooks. [claude-code.md](integrations/claude-code.md) |
+| Codex | `openai/codex` source, commit `1a89aec` | 2026-09-26 | Codex has no "ask" answer; Ubon denies instead and says why. [codex.md](integrations/codex.md) |
+| Cursor | Hook reference and hook runs recorded with Cursor 3.9.16 | 2026-09-26 | "Ask" works only before shell commands. [cursor.md](integrations/cursor.md) |
+| Gemini CLI | `google-gemini/gemini-cli` source, 0.63.0 nightly of 2026-09-23 | 2026-09-26 | Hook timeouts are in milliseconds. [gemini-cli.md](integrations/gemini-cli.md) |
+| GitHub Copilot | Hooks reference in `github/docs`, commit `18945a3` | 2026-09-26 | Copilot CLI and the cloud agent. Prompt hooks cannot block. [github-copilot.md](integrations/github-copilot.md) |
+
+Agents without hooks use the skill, the `AGENTS.md` block, git hooks, and CI. See [other-agents.md](integrations/other-agents.md).
+
+When an agent changes its hook format, `ubon hook` fails open: the agent continues, and the message names the event Ubon could not read. Report it at https://github.com/luisfer/ubon/issues with the output of `ubon hook <agent> <event> --record payload.jsonl`, which masks secrets before it writes.
+
+## MCP clients
+
+`ubon mcp` speaks MCP over stdio. It answers the `initialize` handshake for protocol versions 2024-11-05, 2025-03-26, 2025-06-18, and 2025-11-25, and the stateless 2026-07-28 revision (`server/discover`). See [mcp.md](mcp.md).
+
+## Frameworks and languages
+
+Rules read JavaScript and TypeScript (including JSX, Vue, Svelte, and Astro script blocks), SQL migrations, Firebase rules, JSON, YAML, TOML, Markdown, `.env` files, and shell scripts inside hooks and workflows. Framework-aware rules know Next.js (App Router and Pages Router), Vite, SvelteKit, Remix and React Router, Astro, Nuxt, Express, Fastify, Hono, Supabase, Firebase, Prisma, and Drizzle. Code in other languages is checked only by the language-independent rules, such as `secret/provider-key`.
+
+<!-- docs/upgrade.md -->
+
+# Upgrade from Ubon 3
+
+Ubon 4 is a rewrite, so commands, options, rule IDs, the configuration file, and suppression comments all changed. [history.md](history.md) explains why. This page lists what to change.
+
+## Steps
+
+1. Update the package: `npm install --save-dev ubon@4`. Projects that run Ubon with `npx` need no install.
+2. Run `npx ubon init` in the repository. It prints a plan and writes nothing. It removes the files that `ubon agent install` wrote in 3.2 (see the next section) and sets up the agents it finds.
+3. Run `npx ubon init --yes` to apply the plan.
+4. Move the settings you need from `ubon.config.json` to `ubon.json` ([table below](#configuration)), then delete `ubon.config.json`.
+5. Replace `ubon-disable-next-line` and `ubon-disable-file` comments with `ubon-ignore` comments ([below](#suppression-comments)). Ubon 4 ignores the old comments.
+6. Run `npx ubon check --all` once to see where the project stands.
+
+`ubon check` looks only at what changed since the base branch, so most projects need no baseline. If you run `ubon check --all` in CI, run `ubon baseline` once and commit `.ubon/baseline.json`.
+
+## Files that `ubon init` replaces
+
+Ubon 3.2 wrote these files from fixed templates. `ubon init` finds them by their exact names and text; files you changed by hand are left alone and listed in its notes.
+
+| Ubon 3 file | What `ubon init` does |
+| --- | --- |
+| Entries in `.cursor/hooks.json` that run `.cursor/hooks/ubon-*.sh` | Removes them and keeps your other hooks. `ubon init --cursor` adds the Ubon 4 hooks. |
+| The eight `.cursor/hooks/ubon-*.sh` scripts | Removes them. |
+| `.cursor/rules/ubon.mdc` | Removes it. The Ubon skill in `.agents/skills/ubon/` replaces it. |
+| The "Agent guidance" section in `AGENTS.md` | Removes it. The block between `ubon:begin` and `ubon:end` replaces it. |
+| The "Claude Code guidance" section in `CLAUDE.md` | Removes it. When nothing else is left, the file becomes `@AGENTS.md`, so Claude Code reads the same instructions as other agents. |
+| `.pre-commit-config.yaml` with the `ubon-security-check` hook | Replaces the file with the Ubon 4 hook when it holds only that hook. Otherwise it prints a note; edit the file as shown in [ci.md](ci.md). |
+| `.github/workflows/ubon.yml` that runs `ubon verify` | Replaces it with the Ubon 4 workflow. |
+| `.ubon/` in `.gitignore` | Changes it to `.ubon/*` and `!.ubon/baseline.json`, so the baseline can be committed. |
+| `.ubon/results-cache.json` | Removes it. Ubon 4 writes no cache into the project. |
+| `ubon.config.json` | Keeps it and prints a note. |
+
+`ubon init --remove` removes the same Ubon 3 files, along with everything Ubon 4 added.
+
+## Commands
+
+| Ubon 3 | Ubon 4 |
+| --- | --- |
+| `ubon check`, `ubon scan` | `ubon check --all` checks the whole repository. `ubon check` checks the changes. |
+| `ubon changed`, `ubon verify` | `ubon check` |
+| `ubon review --since <ref>` | `ubon check --base <ref>` |
+| `ubon agent install`, `ubon hooks install`, `ubon install-hooks` | `ubon init` |
+| `ubon rules list --json` | `ubon rules --json` |
+| `ubon explain SEC030` | `ubon explain web/ssrf` (rule IDs changed; `ubon rules` lists them) |
+| `ubon mcp` | `ubon mcp`, with the tools `check`, `explain`, `map`, and `vet` ([mcp.md](mcp.md)) |
+| `ubon doctor` | `ubon doctor` |
+| `ubon lsp`, `ubon completion`, `ubon guide`, `ubon cache` | Removed |
+
+When you run a Ubon 3 command or option, Ubon 4 exits with code 2 and names the replacement.
+
+## Options
+
+| Ubon 3 | Ubon 4 |
+| --- | --- |
+| `--json` | `--format json` |
+| `--sarif <file>` | `--output <file>.sarif` (the format follows the extension) |
+| `--fail-on <level>` | Removed. The exit code is 1 when there is a `block` finding. Set rule levels in `ubon.json`. |
+| `--fast` | Removed. Checks are local unless you pass `--online`. |
+| `--profile`, `--preset`, `--mode` | Removed. Frameworks are detected per file. |
+| `--changed-files <paths>` | `ubon check <paths...>` |
+| `--git-changed-since <ref>`, `--since <ref>`, `--base-sha <ref>` | `--base <ref>` |
+| `-d`, `--directory <path>` | Run Ubon in that directory, or pass paths. |
+| `--min-confidence`, `--min-severity`, `--severity` | Removed. Every rule reports `block` or `warn`. |
+| `--enable-rule <id>` | `--rule <id>` for one run |
+| `--disable-rule <id>` | `"rules": { "<id>": "off" }` in `ubon.json` |
+| `--baseline`, `--update-baseline` | `ubon baseline` writes `.ubon/baseline.json`; `ubon check --all` reads it. |
+| `--no-cache`, `--no-result-cache`, `--clear-cache` | Removed. Ubon 4 keeps no cache. |
+| `--interactive`, `--watch`, `--apply-fixes`, `--preview-fixes`, `--create-pr` | Removed. The agent hooks check each edit, and the agent makes the fixes. |
+
+## Configuration
+
+Ubon 4 reads `ubon.json` only. It never runs a JavaScript config file and never reads a `"ubon"` key in `package.json`. [config.md](config.md) lists every key.
+
+| `ubon.config.json` (Ubon 3) | `ubon.json` (Ubon 4) |
+| --- | --- |
+| `disabledRules: ["SEC015"]` | `"rules": { "<new id>": "off" }` |
+| `enabledRules` | No equivalent. Every rule runs unless it is `off`. |
+| `failOn`, `minConfidence`, `minSeverity` | `"rules"` levels: `block`, `warn`, or `off`, per rule or per pack (`"web/*": "warn"`). |
+| `exclude`, `skipPatterns` | `"ignore": ["legacy/**"]` |
+| `maxFileSize` | `"maxFileSize"` (same meaning) |
+| `baselinePath`, `useBaseline`, `updateBaseline` | `ubon baseline`; the path is always `.ubon/baseline.json`. |
+| `changedFiles`, `gitChangedSince` | Command-line only: `ubon check <paths...>` and `--base <ref>`. |
+| `profile`, `groupBy`, `format`, `gitHistoryDepth` | Removed. |
+
+## Suppression comments
+
+Ubon 3 accepted `// ubon-disable-next-line SEC016 demo only` and `// ubon-disable-file`. Ubon 4 accepts one form, on the line above the finding or at the end of the line:
+
+```ts
+// ubon-ignore web/ssrf: user confirmed: the URL comes from our own config table, not from the request
+const res = await fetch(target);
+```
+
+The comment names the rule, who decided, and the evidence. A comment without all three is reported as `integrity/invalid-suppression`. There is no file-wide form; use `ignore` in `ubon.json` for files Ubon should skip. [config.md](config.md#suppressing-one-finding) has the details.
+
+## Rule IDs
+
+Rule IDs are now names grouped in packs, for example `secret/provider-key` and `web/ssrf`. Most Ubon 3 rules have no direct successor, because 4.0 keeps only rules that are precise on real projects. [rules/README.md](rules/README.md) lists the current rules.
+
+## Node.js and platforms
+
+Ubon 4 needs Node.js 22.18 or newer. It runs on Linux, macOS, and Windows; see [compatibility.md](compatibility.md).
+
+<!-- docs/integrations/claude-code.md -->
+
+# Claude Code
+
+## Install
+
+The plugin is the recommended install. The Ubon repository is its own plugin marketplace:
+
+```
+/plugin marketplace add luisfer/ubon
+/plugin install ubon@ubon
+```
+
+The plugin runs the Ubon version bundled in it, with no download at hook time. It adds the hooks below, the `ubon` skill, the commands `/ubon:check`, `/ubon:finish`, `/ubon:review`, and `/ubon:vet`, and a read-only `ubon-reviewer` subagent.
+
+For a team, `npx ubon init --claude --yes` adds the marketplace and the plugin to the committed `.claude/settings.json`, so everyone who trusts the folder is asked to install it:
+
+```json
+{
+  "extraKnownMarketplaces": {
+    "ubon": { "source": { "source": "github", "repo": "luisfer/ubon" } }
+  },
+  "enabledPlugins": { "ubon@ubon": true }
+}
+```
+
+Without the plugin, `npx ubon init --claude --hooks-only --yes` writes the same hooks into `.claude/settings.json` (merged; other hooks stay) and the skill into `.claude/skills/ubon/`. Hooks then run the project's dev dependency (`npx --no-install ubon`), or a pinned version when Ubon is not installed in the project.
+
+## Hooks
+
+| Event | What Ubon does |
+| --- | --- |
+| `SessionStart` | Records the session base and tells the agent Ubon is active. |
+| `UserPromptSubmit` | Blocks a prompt that contains a provider key, before it reaches the model. |
+| `PreToolUse` (Bash, PowerShell) | Command checks: destructive commands, secret exfiltration, skipped git hooks, remote scripts, package installs, publish and deploy commands. |
+| `PreToolUse` (Read) | Asks before `.env` files and private keys are read into the conversation. |
+| `PreToolUse` (Edit, Write, NotebookEdit) | Denies content with a provider key (unless the file is git-ignored) and hidden Unicode in agent files; asks before changes to Ubon's config, hook settings, and CI workflows. |
+| `PostToolUse` (Edit, Write, NotebookEdit) | Checks the edited file and returns blocking findings to the agent at once. |
+| `PostToolUse` (Bash, PowerShell) | Logs the command; tells the agent not to repeat a key that appeared in the output. |
+| `Stop`, `SubagentStop` | Checks everything changed in the session. Blocking findings make the agent continue and fix them; after two attempts for the same findings it may stop, and they are recorded as unresolved. |
+
+## CLAUDE.md and AGENTS.md
+
+Claude Code reads `AGENTS.md` only when there is no `CLAUDE.md`. `ubon init` never creates `CLAUDE.md`. If one exists, it adds an `@AGENTS.md` line so Claude Code also reads the Ubon block in `AGENTS.md`.
+
+## Plugin options
+
+When you enable the plugin, you can set the stop behavior (`block` or `warn`) and registry lookups for install commands. They apply only where the project's `ubon.json` says nothing.
+
+## Check that it works
+
+Run `ubon doctor` (or `npx ubon doctor`). After a session, it shows the hook events Ubon handled, from the session log in `.git/ubon/`.
+
+## Next to Anthropic's security plugins
+
+Anthropic's `security-guidance` plugin warns on edits and runs a model review at the end of turns; `/security-review` reviews a branch with the model. Ubon runs deterministic checks that can block, the same way in every agent, including package, command, and test-integrity checks. They work together.
+
+<!-- docs/integrations/codex.md -->
+
+# Codex
+
+## Install
+
+```
+npx ubon init --codex --yes
+```
+
+This writes `.codex/hooks.json`, the skill in `.agents/skills/ubon/`, and the Ubon block in `AGENTS.md`. Codex asks you to review and trust the hooks once with `/hooks`, and again whenever the file changes.
+
+## Hooks
+
+| Event | Matcher | What Ubon does |
+| --- | --- | --- |
+| `SessionStart` | | Records the session base. |
+| `UserPromptSubmit` | | Blocks a prompt that contains a provider key. |
+| `PreToolUse` | `Bash\|apply_patch` | Command checks; for patches, key and hidden Unicode checks on the added text and protected-path checks. |
+| `PostToolUse` | `Bash\|apply_patch` | Checks the files the patch changed and returns blocking findings. |
+| `Stop` | | Checks everything changed in the session. |
+
+## Limits
+
+- Codex validates hook output strictly: one unknown field and it discards the whole output. Ubon's Codex adapter emits only the documented fields for each event; the tests check the exact keys.
+- `PreToolUse` supports allow and deny only. When Ubon would ask a person (for example before `git push --force`), Codex gets a denial whose reason says how to allow it: run the command yourself, or add it to `commands.allow` in `ubon.json`.
+- Codex has no read tool, so reads of `.env` files are caught only when they go through a shell command such as `cat`.
+
+## Check that it works
+
+`npx ubon doctor` checks `.codex/hooks.json` and shows recent hook activity.
+
+<!-- docs/integrations/cursor.md -->
+
+# Cursor
+
+## Install
+
+```
+npx ubon init --cursor --yes
+```
+
+This writes `.cursor/hooks.json` (merged with your hooks), the skill in `.agents/skills/ubon/`, and the Ubon block in `AGENTS.md`.
+
+## Hooks
+
+| Event | What Ubon does |
+| --- | --- |
+| `sessionStart` | Records the session base. |
+| `beforeSubmitPrompt` | Blocks a prompt that contains a provider key (`continue: false`). |
+| `beforeShellExecution` | Command checks. |
+| `beforeReadFile` | Denies reads of `.env` files and private keys. |
+| `preToolUse` (Write) | Key, hidden Unicode, and protected-path checks on the content. |
+| `postToolUse` (Write, Shell) | Checks edited files and returns findings as context; scans shell output for keys. |
+| `stop` | Checks the session's changes and sends blocking findings as a follow-up message. |
+
+## Limits
+
+- `afterFileEdit` cannot return anything to the agent, so Ubon uses `postToolUse` for feedback after edits.
+- In Cursor 3.9, `permission: "ask"` behaved like a silent deny. Ubon puts the full explanation, including how a person can allow the action, in both `user_message` (which the model receives) and `agent_message`.
+- The stop hook sends at most `loop_limit` follow-ups (3 in the generated config); Ubon's own loop guard stops after two attempts for the same findings.
+
+## Check that it works
+
+`npx ubon doctor`.
+
+<!-- docs/integrations/gemini-cli.md -->
+
+# Gemini CLI
+
+## Install
+
+```
+npx ubon init --gemini --yes
+```
+
+This adds hooks to `.gemini/settings.json`, writes the skill in `.agents/skills/ubon/`, adds the Ubon block to `AGENTS.md`, and adds `AGENTS.md` to `context.fileName` so Gemini reads it. Gemini fingerprints project hooks: trust them again after they change.
+
+## Hooks
+
+| Event | What Ubon does |
+| --- | --- |
+| `SessionStart` | Records the session base. |
+| `BeforeAgent` | Blocks a prompt that contains a provider key. |
+| `BeforeTool` (`run_shell_command`, `read_file`, `read_many_files`, `write_file`, `replace`) | Command checks, sensitive reads, and content checks before writes. |
+| `AfterTool` (`write_file`, `replace`, `run_shell_command`) | Checks edited files and returns findings as context. |
+| `AfterAgent` | Checks the session's changes; blocking findings make Gemini continue. |
+
+## Limits
+
+- Gemini has no "ask" decision; Ubon denies with instructions for the person.
+- Timeouts in Gemini's config are milliseconds; the generated config sets them.
+
+## Check that it works
+
+`npx ubon doctor`.
+
+<!-- docs/integrations/github-copilot.md -->
+
+# GitHub Copilot
+
+Copilot runs hooks in three places: Copilot CLI, the cloud agent, and the VS Code agent.
+
+## Install
+
+```
+npx ubon init --copilot --yes
+```
+
+This writes `.github/hooks/ubon.json`, the skill in `.agents/skills/ubon/`, and the Ubon block in `AGENTS.md`. The cloud agent reads hooks only from `.github/hooks/`. Add Ubon as a dev dependency so the cloud agent's sandbox does not download it for every hook.
+
+The hooks use PascalCase event names (`PreToolUse`, `PostToolUse`, `Stop`), which both Copilot CLI and VS Code read. Registering both naming styles makes Copilot CLI run each hook twice.
+
+## Hooks
+
+| Event | What Ubon does |
+| --- | --- |
+| `SessionStart` | Records the session base. |
+| `PreToolUse` | Command checks, sensitive reads, and content checks before writes. |
+| `PostToolUse` | Checks edited files and returns findings as context. |
+| `Stop`, `SubagentStop` | Checks the session's changes; blocking findings make the agent continue. |
+
+## Limits
+
+- A `preToolUse` command hook that crashes or exits with an error denies the tool call. Ubon always exits 0 with an explicit output, including when it fails internally.
+- Copilot CLI drops the output of prompt hooks, so prompts with keys cannot be blocked there.
+- The cloud agent has no person to ask: `ask` becomes a denial.
+- Copilot CLI also reads `.claude/settings.json`. If both files register Ubon, events run twice; the decisions are the same.
+
+## Check that it works
+
+`npx ubon doctor`.
+
+<!-- docs/integrations/other-agents.md -->
+
+# Other agents
+
+Agents without an Ubon adapter still get the skill, the `AGENTS.md` block, and the MCP server.
+
+| Agent | What works today |
+| --- | --- |
+| Devin Desktop (formerly Windsurf) | `AGENTS.md` block, skill in `.devin/skills/`, MCP |
+| Kiro | skill in `.kiro/skills/`, MCP |
+| OpenCode | skill (reads `.agents/skills/`), `AGENTS.md`, MCP |
+| Amp | skill, `AGENTS.md`, MCP |
+| Cline | skill, MCP |
+| Factory Droid, Goose | skill, `AGENTS.md`, MCP |
+| Zed, JetBrains Junie | `AGENTS.md`, skill, MCP |
+| Aider | `--lint-cmd "npx ubon check"` with `--auto-lint` |
+
+To install the skill for any agent that reads `.agents/skills/`: `npx skills add luisfer/ubon`.
+
+New adapters are welcome as contributions. Each one needs recorded hook payloads from the real agent and tests that replay them; see [AGENTS.md](../../AGENTS.md).
+
+<!-- skills/ubon/SKILL.md -->
+
+---
+name: ubon
+description: Check code changes, shell commands, and packages with Ubon, a deterministic checker for leaked secrets, trust-boundary bugs (SQL injection, SSRF, command injection), missing Supabase row level security, risky or nonexistent packages, agent configuration, and weakened tests. Use it after changing code and before saying a task is done, before installing a package, when code needs a key or a key leaked, when building features that store data or call a model, when asked for a security review, and when an Ubon finding (a rule ID such as web/ssrf or secret/provider-key) appears or looks wrong.
+license: MIT
+metadata:
+  ubon-version: "4.0.0-alpha.0"
+---
+
+# Ubon
+
+Ubon is a command-line checker. It reads the project's files and git history, not your reasoning, so it gives the same answer every time. Use it to check your work, and use your own judgment for what it does not cover.
+
+## Run it
+
+Use `ubon` when it is on your PATH (the Claude Code plugin puts it there), otherwise `npx ubon`. Check that it runs with `ubon --version`.
+
+If Ubon cannot run (not installed, no network, blocked by permissions), start your reply with this line and then follow the playbook as far as you can without it:
+
+`Ubon did not run: <reason>. Findings below are my own review, not Ubon's.`
+
+Never present your own review as Ubon's result.
+
+## Pick a playbook
+
+| When | Playbook |
+| --- | --- |
+| You changed code and are about to say the task is done | [finish](references/finish.md) |
+| You want a quick check after an edit | [check](references/check.md) |
+| An Ubon finding appeared, or one looks wrong | [triage](references/triage.md) |
+| You are about to install or add a package | [add-dependency](references/add-dependency.md) |
+| Code needs an API key or a secret, or a secret leaked | [secrets](references/secrets.md) |
+| You are creating tables, storage buckets, or access rules | [data-access](references/data-access.md) |
+| You are building a feature that calls a language model | [llm-features](references/llm-features.md) |
+| The user asks for a security review, or a release is near | [review](references/review.md) |
+| The user asks to set up Ubon | [setup](references/setup.md) |
+
+Read only the playbook the task needs.
+
+## Rules for every playbook
+
+1. Fix every `BLOCK` finding in code you wrote or changed before you say the task is done. `WARN` findings are information: fix them when the fix is small and clearly right, and mention the rest.
+2. Do not edit `ubon.json`, hook settings (`.claude/settings.json`, `.codex/hooks.json`, `.cursor/hooks.json`, `.gemini/settings.json`, `.github/hooks/`), CI workflows, or tests to get past a finding. If one of them is wrong, say so and let the user decide.
+3. A suppression is a claim that a finding is wrong or accepted. Write it only when you can back it with evidence from the code, in the form `ubon-ignore <rule>: <who decided>: <evidence>`, in a comment above the line. Write `user confirmed` as who decided only when the user did. Tell the user about every suppression you add.
+4. Never print, copy, or repeat a secret value, even a masked one you reconstructed. Refer to secrets by variable name.
+5. Say what you did not check. If a check was skipped, a command failed, or Ubon reported `Not checked:`, include that in your report.
+
+## Output formats
+
+`ubon check` prints the agent format when it runs in your shell:
+
+```
+ubon: 1 blocking, 1 warning in 3 changed files (base origin/main)
+BLOCK web/ssrf app/api/preview/route.ts:12 fetch() uses a URL from the request body (line 9: url from the request body). Fix: allowlist the host before fetching.
+WARN hygiene/variant-file components/Header-new.tsx New file looks like a copy of components/Header.tsx. Fix: merge the changes into the original file and delete the copy.
+```
+
+Each line has the level, the rule ID, the file and line, what is wrong, and the fix. `ubon explain <rule>` shows the rule in full, with examples. `ubon check --format json` gives the same report as JSON.
+
+Exit codes: 0 no blocking findings, 1 blocking findings, 2 a usage or config error, 3 Ubon failed.
+
+<!-- docs/rules/README.md -->
+
+# Rules
+
+Ubon has 11 rules in 2 packs. A `block` finding stops an agent from finishing and fails `ubon check`; a `warn` finding is reported and does not. `ubon rules` prints this list with the levels set in your `ubon.json`.
+
+## secret
+
+Credentials in code, config, prompts, and tool output.
+
+| Rule | Level | What it catches |
+| --- | --- | --- |
+| [secret/provider-key](secret/provider-key.md) | block | Provider credential in source |
+| [secret/db-url-password](secret/db-url-password.md) | block | Database URL with a password |
+| [secret/public-env-name](secret/public-env-name.md) | block | Secret in a browser-exposed env variable |
+| [secret/env-file-committed](secret/env-file-committed.md) | block | .env file with secrets that git can commit |
+| [secret/key-file-committed](secret/key-file-committed.md) | block | Private key or credential file in git |
+| [secret/server-env-in-client](secret/server-env-in-client.md) | warn | Server env variable read in browser code |
+| [secret/in-prompt](secret/in-prompt.md) | block | Provider key in a prompt |
+| [secret/in-tool-output](secret/in-tool-output.md) | warn | Provider key in tool output |
+| [secret/read-sensitive-file](secret/read-sensitive-file.md) | block | Agent reads a secrets file |
+
+## integrity
+
+Changes that weaken the checks: skipped or deleted tests, disabled type checks, lowered thresholds, and suppressions.
+
+| Rule | Level | What it catches |
+| --- | --- | --- |
+| [integrity/invalid-suppression](integrity/invalid-suppression.md) | warn | Suppression without a valid reason |
+| [integrity/unused-suppression](integrity/unused-suppression.md) | warn | Suppression that no longer matches a finding |
+
+<!-- docs/rules/secret/provider-key.md -->
+
+# secret/provider-key
+
+Provider credential in source.
+
+A literal credential in a known provider format (OpenAI, Anthropic, AWS, GitHub, Stripe, Supabase service role, and about 30 others) in any text file.
+
+- Default level: `block`.
+- Levels: block for live credentials; warn for test-mode keys (sk_test_) and for Google API keys whose use is unclear.
+- Looks at: each file in scope, on its own.
+- References: [CWE-798](https://cwe.mitre.org/data/definitions/798.html), OWASP A07:2025.
+
+## Why it matters
+
+A key in a repository is readable by everyone with access to the code, its history, and its CI logs, and it stays in git history after the line is deleted. Keys in client code are public.
+
+## Flagged
+
+`.env.example`:
+
+```sh
+OPENAI_API_KEY=sk-proj-...8nPa
+```
+
+`docs/setup.md`:
+
+```md
+export GITHUB_TOKEN=ghp_...1BTx
+```
+
+`lib/anthropic.js`:
+
+```js
+apiKey: "sk-ant-...MmAA",
+```
+
+`lib/firebase.ts` (block):
+
+```ts
+export const genAI = new GoogleGenerativeAI('AIza...iOBv');
+```
+
+`lib/keys.js`:
+
+```js
+export const PRIVATE_KEY = "...AevL\nxPCdnDslqxqMrdyvzNu3K50nsWSy3P1e/+cKVXsbXfVIA32fQIT+S+PCK76eHtaF\n-----END RSA PRIVATE KEY-----";
+```
+
+`lib/keys.js`:
+
+```js
+export const slackHook = 'https://hooks.slack.com/...tRad';
+```
+
+`lib/keys.js`:
+
+```js
+export const hfToken = 'hf_...iKAt';
+```
+
+`lib/keys.js`:
+
+```js
+export const groq = 'gsk_...hN1Q';
+```
+
+## Not flagged
+
+- `OPENAI_API_KEY=sk-proj-...jIbX` in `.env`: real .env files are covered by secret/env-file-committed
+- `var k="sk-proj-...m16V";` in `dist/bundle.min.js`: build output is generated and skipped
+- `Or use a placeholder while you wait for access: 'ghp_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'.` in `docs/setup.md`: placeholder token in docs
+- `export const app = initializeApp({` in `lib/firebase.ts`: Firebase web config keys are public by design
+- `export const fromEnv = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });` in `lib/openai.ts`: read from the environment
+- `export const placeholder = 'sk-proj-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx';` in `lib/openai.ts`: documentation placeholder with no entropy
+- `export const publishable = 'pk_live_51HqLyjWDarjtT1zdp7dcXYZ123';` in `lib/stripe.ts`: publishable keys are public by design
+- `export const browser = createClient(url, 'eyJhbGciOiJI...');` in `lib/supabase.ts`: the anon key is public by design
+- `export const localAdmin = createClient('http://127.0.0.1:54321', 'eyJ...ov6T');` in `lib/supabase.ts`: the Supabase CLI's published local development key
+- `export EXAMPLE_KEY=AKIAIOSFODNN7EXAMPLE` in `scripts/deploy.sh`: the AWS documentation example key is not a credential
+
+## How to fix
+
+Read the key from an environment variable, keep the value in an ignored .env file or a secret manager, and rotate the exposed key.
+
+## If the finding is wrong
+
+Add a comment on the line above, in the comment syntax of the file, that says who decided and why:
+
+```
+ubon-ignore secret/provider-key: <who decided>: <evidence>
+```
+
+Or turn the rule off for the project in `ubon.json`: `"rules": { "secret/provider-key": "off" }`. See [configuration](../../config.md).
+
+Fixtures: [fixtures/rules/secret/provider-key](../../../fixtures/rules/secret/provider-key).
+
+<!-- docs/rules/secret/db-url-password.md -->
+
+# secret/db-url-password
+
+Database URL with a password.
+
+A connection string with an inline password (`postgres://user:pass@host`, `mongodb+srv://`, `mysql://`, `redis://:pass@`).
+
+- Default level: `block`.
+- Levels: Not reported for local development: loopback hosts, and docker service names with a default password. warn for a default password on another host, and for a single-label host (a local or internal service) with any other password.
+- Looks at: each file in scope, on its own.
+- References: [CWE-798](https://cwe.mitre.org/data/definitions/798.html), OWASP A07:2025.
+
+## Why it matters
+
+A database URL with a password is a credential: anyone who reads the file can connect to the database with the rights of that user.
+
+## Flagged
+
+`lib/db.ts` (block):
+
+```ts
+export const prod = postgres('postgres://app:<db-password>@db.prod.internal:5432/app');
+```
+
+`lib/db.ts` (warn):
+
+```ts
+export const weak = postgres('postgres://postgres:postgres@db.prod.internal:5432/app');
+```
+
+`lib/db.ts` (warn):
+
+```ts
+export const internal = postgres('postgres://app:<db-password>@pgbouncer:6432/app');
+```
+
+`scripts/seed.js`:
+
+```js
+const uri = 'mongodb+srv://admin:<db-password>@cluster0.q1w2e3.mongodb.net/prod?retryWrites=true';
+```
+
+`scripts/seed.js`:
+
+```js
+const mysqlUrl = 'mysql://root:<db-password>@10.0.4.12:3306/shop';
+```
+
+## Not flagged
+
+- `DATABASE_URL=postgres://app:<db-password>@db.prod.internal:5432/app` in `.env`: .env files are covered by secret/env-file-committed
+- `DATABASE_URL: postgres://postgres:postgres@db:5432/app` in `docker-compose.yml`: docker service with a default password
+- `CACHE_URL: redis://:<db-password>@cache.example.net:6379` in `docker-compose.yml`: example host from documentation
+- `command: ["sh", "-c", 'printf "postgresql://spicedb:%s@%s:%s/spicedb" "$PASS" "$HOST" "$PORT"']` in `docker-compose.yml`: printf placeholders
+- `export const local = postgres('postgres://postgres:postgres@localhost:5432/app');` in `lib/db.ts`: local development database
+- `export const loopback = postgres('postgres://app:<db-password>@127.0.0.1:5432/app');` in `lib/db.ts`: loopback host
+- `export const ipv6 = postgres('postgresql://user:<db-password>@[2001:db8::1]:5432/app');` in `lib/db.ts`: IPv6 range reserved for documentation
+- `export const template = postgres('postgresql://user:password@your-postgres-host:5432/app');` in `lib/db.ts`: placeholder host
+- `export const fromEnv = postgres(process.env.DATABASE_URL!);` in `lib/db.ts`: read from the environment
+- `export const interpolated = postgres('postgres://app:${process.env.DB_PASSWORD}@db.prod.internal/app');` in `lib/db.ts`: password comes from the environment
+
+## How to fix
+
+Read the URL from an environment variable (DATABASE_URL) and rotate the password.
+
+## If the finding is wrong
+
+Add a comment on the line above, in the comment syntax of the file, that says who decided and why:
+
+```
+ubon-ignore secret/db-url-password: <who decided>: <evidence>
+```
+
+Or turn the rule off for the project in `ubon.json`: `"rules": { "secret/db-url-password": "off" }`. See [configuration](../../config.md).
+
+Fixtures: [fixtures/rules/secret/db-url-password](../../../fixtures/rules/secret/db-url-password).
+
+<!-- docs/rules/secret/public-env-name.md -->
+
+# secret/public-env-name
+
+Secret in a browser-exposed env variable.
+
+An environment variable with a prefix the framework ships to the browser (NEXT_PUBLIC_, VITE_, PUBLIC_, EXPO_PUBLIC_, REACT_APP_, ...) whose name says it holds a secret.
+
+- Default level: `block`.
+- Looks at: each file in scope, on its own.
+- References: [CWE-200](https://cwe.mitre.org/data/definitions/200.html), [CWE-798](https://cwe.mitre.org/data/definitions/798.html), OWASP A04:2025.
+
+## Why it matters
+
+Frameworks copy every variable with a public prefix into the JavaScript bundle, so its value is readable by anyone who opens the site. Renaming a server variable with NEXT_PUBLIC_ is a common agent "fix" when a value is undefined in the browser.
+
+## Flagged
+
+`.env.example`:
+
+```sh
+NEXT_PUBLIC_OPENAI_API_KEY=
+```
+
+`.github/workflows/deploy.yml`:
+
+```yaml
+NEXT_PUBLIC_DATABASE_URL: ${{ secrets.DATABASE_URL }}
+```
+
+`app/checkout.tsx`:
+
+```tsx
+const secret = process.env.NEXT_PUBLIC_STRIPE_SECRET_KEY;
+```
+
+`src/lib/admin.ts`:
+
+```ts
+export const admin = createClient(import.meta.env.VITE_SUPABASE_URL, import.meta.env.VITE_SUPABASE_SERVICE_ROLE_KEY);
+```
+
+## Not flagged
+
+- `NEXT_PUBLIC_SUPABASE_URL=` in `.env.example`: URLs are public
+- `NEXT_PUBLIC_SUPABASE_ANON_KEY=` in `.env.example`: the anon key is public by design
+- `NEXT_PUBLIC_POSTHOG_KEY=` in `.env.example`: PostHog project keys are public
+- `Never name a key NEXT_PUBLIC_OPENAI_API_KEY; it ends up in the bundle.` in `README.md`: documentation is not checked
+- `const publishable = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY;` in `app/checkout.tsx`: publishable key
+- `export const other = import.meta.env.PUBLIC_DATABASE_URL;` in `src/lib/admin.ts`: PUBLIC_ is only a public prefix in SvelteKit and Astro
+
+## How to fix
+
+Keep the secret in a server-only variable (no public prefix) and call it from a route handler, Server Action, or server function; rotate the key if the site was deployed with the public name.
+
+## If the finding is wrong
+
+Add a comment on the line above, in the comment syntax of the file, that says who decided and why:
+
+```
+ubon-ignore secret/public-env-name: <who decided>: <evidence>
+```
+
+Or turn the rule off for the project in `ubon.json`: `"rules": { "secret/public-env-name": "off" }`. See [configuration](../../config.md).
+
+Fixtures: [fixtures/rules/secret/public-env-name](../../../fixtures/rules/secret/public-env-name).
+
+<!-- docs/rules/secret/env-file-committed.md -->
+
+# secret/env-file-committed
+
+.env file with secrets that git can commit.
+
+A `.env`, `.env.local`, `.env.production` (or similar) file that is tracked by git, or not ignored by it, and holds real secret values.
+
+- Default level: `block`.
+- Looks at: the project as a whole, across files.
+- References: [CWE-798](https://cwe.mitre.org/data/definitions/798.html), [CWE-538](https://cwe.mitre.org/data/definitions/538.html), OWASP A07:2025.
+
+## Why it matters
+
+An env file in the repository shares every secret in it with everyone who can read the code, and git keeps it in history. Agents often create `.env` files and commit everything with `git add -A`.
+
+## Flagged
+
+`.env`:
+
+```sh
+OPENAI_API_KEY=sk-proj-...MsGg
+```
+
+`.env.local`:
+
+```sh
+STRIPE_SECRET_KEY=sk_live_...DIMR
+```
+
+`apps/web/.env`:
+
+```sh
+SUPABASE_SERVICE_ROLE_KEY=eyJ...8PcX
+```
+
+`config/.env.production`:
+
+```sh
+JWT_SECRET=<high-entropy>
+```
+
+## Not flagged
+
+- `OPENAI_API_KEY=your-openai-key-here` in `.env.development`: placeholders only
+- `OPENAI_API_KEY=` in `.env.example`: example files are meant to be committed
+- `NEXT_PUBLIC_SITE_URL=https://acme.dev` in `.env.production`: only public values
+- `OPENAI_API_KEY=sk-proj-...Cvdv` in `.env.staging`: ignored by .gitignore, so git will not commit it
+- `DATABASE_URL=postgres://postgres:postgres@localhost:5432/test` in `.env.test`: test env files hold test values and are meant to be committed
+
+## How to fix
+
+Add the file to .gitignore, remove it from git with `git rm --cached <file>`, commit a `.env.example` with empty values instead, and rotate the secrets it held.
+
+## If the finding is wrong
+
+Add a comment on the line above, in the comment syntax of the file, that says who decided and why:
+
+```
+ubon-ignore secret/env-file-committed: <who decided>: <evidence>
+```
+
+Or turn the rule off for the project in `ubon.json`: `"rules": { "secret/env-file-committed": "off" }`. See [configuration](../../config.md).
+
+Fixtures: [fixtures/rules/secret/env-file-committed](../../../fixtures/rules/secret/env-file-committed).
+
+<!-- docs/rules/secret/key-file-committed.md -->
+
+# secret/key-file-committed
+
+Private key or credential file in git.
+
+Private keys (`*.pem`, `*.key`, `id_rsa`, `*.p12`), service account JSON, and config files with literal tokens (`.npmrc`, `.pypirc`, `.netrc`) that git tracks or does not ignore.
+
+- Default level: `block`.
+- Levels: warn for keys under test, fixture, and example folders, which are usually throwaway keys.
+- Looks at: the project as a whole, across files.
+- References: [CWE-798](https://cwe.mitre.org/data/definitions/798.html), [CWE-321](https://cwe.mitre.org/data/definitions/321.html), OWASP A04:2025.
+
+## Why it matters
+
+Key files give direct access to servers, cloud accounts, and package registries. Once committed they stay in git history even after the file is deleted.
+
+## Flagged
+
+`deploy/id_rsa` (block):
+
+```text
+-----BEGIN PRIVATE KEY-----...GW/Q
+yRNGWkm1YHVNOwvGD48UbyfFxc1AJvDBj7a8f8/delYCFG5r1B057LwOkr7ZLxQU
+8W/6R+nVD3LFVNJ+I4Mw6XFxPjfw1EDwYh2bZaJ0FsD2T2aWBg5bfN+FDBt2I2CY
+r2ypDoh4FPrawAT0ViKPYMvCZitebyOHqjzKj2Fiypje8Cr+y4jd+l59wnyUilPQ
+vuC1qX68RsnbeKamay2zfBjqWUszAxJmSmrniczBitkPfSlizcG7v0pB5rlB+KS0
+jyL28z+W4unCsgylyjoVeYl1x/Q/z8MlcBUKUgDgxXEfrnHkQngDmZHOuGCrviAY
+-----END PRIVATE KEY-----
+```
+
+`certs/server.key` (block):
+
+```text
+-----BEGIN PRIVATE KEY-----...bdwD
+73K8hFZamwK9H1KvoLKdjEvYvZMnrqG9i38GYmNZm1ltgITBnSYcUzCPTjfvdWZn
+UcJarcslzg9hubq+junkfjclF8uFRwDORV+iJru5tlafFUOkXK7C2/3EcMt5TSLi
+Rjl1G1jHSDnIS3w7EYr7M2HKLRWEp8R6egY1alF/DGRg03CSLaXdka2OhlPiFByz
+Z3n41vn4Hu4yWqy5RMhkdPDQ1eZuIO2qf7ZthfsmVtklPjMQjsG+9LuGMIHusavi
+n71+Gr3u3ACYN5Hk9Py89PIs8eY4ue/MRGvr2cZz+YiosSFhtg54RbaYAR5Gk+Cp
+-----END PRIVATE KEY-----
+```
+
+`.npmrc` (block):
+
+```text
+//registry.npmjs.org/:_authToken=npm_...XKOJ
+```
+
+`firebase/service-account.json` (block):
+
+```json
+"private_key": "...AevL\nxPCdnDslqxqMrdyvzNu3K50nsWSy3P1e/+cKVXsbXfVIA32fQIT+S+PCK76eHtaF\n-----END RSA PRIVATE KEY-----",
+```
+
+`test/fixtures/test-key.pem` (warn):
+
+```text
+-----BEGIN PRIVATE KEY-----...E91M
+vdRypfzkYzVOid14cVCHq6RAl36vCeGu9FW1t647w9YlwdFULo0M8LcopmUAbPOU
+jgOCrDTSpqiS6EDt5uvXrc/b8yXgAt4z8mAxGcPnT3bfrETOXiChOaF9UMI5EdrQ
+C3ODPzunZJ5zJqTl2U4H1O8uJR8QnaPR9KX6dxzVUZzZv2TVv3s2o597D2y9bKvh
+xWQ9KM2MzRQ+gTNj02ryKHaIC+li+WqHfVser/36WzJVlhSN0wsWquQVzE/LEnJE
++G4ZJ1JA/VqjMmZ4C5wGoeuf6YAtc8ECrscdlZMWhY07VBQPqSx6KnDjCiC62x43
+-----END PRIVATE KEY-----
+```
+
+## Not flagged
+
+- deploy/id_rsa.pub: public keys are not secrets
+- certs/server.pem: a certificate, not a private key
+- apps/cli/.npmrc: token read from the environment
+- firebase/firebase.json: config without credentials
+- .env.example-style files are covered by other rules
+
+## How to fix
+
+Remove the file from git (`git rm --cached <file>`), add it to .gitignore, and revoke or rotate the credential.
+
+## If the finding is wrong
+
+Add a comment on the line above, in the comment syntax of the file, that says who decided and why:
+
+```
+ubon-ignore secret/key-file-committed: <who decided>: <evidence>
+```
+
+Or turn the rule off for the project in `ubon.json`: `"rules": { "secret/key-file-committed": "off" }`. See [configuration](../../config.md).
+
+Fixtures: [fixtures/rules/secret/key-file-committed](../../../fixtures/rules/secret/key-file-committed).
+
+<!-- docs/rules/secret/server-env-in-client.md -->
+
+# secret/server-env-in-client
+
+Server env variable read in browser code.
+
+A secret-named `process.env.X` or `import.meta.env.X` (API keys, tokens, passwords, database URLs) read in a module that ships to the browser.
+
+- Default level: `warn`.
+- Looks at: the project as a whole, across files.
+- References: [CWE-200](https://cwe.mitre.org/data/definitions/200.html).
+
+## Why it matters
+
+Only prefixed variables are copied into the browser bundle, so the value is undefined there. Renaming the variable with a public prefix "fixes" it by publishing the value, which is wrong for secrets.
+
+## Flagged
+
+`app/components/Chat.tsx` (warn):
+
+```tsx
+const key = process.env.OPENAI_API_KEY;
+```
+
+`app/components/Chat.tsx` (warn):
+
+```tsx
+const token = import.meta.env.GITHUB_TOKEN;
+```
+
+`lib/config.ts` (warn):
+
+```ts
+export const stripeKey = process.env.STRIPE_SECRET_KEY;
+```
+
+## Not flagged
+
+- `const key = process.env.OPENAI_API_KEY;` in `app/api/chat/route.ts`: route handlers run on the server
+- `return Response.json({ ok: Boolean(key) });` in `app/api/chat/route.ts`: Boolean(key) });
+- `const site = process.env.NEXT_PUBLIC_SITE_URL;` in `app/components/Chat.tsx`: public prefix
+- `const mode = process.env.NODE_ENV;` in `app/components/Chat.tsx`: always defined
+- `const build = process.env.CUSTOM_BUILD_ID;` in `app/components/Chat.tsx`: exposed through next.config env
+- `const flag = process.env.FEATURE_FLAG;` in `app/page.tsx`: Server Component
+- `export const apiBase = process.env.INTERNAL_API_URL;` in `lib/config.ts`: not a secret name; often a server-only flag in a shared module
+- `DATABASE_URL: process.env.DATABASE_URL,` in `lib/env.ts`: createEnv keeps server variables on the server
+- `clientSecret: process.env.FRAMER_CLIENT_SECRET as string,` in `lib/programs.ts`: nested in a shared config object
+
+## How to fix
+
+Read the variable in server code (a route handler, Server Action, or loader) and pass only the result to the browser.
+
+## If the finding is wrong
+
+Add a comment on the line above, in the comment syntax of the file, that says who decided and why:
+
+```
+ubon-ignore secret/server-env-in-client: <who decided>: <evidence>
+```
+
+Or turn the rule off for the project in `ubon.json`: `"rules": { "secret/server-env-in-client": "off" }`. See [configuration](../../config.md).
+
+Fixtures: [fixtures/rules/secret/server-env-in-client](../../../fixtures/rules/secret/server-env-in-client).
+
+<!-- docs/rules/secret/in-prompt.md -->
+
+# secret/in-prompt
+
+Provider key in a prompt.
+
+A provider key pasted into a prompt to the agent (Claude Code UserPromptSubmit, Cursor beforeSubmitPrompt, and the equivalents in other agents).
+
+- Default level: `block`.
+- Levels: Set `prompts.secrets` to "warn" in ubon.json to warn instead of blocking.
+- Looks at: agent actions in hooks: commands, file reads, and prompts.
+- References: [CWE-200](https://cwe.mitre.org/data/definitions/200.html).
+
+## Why it matters
+
+A prompt goes to the model provider and into the session transcript. Blocking it keeps the key out of both; a key that was sent cannot be recalled.
+
+## How to fix
+
+Put the key in an ignored .env file and refer to it by its variable name in the prompt.
+
+## If the check is wrong
+
+This check runs in agent hooks. Allow a command prefix with `commands.allow` in `ubon.json`, or set `"rules": { "secret/in-prompt": "off" }`. See [configuration](../../config.md).
+
+<!-- docs/rules/secret/in-tool-output.md -->
+
+# secret/in-tool-output
+
+Provider key in tool output.
+
+Shell or tool output, returned to the agent, that contains a provider key.
+
+- Default level: `warn`.
+- Looks at: agent actions in hooks: commands, file reads, and prompts.
+- References: [CWE-532](https://cwe.mitre.org/data/definitions/532.html).
+
+## Why it matters
+
+The output is now in the model context and the transcript. The agent should not repeat the key, and the user should know it was exposed.
+
+## How to fix
+
+Do not repeat the value. Tell the user which key appeared so they can decide whether to rotate it.
+
+## If the check is wrong
+
+This check runs in agent hooks. Allow a command prefix with `commands.allow` in `ubon.json`, or set `"rules": { "secret/in-tool-output": "off" }`. See [configuration](../../config.md).
+
+<!-- docs/rules/secret/read-sensitive-file.md -->
+
+# secret/read-sensitive-file
+
+Agent reads a secrets file.
+
+The agent tries to read `.env*`, private keys, `~/.ssh`, `~/.aws/credentials`, `~/.npmrc`, or similar files through a read tool or a shell command such as `cat`.
+
+- Default level: `block`.
+- Levels: Returned as "ask" where the agent supports it, so a person approves the read; as "deny" elsewhere.
+- Looks at: agent actions in hooks: commands, file reads, and prompts.
+- References: [CWE-200](https://cwe.mitre.org/data/definitions/200.html).
+
+## Why it matters
+
+Reading the file puts every secret in it into the model context and the transcript. A person should decide whether that is needed.
+
+## How to fix
+
+Ask the user for the variable names you need, or read `.env.example` instead.
+
+## If the check is wrong
+
+This check runs in agent hooks. Allow a command prefix with `commands.allow` in `ubon.json`, or set `"rules": { "secret/read-sensitive-file": "off" }`. See [configuration](../../config.md).
+
+<!-- docs/rules/integrity/invalid-suppression.md -->
+
+# integrity/invalid-suppression
+
+Suppression without a valid reason.
+
+An ubon-ignore comment that names no rule, an unknown rule, or no reason in the form `<who decided>: <evidence>`.
+
+- Default level: `warn`.
+- Looks at: each file in scope, on its own.
+
+## Why it matters
+
+A suppression is a claim that a finding is wrong or accepted. Without a reason nobody can check the claim later, so Ubon ignores the comment and keeps the finding.
+
+## How to fix
+
+Write it as `ubon-ignore <rule>: <who decided>: <evidence>`, or remove it.
+
+## If the finding is wrong
+
+Add a comment on the line above, in the comment syntax of the file, that says who decided and why:
+
+```
+ubon-ignore integrity/invalid-suppression: <who decided>: <evidence>
+```
+
+Or turn the rule off for the project in `ubon.json`: `"rules": { "integrity/invalid-suppression": "off" }`. See [configuration](../../config.md).
+
+<!-- docs/rules/integrity/unused-suppression.md -->
+
+# integrity/unused-suppression
+
+Suppression that no longer matches a finding.
+
+An ubon-ignore comment whose rule no longer reports anything on that line. Reported in full audits (`--all`) only.
+
+- Default level: `warn`.
+- Looks at: each file in scope, on its own.
+
+## Why it matters
+
+Stale suppressions hide future findings on the same line and make the list of accepted risks harder to review.
+
+## How to fix
+
+Remove the comment.
+
+## If the finding is wrong
+
+Add a comment on the line above, in the comment syntax of the file, that says who decided and why:
+
+```
+ubon-ignore integrity/unused-suppression: <who decided>: <evidence>
+```
+
+Or turn the rule off for the project in `ubon.json`: `"rules": { "integrity/unused-suppression": "off" }`. See [configuration](../../config.md).
