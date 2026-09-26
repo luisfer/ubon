@@ -44,6 +44,8 @@ export interface SessionEvent {
   key?: string;
   ms?: number;
   note?: string;
+  /** Text returned to the agent for non-allow decisions (masked), so a repeated event gets the same answer. */
+  reason?: string;
 }
 
 const MAX_SNAPSHOT_FILES = 5000;
