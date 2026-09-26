@@ -179,28 +179,83 @@ interface InitOptions {
   hooksOnly: boolean;
 }
 
+/**
+ * Planned file changes. Steps read through the draft, so two steps can edit
+ * the same file (the Ubon 3 cleanup, then the Ubon 4 setup) and the plan
+ * holds one change per path.
+ */
+class Draft {
+  readonly root: string;
+  private readonly planned = new Map<string, { content: string | null; notes: string[] }>();
+
+  constructor(root: string) {
+    this.root = root;
+  }
+
+  read(path: string): string | null {
+    const entry = this.planned.get(path);
+    return entry ? entry.content : safeRead(join(this.root, path));
+  }
+
+  exists(path: string): boolean {
+    const entry = this.planned.get(path);
+    return entry ? entry.content !== null : existsSync(join(this.root, path));
+  }
+
+  write(path: string, content: string, note?: string): void {
+    this.set(path, content, note);
+  }
+
+  remove(path: string, note?: string): void {
+    this.set(path, null, note);
+  }
+
+  private set(path: string, content: string | null, note?: string): void {
+    const entry = this.planned.get(path) ?? { content, notes: [] };
+    entry.content = content;
+    if (note && !entry.notes.includes(note)) entry.notes.push(note);
+    this.planned.set(path, entry);
+  }
+
+  changes(): Change[] {
+    const out: Change[] = [];
+    for (const [path, entry] of this.planned) {
+      const full = join(this.root, path);
+      const onDisk = existsSync(full);
+      const note = entry.notes.length > 0 ? entry.notes.join('; ') : undefined;
+      if (entry.content === null) {
+        if (onDisk) out.push({ path, action: 'remove', ...(note ? { note } : {}) });
+      } else if (!onDisk) {
+        out.push({ path, action: 'create', content: entry.content, ...(note ? { note } : {}) });
+      } else if (safeRead(full) !== entry.content) {
+        out.push({ path, action: 'update', content: entry.content, ...(note ? { note } : {}) });
+      }
+    }
+    return out;
+  }
+}
+
 export function planInit(root: string, targets: Target[], options: InitOptions): InitPlan {
-  const changes: Change[] = [];
+  const draft = new Draft(root);
   const notes: string[] = [];
   const localInstall = hasLocalUbon(root);
   const launcher = launcherFor(localInstall, VERSION);
   const runner = localInstall ? 'npx ubon' : `npx ubon@${VERSION}`;
 
+  planV3Cleanup(draft, notes, 'upgrade');
+
   // ubon.json
-  if (!existsSync(join(root, CONFIG_FILE))) {
+  if (!draft.exists(CONFIG_FILE)) {
     const config = { $schema: localInstall ? './node_modules/ubon/schema/config.json' : `https://unpkg.com/ubon@${VERSION}/schema/config.json` };
-    changes.push({ path: CONFIG_FILE, action: 'create', content: `${JSON.stringify(config, null, 2)}\n` });
+    draft.write(CONFIG_FILE, `${JSON.stringify(config, null, 2)}\n`);
   }
 
   // AGENTS.md block (read by Codex, Cursor, Copilot, Gemini with context.fileName, and Claude Code without CLAUDE.md).
-  pushMarkdownBlock(root, 'AGENTS.md', agentsBlock(runner), changes);
+  pushMarkdownBlock(draft, 'AGENTS.md', agentsBlock(runner));
   if (targets.includes('claude')) {
-    const claudeMd = join(root, 'CLAUDE.md');
-    if (existsSync(claudeMd)) {
-      const text = readFileSync(claudeMd, 'utf8');
-      if (!/^@AGENTS\.md\s*$/m.test(text) && !text.includes(BLOCK_BEGIN)) {
-        changes.push({ path: 'CLAUDE.md', action: 'update', content: `${text.replace(/\s*$/, '\n')}\n@AGENTS.md\n`, note: 'import AGENTS.md so Claude Code reads the Ubon block' });
-      }
+    const text = draft.read('CLAUDE.md');
+    if (text !== null && !/^@AGENTS\.md\s*$/m.test(text) && !text.includes(BLOCK_BEGIN)) {
+      draft.write('CLAUDE.md', `${text.replace(/\s*$/, '\n')}\n@AGENTS.md\n`, 'import AGENTS.md so Claude Code reads the Ubon block');
     }
   }
 
@@ -209,10 +264,10 @@ export function planInit(root: string, targets: Target[], options: InitOptions):
     switch (target) {
       case 'claude':
         if (options.hooksOnly) {
-          mergeJson(root, '.claude/settings.json', changes, notes, (data) => mergeHookMap(data, 'hooks', claudeHooks(launcher)));
+          mergeJson(draft, '.claude/settings.json', notes, (data) => mergeHookMap(data, 'hooks', claudeHooks(launcher)));
           skillTargets.add('.claude/skills/ubon');
         } else {
-          mergeJson(root, '.claude/settings.json', changes, notes, (data) => {
+          mergeJson(draft, '.claude/settings.json', notes, (data) => {
             const markets = (data.extraKnownMarketplaces ?? {}) as Record<string, unknown>;
             markets.ubon = { source: { source: 'github', repo: 'luisfer/ubon' } };
             data.extraKnownMarketplaces = markets;
@@ -225,19 +280,19 @@ export function planInit(root: string, targets: Target[], options: InitOptions):
         }
         break;
       case 'codex':
-        mergeJson(root, '.codex/hooks.json', changes, notes, (data) => mergeHookMap(data, 'hooks', codexHooks(launcher)));
+        mergeJson(draft, '.codex/hooks.json', notes, (data) => mergeHookMap(data, 'hooks', codexHooks(launcher)));
         skillTargets.add('.agents/skills/ubon');
         notes.push('Codex: review and trust the new hooks once with /hooks.');
         break;
       case 'cursor':
-        mergeJson(root, '.cursor/hooks.json', changes, notes, (data) => {
+        mergeJson(draft, '.cursor/hooks.json', notes, (data) => {
           data.version = 1;
           return mergeHookMap(data, 'hooks', cursorHooks(launcher));
         });
         skillTargets.add('.agents/skills/ubon');
         break;
       case 'gemini':
-        mergeJson(root, '.gemini/settings.json', changes, notes, (data) => {
+        mergeJson(draft, '.gemini/settings.json', notes, (data) => {
           mergeHookMap(data, 'hooks', geminiHooks(launcher));
           const context = (data.context ?? {}) as Record<string, unknown>;
           const names = Array.isArray(context.fileName) ? (context.fileName as unknown[]).map(String) : typeof context.fileName === 'string' ? [context.fileName] : ['GEMINI.md'];
@@ -250,7 +305,7 @@ export function planInit(root: string, targets: Target[], options: InitOptions):
         notes.push('Gemini CLI: project hooks must be trusted again after they change.');
         break;
       case 'copilot':
-        mergeJson(root, '.github/hooks/ubon.json', changes, notes, (data) => {
+        mergeJson(draft, '.github/hooks/ubon.json', notes, (data) => {
           data.version = 1;
           return mergeHookMap(data, 'hooks', copilotHooks(launcher));
         });
@@ -258,16 +313,16 @@ export function planInit(root: string, targets: Target[], options: InitOptions):
         if (!localInstall) notes.push('GitHub Copilot cloud agent: add Ubon as a dev dependency so the hooks do not download it in the sandbox.');
         break;
       case 'git-hooks':
-        planGitHook(root, runner, changes, notes);
+        planGitHook(draft, runner, notes);
         break;
       case 'github':
-        if (!existsSync(join(root, '.github/workflows/ubon.yml'))) changes.push({ path: '.github/workflows/ubon.yml', action: 'create', content: githubWorkflow() });
+        if (!draft.exists('.github/workflows/ubon.yml')) draft.write('.github/workflows/ubon.yml', githubWorkflow());
         break;
     }
   }
-  for (const dest of skillTargets) planSkillCopy(root, dest, changes, notes);
+  for (const dest of skillTargets) planSkillCopy(draft, dest, notes);
   if (!localInstall) notes.push(`Ubon is not a dev dependency of this project, so hooks run a pinned version with npx (ubon@${VERSION}). For faster hooks and a lockfile-pinned version: npm install --save-dev ubon, then run ubon init again.`);
-  return { changes, notes, targets };
+  return { changes: draft.changes(), notes, targets };
 }
 
 function hasLocalUbon(root: string): boolean {
@@ -284,11 +339,10 @@ function safeRead(path: string): string | null {
   }
 }
 
-function pushMarkdownBlock(root: string, file: string, block: string, changes: Change[]): void {
-  const full = join(root, file);
-  const existing = safeRead(full);
-  if (existing === null) {
-    changes.push({ path: file, action: 'create', content: `${block}\n` });
+function pushMarkdownBlock(draft: Draft, file: string, block: string): void {
+  const existing = draft.read(file);
+  if (existing === null || existing.trim() === '') {
+    draft.write(file, `${block}\n`);
     return;
   }
   const start = existing.indexOf(BLOCK_BEGIN);
@@ -296,34 +350,39 @@ function pushMarkdownBlock(root: string, file: string, block: string, changes: C
   let next: string;
   if (start !== -1 && end > start) next = `${existing.slice(0, start)}${block}${existing.slice(end + BLOCK_END.length)}`;
   else next = `${existing.replace(/\s*$/, '\n')}\n${block}\n`;
-  if (next !== existing) changes.push({ path: file, action: 'update', content: next, note: 'Ubon block between ubon:begin and ubon:end' });
+  if (next !== existing) draft.write(file, next, 'Ubon block between ubon:begin and ubon:end');
+}
+
+/** Parse a JSON object for editing, or explain in a note why the file is left alone. */
+function readJsonObject(draft: Draft, file: string, notes: string[]): Record<string, unknown> | null | 'skip' {
+  const existing = draft.read(file);
+  if (existing === null) return null;
+  let data: unknown;
+  try {
+    data = JSON.parse(existing);
+  } catch {
+    const loose = parseJsonLoose(existing);
+    const note = loose
+      ? `${file} has comments or trailing commas, so Ubon did not rewrite it. Add the entries shown by \`ubon init --yes\` in a copy without comments, or edit it by hand.`
+      : `${file} is not valid JSON, so Ubon did not change it.`;
+    if (!notes.includes(note)) notes.push(note);
+    return 'skip';
+  }
+  if (!data || typeof data !== 'object' || Array.isArray(data)) {
+    notes.push(`${file} is not a JSON object, so Ubon did not change it.`);
+    return 'skip';
+  }
+  return data as Record<string, unknown>;
 }
 
 /** Merge into a JSON file. Files with comments are not rewritten (comments would be lost); a note explains what to add. */
-function mergeJson(root: string, file: string, changes: Change[], notes: string[], edit: (data: Record<string, unknown>) => Record<string, unknown>): void {
-  const full = join(root, file);
-  const existing = safeRead(full);
-  let data: Record<string, unknown> = {};
-  if (existing !== null) {
-    try {
-      data = JSON.parse(existing) as Record<string, unknown>;
-    } catch {
-      const loose = parseJsonLoose(existing);
-      notes.push(
-        loose
-          ? `${file} has comments or trailing commas, so Ubon did not rewrite it. Add the entries shown by \`ubon init --yes\` in a copy without comments, or edit it by hand.`
-          : `${file} is not valid JSON, so Ubon did not change it.`,
-      );
-      return;
-    }
-    if (!data || typeof data !== 'object' || Array.isArray(data)) {
-      notes.push(`${file} is not a JSON object, so Ubon did not change it.`);
-      return;
-    }
-  }
-  const next = `${JSON.stringify(edit(structuredClone(data)), null, 2)}\n`;
-  if (existing === null) changes.push({ path: file, action: 'create', content: next });
-  else if (normalizeJson(existing) !== normalizeJson(next)) changes.push({ path: file, action: 'update', content: next, note: 'merged; other entries kept' });
+function mergeJson(draft: Draft, file: string, notes: string[], edit: (data: Record<string, unknown>) => Record<string, unknown>): void {
+  const data = readJsonObject(draft, file, notes);
+  if (data === 'skip') return;
+  const existing = draft.read(file);
+  const next = `${JSON.stringify(edit(structuredClone(data ?? {})), null, 2)}\n`;
+  if (existing === null) draft.write(file, next);
+  else if (normalizeJson(existing) !== normalizeJson(next)) draft.write(file, next, 'merged; other entries kept');
 }
 
 function normalizeJson(text: string): string {
@@ -345,12 +404,12 @@ export function mergeHookMap(data: Record<string, unknown>, key: string, ours: R
   return data;
 }
 
-export function removeUbonHooks(data: Record<string, unknown>, key: string): Record<string, unknown> {
+export function removeUbonHooks(data: Record<string, unknown>, key: string, match: (entry: unknown) => boolean = entryRunsUbon): Record<string, unknown> {
   const hooks = data[key];
   if (!hooks || typeof hooks !== 'object' || Array.isArray(hooks)) return data;
   for (const [event, entries] of Object.entries(hooks as Record<string, unknown>)) {
     if (!Array.isArray(entries)) continue;
-    const kept = entries.filter((entry) => !entryRunsUbon(entry));
+    const kept = entries.filter((entry) => !match(entry));
     if (kept.length === 0) delete (hooks as Record<string, unknown>)[event];
     else (hooks as Record<string, unknown>)[event] = kept;
   }
@@ -366,7 +425,7 @@ export function entryRunsUbon(entry: unknown): boolean {
   return false;
 }
 
-function planSkillCopy(root: string, dest: string, changes: Change[], notes: string[]): void {
+function planSkillCopy(draft: Draft, dest: string, notes: string[]): void {
   const pkg = packageRoot();
   const source = pkg ? join(pkg, 'skills', 'ubon') : null;
   if (!source || !existsSync(source)) {
@@ -376,9 +435,7 @@ function planSkillCopy(root: string, dest: string, changes: Change[], notes: str
   for (const file of listFiles(source)) {
     const content = readFileSync(join(source, file), 'utf8');
     const target = `${dest}/${file}`;
-    const existing = safeRead(join(root, target));
-    if (existing === content) continue;
-    changes.push({ path: target, action: existing === null ? 'create' : 'update', ...(file === 'SKILL.md' ? { content } : { content }) });
+    if (draft.read(target) !== content) draft.write(target, content);
   }
 }
 
@@ -393,36 +450,32 @@ function listFiles(dir: string, prefix = ''): string[] {
   return out.sort();
 }
 
-function planGitHook(root: string, runner: string, changes: Change[], notes: string[]): void {
+function preCommitEntry(): string {
+  return `  - repo: https://github.com/luisfer/ubon\n    rev: v${VERSION}\n    hooks:\n      - id: ubon\n`;
+}
+
+function planGitHook(draft: Draft, runner: string, notes: string[]): void {
   const command = `${runner} check --staged`;
-  const husky = join(root, '.husky', 'pre-commit');
-  if (existsSync(join(root, '.husky'))) {
-    const existing = safeRead(husky);
+  if (existsSync(join(draft.root, '.husky'))) {
+    const existing = draft.read('.husky/pre-commit');
     if (existing?.includes('ubon check')) return;
-    changes.push({ path: '.husky/pre-commit', action: existing === null ? 'create' : 'update', content: `${existing ? existing.replace(/\s*$/, '\n') : ''}${command}\n`, note: 'husky' });
+    draft.write('.husky/pre-commit', `${existing ? existing.replace(/\s*$/, '\n') : ''}${command}\n`, 'husky');
     return;
   }
-  const precommit = safeRead(join(root, '.pre-commit-config.yaml'));
+  const precommit = draft.read('.pre-commit-config.yaml');
   if (precommit !== null) {
     if (precommit.includes('luisfer/ubon')) return;
-    changes.push({
-      path: '.pre-commit-config.yaml',
-      action: 'update',
-      content: `${precommit.replace(/\s*$/, '\n')}  - repo: https://github.com/luisfer/ubon\n    rev: v${VERSION}\n    hooks:\n      - id: ubon\n`,
-      note: 'pre-commit framework',
-    });
+    draft.write('.pre-commit-config.yaml', `${precommit.replace(/\s*$/, '\n')}${preCommitEntry()}`, 'pre-commit framework');
     if (!/^repos:/m.test(precommit)) notes.push('.pre-commit-config.yaml has no top-level repos: key; check the added entry.');
     return;
   }
-  const lefthook = ['lefthook.yml', 'lefthook.yaml', '.lefthook.yml'].find((f) => existsSync(join(root, f)));
+  const lefthook = ['lefthook.yml', 'lefthook.yaml', '.lefthook.yml'].find((f) => existsSync(join(draft.root, f)));
   if (lefthook) {
     notes.push(`${lefthook}: add a pre-commit command that runs "${command}" (Ubon does not rewrite lefthook files).`);
     return;
   }
   const hook = '.githooks/pre-commit';
-  if (!existsSync(join(root, hook))) {
-    changes.push({ path: hook, action: 'create', content: `#!/bin/sh\n# Generated by ubon init: checks what this commit will record.\n${command}\n` });
-  }
+  if (!draft.exists(hook)) draft.write(hook, `#!/bin/sh\n# Generated by ubon init: checks what this commit will record.\n${command}\n`);
   notes.push('Git: enable the hook with `git config core.hooksPath .githooks` (Ubon does not change git config for you).');
 }
 
@@ -458,53 +511,117 @@ jobs:
 }
 
 // ---------------------------------------------------------------------------
+// Ubon 3 leftovers. `ubon agent install` (3.2) wrote these files from fixed
+// templates; after an upgrade they call commands and options that no longer
+// exist. They are recognized by their exact names and template text only.
+
+const V3_CURSOR_SCRIPTS = ['after-edit', 'secret-scan', 'before-shell', 'after-shell', 'before-mcp', 'after-mcp', 'stop-gate', 'precompact'].map((n) => `ubon-${n}.sh`);
+const V3_SCRIPT_COMMAND = /(^|[\s"'/\\])\.cursor[\\/]hooks[\\/]ubon-[\w-]+\.sh(["'\s]|$)/;
+const V3_AGENTS_SECTION = (heading: string) =>
+  `# ${heading}\n\n## Ubon\n\n- Run \`ubon verify\` before considering implementation work complete.\n- For fast inner-loop checks, run \`ubon check --preset agent\`.\n- For PR review, run \`ubon review --since origin/main\`.\n- Do not ignore high-severity Ubon findings unless there is an explicit suppression reason.\n`;
+const V3_PRE_COMMIT = /^repos:\n {2}- repo: local\n {4}hooks:\n {6}- id: ubon-security-check\n {8}name: Ubon Security Scanner\n {8}entry: ubon check [^\n]*\n {8}language: system\n {8}files: [^\n]*\n {8}pass_filenames: false\n?$/;
+
+function isV3HookEntry(entry: unknown): boolean {
+  return Boolean(entry && typeof entry === 'object' && typeof (entry as Record<string, unknown>).command === 'string' && V3_SCRIPT_COMMAND.test((entry as Record<string, string>).command as string));
+}
+
+function planV3Cleanup(draft: Draft, notes: string[], mode: 'upgrade' | 'remove'): void {
+  const found: string[] = [];
+
+  const cursorHooks = readJsonObject(draft, '.cursor/hooks.json', []);
+  if (cursorHooks && cursorHooks !== 'skip') {
+    const before = JSON.stringify(cursorHooks);
+    removeUbonHooks(cursorHooks, 'hooks', isV3HookEntry);
+    if (JSON.stringify(cursorHooks) !== before) {
+      draft.write('.cursor/hooks.json', `${JSON.stringify(cursorHooks, null, 2)}\n`, 'Ubon 3 hooks removed');
+      found.push('Cursor hooks');
+    }
+  }
+  for (const script of V3_CURSOR_SCRIPTS) {
+    const path = `.cursor/hooks/${script}`;
+    if (draft.exists(path)) draft.remove(path, 'Ubon 3 hook script');
+  }
+  if (draft.read('.cursor/rules/ubon.mdc')?.includes('description: Ubon security scanner integration')) {
+    draft.remove('.cursor/rules/ubon.mdc', 'Ubon 3 Cursor rule');
+  }
+
+  for (const [file, heading] of [
+    ['AGENTS.md', 'Agent guidance'],
+    ['CLAUDE.md', 'Claude Code guidance'],
+  ] as const) {
+    const text = draft.read(file);
+    const section = V3_AGENTS_SECTION(heading);
+    if (text === null || !text.includes(section)) continue;
+    const rest = text.replace(section, '').replace(/\n{3,}/g, '\n\n');
+    if (rest.trim() !== '') draft.write(file, rest.replace(/^\n+/, ''), 'Ubon 3 section removed');
+    else if (file === 'CLAUDE.md' && mode === 'upgrade') draft.write(file, '@AGENTS.md\n', 'Ubon 3 section replaced by an import of AGENTS.md');
+    else draft.remove(file, 'contained only the Ubon 3 section');
+  }
+
+  const precommit = draft.read('.pre-commit-config.yaml');
+  if (precommit !== null && V3_PRE_COMMIT.test(precommit)) {
+    if (mode === 'upgrade') draft.write('.pre-commit-config.yaml', `repos:\n${preCommitEntry()}`, 'Ubon 3 hook replaced');
+    else draft.remove('.pre-commit-config.yaml', 'contained only the Ubon 3 hook');
+  } else if (precommit?.includes('id: ubon-security-check')) {
+    notes.push('.pre-commit-config.yaml has the Ubon 3 hook (ubon-security-check), which passes options Ubon 4 does not accept. Replace it with the entry in docs/upgrade.md.');
+  }
+
+  const workflow = draft.read('.github/workflows/ubon.yml');
+  if (workflow?.includes('npx ubon@latest verify')) {
+    if (mode === 'upgrade') draft.write('.github/workflows/ubon.yml', githubWorkflow(), 'replaces the Ubon 3 workflow, which runs `ubon verify`');
+    else draft.remove('.github/workflows/ubon.yml', 'Ubon 3 workflow');
+  }
+
+  if (draft.exists('.ubon/results-cache.json')) draft.remove('.ubon/results-cache.json', 'Ubon 3 cache');
+
+  if (mode === 'upgrade') {
+    const gitignore = draft.read('.gitignore');
+    if (gitignore !== null && /^\/?\.ubon\/?[ \t]*$/m.test(gitignore)) {
+      draft.write('.gitignore', gitignore.replace(/^\/?\.ubon\/?[ \t]*$/m, '.ubon/*\n!.ubon/baseline.json'), 'keep ignoring .ubon/ except the baseline, which is meant to be committed');
+    }
+  }
+  if (draft.exists('ubon.config.json')) {
+    notes.push('ubon.config.json is the Ubon 3 configuration and Ubon 4 does not read it. docs/upgrade.md lists the ubon.json equivalents; delete it when you are done.');
+  }
+  if (mode === 'upgrade' && found.length > 0) notes.push('The Ubon 3 Cursor hooks are replaced; Ubon 4 hooks run `ubon hook cursor <event>` directly. Run `ubon init --cursor` if Cursor is not set up yet.');
+}
+
+// ---------------------------------------------------------------------------
 // Removal
 
 export function planRemoval(root: string): InitPlan {
-  const changes: Change[] = [];
+  const draft = new Draft(root);
   const notes: string[] = [];
-  const agents = safeRead(join(root, 'AGENTS.md'));
+  planV3Cleanup(draft, notes, 'remove');
+  const agents = draft.read('AGENTS.md');
   if (agents?.includes(BLOCK_BEGIN)) {
     const start = agents.indexOf(BLOCK_BEGIN);
     const end = agents.indexOf(BLOCK_END);
     if (end > start) {
       const next = `${agents.slice(0, start).replace(/\s*$/, '')}\n${agents.slice(end + BLOCK_END.length).replace(/^\s*/, '')}`.replace(/^\n+/, '');
-      changes.push(next.trim() === '' ? { path: 'AGENTS.md', action: 'remove' } : { path: 'AGENTS.md', action: 'update', content: next.endsWith('\n') ? next : `${next}\n` });
+      if (next.trim() === '') draft.remove('AGENTS.md');
+      else draft.write('AGENTS.md', next.endsWith('\n') ? next : `${next}\n`);
     }
   }
-  const jsonFiles: Array<[string, string]> = [
-    ['.claude/settings.json', 'hooks'],
-    ['.codex/hooks.json', 'hooks'],
-    ['.cursor/hooks.json', 'hooks'],
-    ['.gemini/settings.json', 'hooks'],
-  ];
-  for (const [file, key] of jsonFiles) {
-    const text = safeRead(join(root, file));
-    if (text === null) continue;
-    let data: Record<string, unknown>;
-    try {
-      data = JSON.parse(text) as Record<string, unknown>;
-    } catch {
-      continue;
-    }
+  for (const file of ['.claude/settings.json', '.codex/hooks.json', '.cursor/hooks.json', '.gemini/settings.json']) {
+    const data = readJsonObject(draft, file, []);
+    if (!data || data === 'skip') continue;
     const before = JSON.stringify(data);
-    removeUbonHooks(data, key);
+    removeUbonHooks(data, 'hooks');
     if (file === '.claude/settings.json') {
       const markets = data.extraKnownMarketplaces as Record<string, unknown> | undefined;
       if (markets?.ubon) delete markets.ubon;
       const enabled = data.enabledPlugins as Record<string, unknown> | undefined;
       if (enabled && 'ubon@ubon' in enabled) delete enabled['ubon@ubon'];
     }
-    if (JSON.stringify(data) !== before) changes.push({ path: file, action: 'update', content: `${JSON.stringify(data, null, 2)}\n` });
+    if (JSON.stringify(data) !== before) draft.write(file, `${JSON.stringify(data, null, 2)}\n`);
   }
-  if (existsSync(join(root, '.github/hooks/ubon.json'))) changes.push({ path: '.github/hooks/ubon.json', action: 'remove' });
-  for (const dir of ['.agents/skills/ubon', '.claude/skills/ubon']) if (existsSync(join(root, dir))) changes.push({ path: dir, action: 'remove' });
-  const workflow = safeRead(join(root, '.github/workflows/ubon.yml'));
-  if (workflow?.startsWith('# Generated by ubon init')) changes.push({ path: '.github/workflows/ubon.yml', action: 'remove' });
-  const githook = safeRead(join(root, '.githooks/pre-commit'));
-  if (githook?.includes('# Generated by ubon init')) changes.push({ path: '.githooks/pre-commit', action: 'remove' });
+  if (draft.exists('.github/hooks/ubon.json')) draft.remove('.github/hooks/ubon.json');
+  for (const dir of ['.agents/skills/ubon', '.claude/skills/ubon']) if (existsSync(join(root, dir))) draft.remove(dir);
+  if (draft.read('.github/workflows/ubon.yml')?.startsWith('# Generated by ubon init')) draft.remove('.github/workflows/ubon.yml');
+  if (draft.read('.githooks/pre-commit')?.includes('# Generated by ubon init')) draft.remove('.githooks/pre-commit');
   if (existsSync(join(root, CONFIG_FILE))) notes.push(`${CONFIG_FILE} was kept; delete it yourself if you no longer want it.`);
-  return { changes, notes, targets: [] };
+  return { changes: draft.changes(), notes, targets: [] };
 }
 
 export function relativeTo(root: string, path: string): string {

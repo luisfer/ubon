@@ -258,3 +258,8 @@ export function currentAuthor(root: string, commit: string): string | null {
   const out = git(root, ['log', '-1', '--format=%an <%ae>', '--end-of-options', commit]);
   return out ? out.trim() : null;
 }
+
+/** True when git would ignore the path (a .gitignore rule matches and the file is not tracked). */
+export function isIgnored(root: string, path: string): boolean {
+  return git(root, ['check-ignore', '-q', '--', path]) !== null;
+}

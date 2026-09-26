@@ -2,7 +2,7 @@ import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync
 import { join } from 'node:path';
 import { parseArgs } from 'node:util';
 import { CONFIG_FILE, ConfigError, loadConfig } from '../core/config.ts';
-import { git, gitDir, repoRoot } from '../core/git.ts';
+import { git, gitDir, isIgnored, repoRoot } from '../core/git.ts';
 import { packageRoot } from '../core/package-root.ts';
 import { readEvents, recentSessions, stateDir } from '../core/session.ts';
 import { adapterFor } from '../hook/adapters/index.ts';
@@ -69,8 +69,25 @@ export function diagnose(root: string, env: NodeJS.ProcessEnv): DoctorItem[] {
   const local = existsSync(join(root, 'node_modules', 'ubon', 'package.json'));
   items.push({ status: 'ok', subject: 'ubon', detail: `${VERSION} from ${pkg ?? 'an unknown location'}${local ? ' (project dev dependency installed)' : ''}` });
 
+  const gitVersion = /(\d+)\.(\d+)(\.\d+)?/.exec(git(root, ['--version']) ?? '');
+  if (!gitVersion) items.push({ status: 'warn', subject: 'git', detail: 'not found on PATH; Ubon checks every file instead of the changes' });
+  else {
+    // `git rev-parse --end-of-options` arrived in Git 2.30.
+    const gitOk = Number(gitVersion[1]) > 2 || (Number(gitVersion[1]) === 2 && Number(gitVersion[2]) >= 30);
+    items.push({ status: gitOk ? 'ok' : 'error', subject: 'git', detail: `${gitVersion[0]}${gitOk ? '' : ' (Ubon needs Git 2.30 or newer to find the changes)'}` });
+  }
+
   const isGit = gitDir(root) !== null;
   items.push({ status: isGit ? 'ok' : 'warn', subject: 'project', detail: `${root}${isGit ? ' (git)' : ' (not a git repository: diff and session checks fall back to every file)'}` });
+  if (isGit && isIgnored(root, '.ubon/baseline.json')) {
+    items.push({ status: 'warn', subject: 'baseline', detail: 'git ignores .ubon/baseline.json, so a baseline would not reach CI; run ubon init to fix the .gitignore line (Ubon 3 added .ubon/)' });
+  }
+  if (existsSync(join(root, 'ubon.config.json'))) {
+    items.push({ status: 'warn', subject: 'ubon.config.json', detail: 'Ubon 3 configuration, which Ubon 4 does not read; see docs/upgrade.md' });
+  }
+  if (existsSync(join(root, '.cursor', 'hooks', 'ubon-stop-gate.sh')) || existsSync(join(root, '.cursor', 'hooks', 'ubon-after-edit.sh'))) {
+    items.push({ status: 'warn', subject: 'Cursor', detail: 'Ubon 3 hook scripts in .cursor/hooks/; run ubon init to replace them' });
+  }
 
   try {
     const dir = join(stateDir(root), 'doctor-probe');

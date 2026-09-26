@@ -1,7 +1,7 @@
 import { existsSync } from 'node:fs';
 import { isAbsolute, relative, resolve } from 'node:path';
 import { ConfigError, type UbonConfig, applyEnvDefaults, defaultConfig, loadConfig } from '../core/config.ts';
-import { git, repoRoot } from '../core/git.ts';
+import { git, isIgnored, repoRoot } from '../core/git.ts';
 import { maskValue, safeText } from '../core/mask.ts';
 import { type SessionEvent, appendEvent, findingsHash, loadSession, readEvents, sanitizeSessionId, startSession } from '../core/session.ts';
 import type { Finding } from '../core/types.ts';
@@ -283,8 +283,7 @@ class HookRuntime {
   }
 
   private isIgnored(path: string): boolean {
-    const out = git(this.root, ['check-ignore', '-q', '--', path]);
-    return out !== null;
+    return isIgnored(this.root, path);
   }
 
   private relative(path: string): string | null {

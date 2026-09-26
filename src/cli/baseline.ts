@@ -1,7 +1,7 @@
 import { parseArgs } from 'node:util';
 import { BASELINE_FILE, baselineFrom, writeBaseline } from '../core/baseline.ts';
 import { runCheck } from '../core/engine.ts';
-import { repoRoot } from '../core/git.ts';
+import { isIgnored, repoRoot } from '../core/git.ts';
 import type { IO } from './io.ts';
 import { EXIT } from './main.ts';
 
@@ -26,5 +26,9 @@ export async function runBaseline(argv: string[], io: IO): Promise<number> {
   const { block, warn } = report.summary;
   io.stdout(`ubon: recorded ${baseline.findings.length} findings (${block} blocking, ${warn} warnings) in ${BASELINE_FILE}.\n`);
   if (report.notChecked.length > 0) io.stdout(`Not checked: ${report.notChecked.join('; ')}.\n`);
+  if (isIgnored(root, BASELINE_FILE)) {
+    // Ubon 3 added `.ubon/` to .gitignore for its cache; that line would keep the baseline out of the repository.
+    io.stderr(`ubon: git ignores ${BASELINE_FILE}, so CI and other clones will not see it. Remove the .gitignore line that matches it (Ubon 3 added \`.ubon/\`), or run \`git add -f ${BASELINE_FILE}\`.\n`);
+  }
   return EXIT.ok;
 }

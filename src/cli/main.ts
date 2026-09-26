@@ -1,8 +1,11 @@
+import { existsSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { ConfigError } from '../core/config.ts';
 import { BaselineError } from '../core/baseline.ts';
 import { UsageError } from '../core/scope.ts';
 import { VERSION } from '../version.ts';
 import { type IO, processIO } from './io.ts';
+import { v3CommandHint, v3OptionHint } from './v3.ts';
 
 /**
  * `ubon` command-line entry. Exit codes are a contract:
@@ -65,6 +68,13 @@ export async function main(argv: string[], io: IO = processIO()): Promise<number
     if (known) {
       name = first;
       args = rest;
+    } else {
+      // `ubon scan` and friends: a Ubon 3 command, unless a path with that name exists.
+      const hint = v3CommandHint(first);
+      if (hint && !existsSync(resolve(io.cwd, first))) {
+        io.stderr(`ubon: ${hint}\n`);
+        return EXIT.usage;
+      }
     }
   }
   const command = COMMANDS.find((c) => c[0] === name);
@@ -82,7 +92,11 @@ export async function main(argv: string[], io: IO = processIO()): Promise<number
 
 export function reportError(error: unknown, io: IO): number {
   if (error instanceof ConfigError || error instanceof UsageError || error instanceof BaselineError || isParseArgsError(error)) {
-    io.stderr(`ubon: ${(error as Error).message}\n`);
+    const message = (error as Error).message;
+    const option = /^Unknown option '([^']+)'/.exec(message)?.[1];
+    const hint = option ? v3OptionHint(option) : null;
+    if (option) io.stderr(`ubon: unknown option ${option}. ${hint ?? 'Run `ubon <command> --help` for the options of a command.'}\n`);
+    else io.stderr(`ubon: ${message}\n`);
     return EXIT.usage;
   }
   const message = error instanceof Error ? error.message : String(error);
