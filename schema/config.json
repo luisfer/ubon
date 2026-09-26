@@ -1,0 +1,181 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/luisfer/ubon/blob/main/schema/config.json",
+  "title": "ubon.json",
+  "description": "Configuration for Ubon. Unknown keys are an error. See https://github.com/luisfer/ubon/blob/main/docs/config.md",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "$schema": {
+      "type": "string"
+    },
+    "rules": {
+      "description": "Rule levels by rule ID or pack selector (pack/*). An exact ID wins over a pack selector.",
+      "type": "object",
+      "propertyNames": {
+        "anyOf": [
+          {
+            "enum": [
+              "secret/provider-key",
+              "secret/db-url-password",
+              "secret/public-env-name",
+              "secret/env-file-committed",
+              "secret/key-file-committed",
+              "secret/server-env-in-client",
+              "secret/in-prompt",
+              "secret/in-tool-output",
+              "secret/read-sensitive-file",
+              "integrity/invalid-suppression",
+              "integrity/unused-suppression"
+            ]
+          },
+          {
+            "enum": [
+              "secret/*",
+              "integrity/*"
+            ]
+          }
+        ]
+      },
+      "additionalProperties": {
+        "enum": [
+          "block",
+          "warn",
+          "off"
+        ]
+      }
+    },
+    "ignore": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Glob patterns of files Ubon does not check. A pattern without a slash matches at any depth, as in .gitignore."
+    },
+    "auth": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "functions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Names of your own auth helpers (for example requireUser), so ubon map recognizes auth calls."
+        },
+        "public": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Glob patterns of entry point files that are public on purpose."
+        }
+      }
+    },
+    "packages": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "online": {
+          "type": "boolean",
+          "default": false,
+          "description": "Allow registry and OSV lookups for new packages."
+        },
+        "minAgeDays": {
+          "type": "number",
+          "minimum": 0,
+          "default": 7,
+          "description": "A new package must have existed for at least this many days."
+        },
+        "minReleaseAgeHours": {
+          "type": "number",
+          "minimum": 0,
+          "default": 48,
+          "description": "A new version must have been published at least this many hours ago."
+        },
+        "allow": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Package names or scopes (@acme/*) that skip package checks."
+        }
+      }
+    },
+    "commands": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "ask": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Command prefixes that need a person to approve them."
+        },
+        "deny": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Command prefixes that are always denied."
+        },
+        "allow": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Command prefixes that are always allowed (checked first)."
+        }
+      }
+    },
+    "suppressions": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "agent": {
+          "enum": [
+            "allow",
+            "human-only"
+          ],
+          "default": "allow",
+          "description": "human-only: a suppression added in an agent session blocks the stop hook until a person approves it."
+        }
+      }
+    },
+    "session": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "stop": {
+          "enum": [
+            "block",
+            "warn"
+          ],
+          "default": "block",
+          "description": "block: the agent must fix blocking findings before it finishes."
+        }
+      }
+    },
+    "prompts": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "secrets": {
+          "enum": [
+            "block",
+            "warn"
+          ],
+          "default": "block",
+          "description": "What to do with a prompt that contains a provider key."
+        }
+      }
+    },
+    "maxFileSize": {
+      "type": "number",
+      "minimum": 0,
+      "default": 1048576,
+      "description": "Files larger than this many bytes are not checked (and are listed as not checked)."
+    }
+  }
+}

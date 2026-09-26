@@ -1,0 +1,27 @@
+{
+  "name": "ubon",
+  "owner": {
+    "name": "Luisfer Romero Calero",
+    "url": "https://github.com/luisfer"
+  },
+  "plugins": [
+    {
+      "name": "ubon",
+      "source": {
+        "source": "npm",
+        "package": "ubon",
+        "version": "4.0.0-alpha.0"
+      },
+      "description": "Checks what coding agents change and run: leaked secrets, trust-boundary bugs, missing data access policies, risky packages and commands, and weakened tests.",
+      "version": "4.0.0-alpha.0",
+      "homepage": "https://github.com/luisfer/ubon",
+      "license": "MIT",
+      "keywords": [
+        "security",
+        "secrets",
+        "supply-chain",
+        "hooks"
+      ]
+    }
+  ]
+}

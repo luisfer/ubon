@@ -60,16 +60,31 @@ const SHAPE: Shape = {
   maxFileSize: 'number',
 };
 
-export function loadConfig(root: string, knownRules: ReadonlySet<string>): { config: UbonConfig; path: string | null } {
+export function loadConfig(root: string, knownRules: ReadonlySet<string>): { config: UbonConfig; path: string | null; raw: Record<string, unknown> } {
   const path = join(root, CONFIG_FILE);
-  if (!existsSync(path)) return { config: defaultConfig(), path: null };
+  if (!existsSync(path)) return { config: defaultConfig(), path: null, raw: {} };
   let raw: unknown;
   try {
     raw = JSON.parse(readFileSync(path, 'utf8'));
   } catch (error) {
     throw new ConfigError(`${CONFIG_FILE} is not valid JSON: ${(error as Error).message}`);
   }
-  return { config: parseConfig(raw, knownRules), path };
+  return { config: parseConfig(raw, knownRules), path, raw: raw as Record<string, unknown> };
+}
+
+/**
+ * Personal defaults from the environment (the Claude Code plugin exports its
+ * options as CLAUDE_PLUGIN_OPTION_*). They apply only where ubon.json is
+ * silent, so a project's settings always win.
+ */
+export function applyEnvDefaults(config: UbonConfig, raw: Record<string, unknown>, env: NodeJS.ProcessEnv): UbonConfig {
+  const session = raw.session as Record<string, unknown> | undefined;
+  const packages = raw.packages as Record<string, unknown> | undefined;
+  const stop = env.UBON_STOP ?? env.CLAUDE_PLUGIN_OPTION_STOP;
+  if ((stop === 'block' || stop === 'warn') && session?.stop === undefined) config.session.stop = stop;
+  const online = env.UBON_ONLINE ?? env.CLAUDE_PLUGIN_OPTION_ONLINE;
+  if ((online === 'true' || online === 'false') && packages?.online === undefined) config.packages.online = online === 'true';
+  return config;
 }
 
 export function parseConfig(raw: unknown, knownRules: ReadonlySet<string>): UbonConfig {

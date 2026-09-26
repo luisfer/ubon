@@ -1,0 +1,124 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/luisfer/ubon/blob/main/schema/report.json",
+  "title": "Ubon report",
+  "description": "Output of `ubon check --format json` and the `check` MCP tool, schemaVersion 4.0. See https://github.com/luisfer/ubon/blob/main/docs/output.md",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "tool", "scope", "summary", "findings", "suppressed", "notChecked", "notes"],
+  "properties": {
+    "schemaVersion": { "const": "4.0" },
+    "tool": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "version"],
+      "properties": { "name": { "const": "ubon" }, "version": { "type": "string" } }
+    },
+    "scope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["mode", "files"],
+      "properties": {
+        "mode": { "enum": ["diff", "all", "paths", "staged", "session"] },
+        "base": { "type": "string", "description": "The base as given or resolved: a ref name, HEAD, or session start." },
+        "baseCommit": { "type": "string" },
+        "files": { "type": "integer", "minimum": 0, "description": "Number of files checked." }
+      }
+    },
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["block", "warn", "suppressed", "baselined"],
+      "properties": {
+        "block": { "type": "integer", "minimum": 0 },
+        "warn": { "type": "integer", "minimum": 0 },
+        "suppressed": { "type": "integer", "minimum": 0 },
+        "baselined": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "findings": { "type": "array", "items": { "$ref": "#/$defs/finding" } },
+    "suppressed": { "type": "array", "items": { "$ref": "#/$defs/suppressedFinding" } },
+    "notChecked": { "type": "array", "items": { "type": "string" }, "description": "What Ubon could not check in this run, in plain words." },
+    "notes": { "type": "array", "items": { "type": "string" } }
+  },
+  "$defs": {
+    "position": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["line", "column"],
+      "properties": { "line": { "type": "integer", "minimum": 1 }, "column": { "type": "integer", "minimum": 1 } }
+    },
+    "findingProperties": {
+      "rule": { "type": "string", "pattern": "^[a-z]+/[a-z0-9-]+$" },
+      "level": { "enum": ["block", "warn"] },
+      "file": { "type": "string", "description": "Path relative to the repository root, with forward slashes." },
+      "range": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["start", "end"],
+        "properties": { "start": { "$ref": "#/$defs/position" }, "end": { "$ref": "#/$defs/position" } }
+      },
+      "message": { "type": "string" },
+      "evidence": { "type": "string", "description": "One line of code, with secrets masked." },
+      "trace": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["line", "note"],
+          "properties": { "line": { "type": "integer", "minimum": 1 }, "note": { "type": "string" } }
+        }
+      },
+      "fix": { "type": "string" },
+      "docs": { "type": "string" },
+      "fingerprint": { "type": "string", "pattern": "^[0-9a-f]{16}$" },
+      "introduced": { "type": "boolean", "description": "true when the finding is new in this change, false when it existed at the base; absent without a base." }
+    },
+    "finding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["rule", "level", "file", "range", "message", "fix", "docs", "fingerprint"],
+      "properties": {
+        "rule": { "$ref": "#/$defs/findingProperties/rule" },
+        "level": { "$ref": "#/$defs/findingProperties/level" },
+        "file": { "$ref": "#/$defs/findingProperties/file" },
+        "range": { "$ref": "#/$defs/findingProperties/range" },
+        "message": { "$ref": "#/$defs/findingProperties/message" },
+        "evidence": { "$ref": "#/$defs/findingProperties/evidence" },
+        "trace": { "$ref": "#/$defs/findingProperties/trace" },
+        "fix": { "$ref": "#/$defs/findingProperties/fix" },
+        "docs": { "$ref": "#/$defs/findingProperties/docs" },
+        "fingerprint": { "$ref": "#/$defs/findingProperties/fingerprint" },
+        "introduced": { "$ref": "#/$defs/findingProperties/introduced" }
+      }
+    },
+    "suppressedFinding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["rule", "level", "file", "range", "message", "fix", "docs", "fingerprint", "suppression"],
+      "properties": {
+        "rule": { "$ref": "#/$defs/findingProperties/rule" },
+        "level": { "$ref": "#/$defs/findingProperties/level" },
+        "file": { "$ref": "#/$defs/findingProperties/file" },
+        "range": { "$ref": "#/$defs/findingProperties/range" },
+        "message": { "$ref": "#/$defs/findingProperties/message" },
+        "evidence": { "$ref": "#/$defs/findingProperties/evidence" },
+        "trace": { "$ref": "#/$defs/findingProperties/trace" },
+        "fix": { "$ref": "#/$defs/findingProperties/fix" },
+        "docs": { "$ref": "#/$defs/findingProperties/docs" },
+        "fingerprint": { "$ref": "#/$defs/findingProperties/fingerprint" },
+        "introduced": { "$ref": "#/$defs/findingProperties/introduced" },
+        "suppression": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["line", "reason"],
+          "properties": {
+            "line": { "type": "integer", "minimum": 1 },
+            "reason": { "type": "string" },
+            "added": { "type": "boolean", "description": "true when the comment was added in this change." }
+          }
+        }
+      }
+    }
+  }
+}

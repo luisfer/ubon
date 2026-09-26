@@ -16,11 +16,13 @@
   },
   "types": "./dist/index.d.ts",
   "files": [
-    "dist/ubon.mjs",
-    "dist/index.mjs",
-    "dist/index.d.ts",
-    "schema/config.json",
-    "schema/report.json",
+    "dist/",
+    "schema/",
+    "skills/",
+    "commands/",
+    "agents/",
+    "hooks/hooks.json",
+    ".claude-plugin/plugin.json",
     "llms.txt",
     "THIRD_PARTY_NOTICES.md"
   ],

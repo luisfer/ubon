@@ -1,0 +1,38 @@
+{
+  "name": "ubon",
+  "displayName": "Ubon",
+  "version": "4.0.0-alpha.0",
+  "description": "Checks what coding agents change and run: leaked secrets, trust-boundary bugs, missing data access policies, risky packages and commands, and weakened tests. Deterministic and local.",
+  "author": {
+    "name": "Luisfer Romero Calero",
+    "url": "https://github.com/luisfer"
+  },
+  "homepage": "https://github.com/luisfer/ubon",
+  "repository": "https://github.com/luisfer/ubon",
+  "license": "MIT",
+  "keywords": [
+    "security",
+    "secrets",
+    "supply-chain",
+    "hooks",
+    "code-review"
+  ],
+  "userConfig": {
+    "stop": {
+      "type": "string",
+      "title": "Stop gate",
+      "description": "block: the agent must fix blocking findings before it finishes. warn: it is told about them and may stop. A session.stop value in the project's ubon.json takes precedence.",
+      "options": [
+        "block",
+        "warn"
+      ],
+      "default": "block"
+    },
+    "online": {
+      "type": "boolean",
+      "title": "Registry lookups for installs",
+      "description": "Check packages in install commands against the npm registry and OSV (existence, age, malicious-package records). Sends package names only. A packages.online value in the project's ubon.json takes precedence.",
+      "default": false
+    }
+  }
+}

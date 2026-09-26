@@ -1,0 +1,111 @@
+{
+  "description": "Ubon: deterministic checks on agent actions and changes",
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node",
+            "args": [
+              "${CLAUDE_PLUGIN_ROOT}/dist/ubon.mjs",
+              "hook",
+              "claude",
+              "SessionStart"
+            ],
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node",
+            "args": [
+              "${CLAUDE_PLUGIN_ROOT}/dist/ubon.mjs",
+              "hook",
+              "claude",
+              "UserPromptSubmit"
+            ],
+            "timeout": 5
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Bash|PowerShell|Read|Edit|Write|NotebookEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node",
+            "args": [
+              "${CLAUDE_PLUGIN_ROOT}/dist/ubon.mjs",
+              "hook",
+              "claude",
+              "PreToolUse"
+            ],
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write|NotebookEdit|Bash|PowerShell",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node",
+            "args": [
+              "${CLAUDE_PLUGIN_ROOT}/dist/ubon.mjs",
+              "hook",
+              "claude",
+              "PostToolUse"
+            ],
+            "timeout": 30,
+            "statusMessage": "ubon: checking the change"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node",
+            "args": [
+              "${CLAUDE_PLUGIN_ROOT}/dist/ubon.mjs",
+              "hook",
+              "claude",
+              "Stop"
+            ],
+            "timeout": 120,
+            "statusMessage": "ubon: checking this session's changes"
+          }
+        ]
+      }
+    ],
+    "SubagentStop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node",
+            "args": [
+              "${CLAUDE_PLUGIN_ROOT}/dist/ubon.mjs",
+              "hook",
+              "claude",
+              "SubagentStop"
+            ],
+            "timeout": 120
+          }
+        ]
+      }
+    ]
+  }
+}

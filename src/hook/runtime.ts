@@ -1,6 +1,6 @@
 import { existsSync } from 'node:fs';
 import { isAbsolute, relative, resolve } from 'node:path';
-import { ConfigError, type UbonConfig, defaultConfig, loadConfig } from '../core/config.ts';
+import { ConfigError, type UbonConfig, applyEnvDefaults, defaultConfig, loadConfig } from '../core/config.ts';
 import { git, repoRoot } from '../core/git.ts';
 import { maskValue, safeText } from '../core/mask.ts';
 import { type SessionEvent, appendEvent, findingsHash, loadSession, readEvents, sanitizeSessionId, startSession } from '../core/session.ts';
@@ -66,7 +66,8 @@ export async function runHookEvent(input: RunHookInput): Promise<RunHookResult> 
   let config: UbonConfig;
   let configNotice: string | undefined;
   try {
-    config = loadConfig(root, ruleIds()).config;
+    const loaded = loadConfig(root, ruleIds());
+    config = applyEnvDefaults(loaded.config, loaded.raw, process.env);
   } catch (error) {
     if (!(error instanceof ConfigError)) throw error;
     // An invalid ubon.json must not switch Ubon off: fall back to the defaults.
