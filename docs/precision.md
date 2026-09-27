@@ -4,19 +4,19 @@
 
 How often each rule is right on real code. Ubon checked 14 public repositories, pinned by commit in [corpus/repos.json](../corpus/repos.json), with `ubon check --all` (workflow repositories: `.github/` only). Every finding is marked as a true or a false positive in [corpus/triage.jsonl](../corpus/triage.jsonl), with a note that explains the verdict.
 
-A rule may report `block` only if at least 95 percent of its findings on the corpus are true positives. Rules with no findings here are measured by their fixtures only.
+A rule may report `block` only if at least 95 percent of its block findings on the corpus are true positives. Rules that look at what a change did (most of `integrity`, `deps/typosquat`, `deps/install-script`) report nothing on a full check of a repository, and rules for commands run in agent hooks, so the corpus does not measure them; their fixtures and tests do. The same goes for any other rule with no findings here.
 
 | Repository | Kind | Block | Warn |
 | --- | --- | --- | --- |
 | [vercel/ai-chatbot](https://github.com/vercel/ai-chatbot/tree/c2f8235e1f3ea903ad8b7f61447c4f74164b5c58) | reference app | 0 | 0 |
-| [documenso/documenso](https://github.com/documenso/documenso/tree/a1d4bec1430a937395db9a4aae28979cd71c2831) | product | 0 | 5 |
-| [dubinc/dub](https://github.com/dubinc/dub/tree/ac13d86c09664909db8aa88e9c601070660aede0) | product | 0 | 1 |
-| [formbricks/formbricks](https://github.com/formbricks/formbricks/tree/bfe7933cb2882c99f2196aa6a46edd104cd7fbb8) | product | 0 | 0 |
+| [documenso/documenso](https://github.com/documenso/documenso/tree/a1d4bec1430a937395db9a4aae28979cd71c2831) | product | 0 | 7 |
+| [dubinc/dub](https://github.com/dubinc/dub/tree/ac13d86c09664909db8aa88e9c601070660aede0) | product | 0 | 8 |
+| [formbricks/formbricks](https://github.com/formbricks/formbricks/tree/bfe7933cb2882c99f2196aa6a46edd104cd7fbb8) | product | 0 | 7 |
 | [t3-oss/create-t3-app](https://github.com/t3-oss/create-t3-app/tree/4709861f7e67a15564c0460c13e7b4b6cfcae40d) | template | 2 | 1 |
-| [vercel/nextjs-subscription-payments](https://github.com/vercel/nextjs-subscription-payments/tree/bdd0813206e47e6b218d42f15a7976c8a0d3c3eb) | template | 0 | 2 |
-| [mckaywrigley/chatbot-ui](https://github.com/mckaywrigley/chatbot-ui/tree/81328b61d2a4ab597a7a057be70e785cf756d9f8) | AI app | 0 | 1 |
+| [vercel/nextjs-subscription-payments](https://github.com/vercel/nextjs-subscription-payments/tree/bdd0813206e47e6b218d42f15a7976c8a0d3c3eb) | template | 0 | 3 |
+| [mckaywrigley/chatbot-ui](https://github.com/mckaywrigley/chatbot-ui/tree/81328b61d2a4ab597a7a057be70e785cf756d9f8) | AI app | 0 | 3 |
 | [usebasejump/basejump](https://github.com/usebasejump/basejump/tree/7a1f95ccef74eb2e638d5e4233b66b6cbbe175e6) | Supabase schema | 0 | 0 |
-| [juice-shop/juice-shop](https://github.com/juice-shop/juice-shop/tree/1618a611b173b4bf114028e6e02549950606e29d) | intentionally vulnerable | 2 | 17 |
+| [juice-shop/juice-shop](https://github.com/juice-shop/juice-shop/tree/1618a611b173b4bf114028e6e02549950606e29d) | intentionally vulnerable | 17 | 38 |
 | [vitejs/vite](https://github.com/vitejs/vite/tree/bc598a6a8a6b7d6e157e9f19c16911cff8d2360c) | workflows | 0 | 0 |
 | [withastro/astro](https://github.com/withastro/astro/tree/4ce2fca6edac7ac56c410b8d853a3968cc34b046) | workflows | 0 | 1 |
 | [TanStack/router](https://github.com/TanStack/router/tree/1e113034bdeccf696e6658d0b886439deb023bfd) | workflows | 0 | 0 |
@@ -25,13 +25,35 @@ A rule may report `block` only if at least 95 percent of its findings on the cor
 
 ## By rule
 
-| Rule | Default level | Findings | True positives | False positives | Untriaged | Precision |
-| --- | --- | --- | --- | --- | --- | --- |
-| [secret/provider-key](rules/secret/provider-key.md) | block | 2 | 2 | 0 | 0 | 100% |
-| [secret/public-env-name](rules/secret/public-env-name.md) | block | 2 | 2 | 0 | 0 | 100% |
-| [secret/key-file-committed](rules/secret/key-file-committed.md) | block | 1 | 1 | 0 | 0 | 100% |
-| [data/permissive-policy](rules/data/permissive-policy.md) | block | 3 | 3 | 0 | 0 | 100% |
-| [deps/undeclared-import](rules/deps/undeclared-import.md) | warn | 23 | 23 | 0 | 0 | 100% |
-| [ci/publish-token](rules/ci/publish-token.md) | warn | 1 | 1 | 0 | 0 | 100% |
+Precision counts `block` findings only, because the gate applies to them; warnings are listed with their own counts.
 
-Rules with no findings on the corpus: `secret/db-url-password`, `secret/env-file-committed`, `secret/server-env-in-client`, `data/rls-disabled`, `data/service-role-in-client`, `data/firebase-open-rules`, `deps/nonexistent-package`, `deps/young-package`, `deps/typosquat`, `deps/install-script`, `deps/non-registry-source`, `deps/known-malicious`, `ci/expression-injection`, `ci/untrusted-checkout`, `integrity/invalid-suppression`, `integrity/unused-suppression`, `integrity/test-skipped`, `integrity/test-deleted`, `integrity/type-suppression`, `integrity/lint-suppression`, `integrity/checks-weakened`, `integrity/new-suppression`, `hygiene/elided-code`, `hygiene/placeholder`, `hygiene/variant-file`.
+| Rule | Default level | Block findings | Block precision | Warnings | Warnings correct | Untriaged |
+| --- | --- | --- | --- | --- | --- | --- |
+| [secret/provider-key](rules/secret/provider-key.md) | block | 2 | 100% | 0 | 0 of 0 | 0 |
+| [secret/public-env-name](rules/secret/public-env-name.md) | block | 2 | 100% | 0 | 0 of 0 | 0 |
+| [secret/key-file-committed](rules/secret/key-file-committed.md) | block | 0 | n/a | 1 | 1 of 1 | 0 |
+| [web/sql-injection](rules/web/sql-injection.md) | block | 6 | 100% | 0 | 0 of 0 | 0 |
+| [web/ssrf](rules/web/ssrf.md) | block | 1 | 100% | 1 | 0 of 1 | 0 |
+| [web/path-traversal](rules/web/path-traversal.md) | block | 2 | 0% | 0 | 0 of 0 | 0 |
+| [web/code-eval](rules/web/code-eval.md) | block | 0 | n/a | 2 | 2 of 2 | 0 |
+| [web/xss-html-sink](rules/web/xss-html-sink.md) | warn | 5 | 100% | 22 | 22 of 22 | 0 |
+| [web/weak-token-randomness](rules/web/weak-token-randomness.md) | block | 1 | 100% | 0 | 0 of 0 | 0 |
+| [web/cors-credentials-wildcard](rules/web/cors-credentials-wildcard.md) | block | 0 | n/a | 2 | 2 of 2 | 0 |
+| [web/jwt-unverified](rules/web/jwt-unverified.md) | block | 0 | n/a | 1 | 1 of 1 | 0 |
+| [web/open-redirect](rules/web/open-redirect.md) | warn | 0 | n/a | 4 | 4 of 4 | 0 |
+| [web/insecure-cookie](rules/web/insecure-cookie.md) | warn | 0 | n/a | 2 | 2 of 2 | 0 |
+| [web/token-in-web-storage](rules/web/token-in-web-storage.md) | warn | 0 | n/a | 5 | 5 of 5 | 0 |
+| [data/permissive-policy](rules/data/permissive-policy.md) | block | 0 | n/a | 3 | 3 of 3 | 0 |
+| [llm/untrusted-system-prompt](rules/llm/untrusted-system-prompt.md) | warn | 0 | n/a | 1 | 1 of 1 | 0 |
+| [deps/undeclared-import](rules/deps/undeclared-import.md) | warn | 0 | n/a | 23 | 23 of 23 | 0 |
+| [ci/publish-token](rules/ci/publish-token.md) | warn | 0 | n/a | 1 | 1 of 1 | 0 |
+
+Rules with no findings on the corpus: `secret/db-url-password`, `secret/env-file-committed`, `secret/server-env-in-client`, `web/command-injection`, `web/webhook-unverified`, `data/rls-disabled`, `data/service-role-in-client`, `data/firebase-open-rules`, `llm/browser-key`, `llm/output-to-sink`, `llm/tool-dangerous-capability`, `deps/nonexistent-package`, `deps/young-package`, `deps/typosquat`, `deps/install-script`, `deps/non-registry-source`, `deps/known-malicious`, `ci/expression-injection`, `ci/untrusted-checkout`, `integrity/invalid-suppression`, `integrity/unused-suppression`, `integrity/test-skipped`, `integrity/test-deleted`, `integrity/type-suppression`, `integrity/lint-suppression`, `integrity/checks-weakened`, `integrity/new-suppression`, `hygiene/elided-code`, `hygiene/placeholder`, `hygiene/variant-file`.
+
+## False positives
+
+Each one is a known limit of the rule.
+
+- `web/ssrf` in dubinc/dub, `apps/web/app/api/misc/check-favicon/route.ts:18`: the base, imported from another package, is https://www.google.com/s2/favicons?...&domain_url=, so the value only fills a query parameter; Ubon cannot read constants from other packages
+- `web/path-traversal` in juice-shop/juice-shop, `routes/vulnCodeFixes.ts:81`: key is passed to a lookup that returns early for unknown challenge keys before the file is read; Ubon does not follow validation into helpers
+- `web/path-traversal` in juice-shop/juice-shop, `routes/vulnCodeSnippet.ts:90`: key is passed to a lookup that returns early for unknown challenge keys before the file is read; Ubon does not follow validation into helpers

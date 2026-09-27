@@ -106,7 +106,7 @@ async function report() {
     '',
     `How often each rule is right on real code. Ubon checked ${repos.length} public repositories, pinned by commit in [corpus/repos.json](../corpus/repos.json), with \`ubon check --all\` (workflow repositories: \`.github/\` only). Every finding is marked as a true or a false positive in [corpus/triage.jsonl](../corpus/triage.jsonl), with a note that explains the verdict.`,
     '',
-    'A rule may report `block` only if at least 95 percent of its findings on the corpus are true positives. Rules with no findings here are measured by their fixtures only.',
+    'A rule may report `block` only if at least 95 percent of its block findings on the corpus are true positives. Rules that look at what a change did (most of `integrity`, `deps/typosquat`, `deps/install-script`) report nothing on a full check of a repository, and rules for commands run in agent hooks, so the corpus does not measure them; their fixtures and tests do. The same goes for any other rule with no findings here.',
     '',
     '| Repository | Kind | Block | Warn |',
     '| --- | --- | --- | --- |',
@@ -115,15 +115,17 @@ async function report() {
     const mine = rows.filter((r) => r.repo === repo.name);
     lines.push(`| [${repo.name}](https://github.com/${repo.name}/tree/${repo.commit}) | ${repo.kind} | ${mine.filter((r) => r.level === 'block').length} | ${mine.filter((r) => r.level === 'warn').length} |`);
   }
-  lines.push('', '## By rule', '', '| Rule | Default level | Findings | True positives | False positives | Untriaged | Precision |', '| --- | --- | --- | --- | --- | --- | --- |');
+  lines.push('', '## By rule', '', 'Precision counts `block` findings only, because the gate applies to them; warnings are listed with their own counts.', '', '| Rule | Default level | Block findings | Block precision | Warnings | Warnings correct | Untriaged |', '| --- | --- | --- | --- | --- | --- | --- |');
   for (const rule of RULES) {
     const mine = rows.filter((r) => r.rule === rule.meta.id);
     if (mine.length === 0) continue;
-    const tp = mine.filter((r) => r.verdict === 'tp').length;
-    const fp = mine.filter((r) => r.verdict === 'fp').length;
-    const open = mine.length - tp - fp;
-    const precision = tp + fp > 0 ? `${Math.round((100 * tp) / (tp + fp))}%` : 'n/a';
-    lines.push(`| [${rule.meta.id}](rules/${rule.meta.id}.md) | ${rule.meta.level} | ${mine.length} | ${tp} | ${fp} | ${open} | ${precision} |`);
+    const blocks = mine.filter((r) => r.level === 'block');
+    const warns = mine.filter((r) => r.level === 'warn');
+    const tp = (list) => list.filter((r) => r.verdict === 'tp').length;
+    const judged = (list) => list.filter((r) => r.verdict !== null).length;
+    const precision = judged(blocks) > 0 ? `${Math.round((100 * tp(blocks)) / judged(blocks))}%` : 'n/a';
+    const open = mine.filter((r) => r.verdict === null).length;
+    lines.push(`| [${rule.meta.id}](rules/${rule.meta.id}.md) | ${rule.meta.level} | ${blocks.length} | ${precision} | ${warns.length} | ${tp(warns)} of ${judged(warns)} | ${open} |`);
   }
   const quiet = RULES.filter((r) => r.meta.scope !== 'hook' && !rows.some((row) => row.rule === r.meta.id)).map((r) => r.meta.id);
   lines.push('', `Rules with no findings on the corpus: ${quiet.length === 0 ? 'none' : quiet.map((id) => `\`${id}\``).join(', ')}.`);
