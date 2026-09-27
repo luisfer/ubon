@@ -1,6 +1,7 @@
 import { existsSync } from 'node:fs';
 import { join, posix } from 'node:path';
 import { SERVER_PATH, pathContexts } from './context.ts';
+import { commentStyleFor, maskComments } from '../lang/comments.ts';
 import { JS_LANGS, SCRIPT_LANGS, languageOf, readTextFile } from './files.ts';
 
 /**
@@ -82,11 +83,16 @@ const SSR_FRAMEWORKS: Framework[] = ['next', 'sveltekit', 'astro', 'remix', 'rea
 export const IMPORT_RE =
   /(?:^|[^\w$.])(?:import\s*(?:type\s+)?(?:[\w$*{}\s,]+?\s*from\s*)?|export\s*(?:type\s+)?(?:\*\s*(?:as\s+[\w$]+\s*)?|\{[^}]*\}\s*)from\s*|import\s*\(\s*|require\s*\(\s*)(['"`])([^'"`\n]+)\1/g;
 
-export function extractImports(text: string): string[] {
+/**
+ * Module specifiers imported by a file. With the file's path, comments are
+ * masked first, so usage examples in doc comments are not imports.
+ */
+export function extractImports(text: string, path?: string): string[] {
   const out: string[] = [];
+  const code = path === undefined ? text : maskComments(text, commentStyleFor(languageOf(path), path));
   IMPORT_RE.lastIndex = 0;
   let m: RegExpExecArray | null;
-  while ((m = IMPORT_RE.exec(text))) {
+  while ((m = IMPORT_RE.exec(code))) {
     const spec = m[2];
     if (spec && !spec.includes('${')) out.push(spec);
   }
@@ -326,7 +332,7 @@ export class Project {
       const text = this.read(file);
       if (!text) continue;
       const targets: string[] = [];
-      for (const spec of extractImports(text)) {
+      for (const spec of extractImports(text, file)) {
         const hit = this.resolveImport(file, spec);
         if (hit) {
           targets.push(hit);
