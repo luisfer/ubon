@@ -1,0 +1,5 @@
+{
+  "permissions": {
+    "allow": ["Bash(*)"] // ok: personal settings are not shared with the team
+  }
+}

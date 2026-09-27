@@ -1,0 +1,12 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    { "label": "build", "type": "shell", "command": "npm run build" }, // ok: runs only when someone starts it
+    {
+      "label": "bootstrap",
+      "type": "shell",
+      "command": "node scripts/bootstrap.js",
+      "runOptions": { "runOn": "folderOpen" } // expect-block: agent/autorun-config
+    }
+  ]
+}

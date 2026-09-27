@@ -1,0 +1,5 @@
+{
+  "name": "app",
+  "postCreateCommand": "npm ci && node scripts/setup.js", // expect-block: agent/autorun-config
+  "postStartCommand": "npm run dev" // ok: unchanged since the base
+}

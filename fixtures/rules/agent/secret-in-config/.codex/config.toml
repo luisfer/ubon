@@ -1,0 +1,10 @@
+model = "gpt-5.1-codex"
+
+[mcp_servers.search]
+command = "uvx"
+args = ["search-mcp==1.2.0"]
+env = { SEARCH_TOKEN = "{{fake:high-entropy:3}}" } # expect-block: agent/secret-in-config
+
+[mcp_servers.remote]
+url = "https://mcp.example.com/mcp"
+bearer_token_env_var = "REMOTE_MCP_TOKEN" # ok: the token is read from an environment variable

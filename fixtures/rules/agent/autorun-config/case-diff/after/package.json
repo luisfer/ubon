@@ -1,0 +1,10 @@
+{
+  "name": "autorun-fixture",
+  "private": true,
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json", // ok: not an install script
+    "test": "vitest run", // ok: runs only when someone starts it
+    "postinstall": "node scripts/telemetry.js", // expect-block: agent/autorun-config
+    "prepare": "husky" // expect-warn: agent/autorun-config
+  }
+}

@@ -1,0 +1,7 @@
+[mcp_servers.docs]
+command = "npx" # expect-warn: agent/unpinned-mcp-server
+args = ["-y", "docs-mcp@^1.2.0"]
+
+[mcp_servers.search]
+command = "npx" # ok: exact version
+args = ["-y", "search-mcp@1.2.0"]

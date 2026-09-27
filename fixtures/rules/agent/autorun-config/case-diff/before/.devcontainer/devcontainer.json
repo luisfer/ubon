@@ -1,0 +1,4 @@
+{
+  "name": "app",
+  "postStartCommand": "npm run dev"
+}

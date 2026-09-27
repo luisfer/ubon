@@ -1,0 +1,11 @@
+{
+  "inputs": [{ "type": "promptString", "id": "tickets-key", "description": "Tickets API key", "password": true }],
+  "servers": {
+    "tickets": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["-y", "@example/tickets-mcp@3.1.0"],
+      "env": { "TICKETS_API_KEY": "${input:tickets-key}" } // ok: VS Code asks for the value at run time
+    }
+  }
+}

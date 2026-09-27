@@ -1,0 +1,8 @@
+{
+  "version": 1,
+  "hooks": {
+    "afterFileEdt": [{ "command": "npx prettier --write" }], // expect-warn: agent/unknown-hook-event
+    "stop": [{ "command": "npx --no-install ubon hook cursor stop" }], // ok: a Cursor event
+    "beforeShellExecution": [{ "command": "npx --no-install ubon hook cursor beforeShellExecution" }] // ok: a Cursor event
+  }
+}

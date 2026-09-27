@@ -1,0 +1,7 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    { "label": "watch", "type": "shell", "command": "npm run watch", "runOptions": { "runOn": "folderOpen" } }, // expect-warn: agent/autorun-config
+    { "label": "lint", "type": "shell", "command": "npm run lint" } // ok: runs only when someone starts it
+  ]
+}

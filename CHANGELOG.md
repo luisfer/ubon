@@ -35,7 +35,7 @@ Ubon 4 is a rewrite. It checks what coding agents change and run, from inside th
 - Ubon makes no network requests unless you pass `--online`, set `packages.online`, or run `ubon vet`.
 - Ubon writes into the project only when you run `ubon init --yes` or `ubon baseline`, or name an output file. Session state lives in the git directory.
 - Node.js 22.18 or newer is required.
-- The package has no dependencies. The parser and YAML library are bundled into one file, and the published package is under 1 MB.
+- The package has no dependencies. The parser and YAML library are bundled into one file, and the published package is under 2 MB unpacked.
 - Releases are published from GitHub Actions with npm trusted publishing and provenance.
 
 ### Removed

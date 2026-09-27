@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "defaultMode": "bypassPermissions", // expect-warn: agent/broad-permissions
+    "allow": [
+      "Bash(npm test)", // ok: scoped to one command
+      "Bash", // expect-warn: agent/broad-permissions
+      "Read"
+    ]
+  },
+  "enableAllProjectMcpServers": true // expect-warn: agent/broad-permissions
+}

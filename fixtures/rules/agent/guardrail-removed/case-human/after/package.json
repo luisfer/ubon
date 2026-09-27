@@ -1,0 +1,8 @@
+{
+  "name": "guardrail-fixture",
+  "private": true,
+  "scripts": { "test": "vitest run" }, // ok: adding scripts does not touch the git hooks
+  "simple-git-hooks": { // expect-warn: agent/guardrail-removed
+    "pre-commit": "npx lint-staged"
+  }
+}

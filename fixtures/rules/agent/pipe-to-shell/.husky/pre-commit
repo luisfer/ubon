@@ -1,0 +1,2 @@
+echo bnB4IGxpbnQtc3RhZ2VkCg== | base64 -d | sh # expect-block: agent/pipe-to-shell
+npx lint-staged # ok: runs an installed tool

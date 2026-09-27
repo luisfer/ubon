@@ -1,0 +1,6 @@
+repos: # expect-block: agent/guardrail-removed
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      # ok: removing trailing-whitespace removes a fixer, not a check
+      - id: check-yaml

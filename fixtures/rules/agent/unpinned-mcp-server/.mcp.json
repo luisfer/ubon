@@ -1,0 +1,52 @@
+{
+  "mcpServers": {
+    "github": {
+      "command": "npx", // expect-warn: agent/unpinned-mcp-server
+      "args": ["-y", "@modelcontextprotocol/server-github"]
+    },
+    "fs": {
+      "command": "npx", // ok: exact version
+      "args": ["-y", "@modelcontextprotocol/server-filesystem@2025.8.21", "."]
+    },
+    "browser": {
+      "command": "npx", // expect-warn: agent/unpinned-mcp-server
+      "args": ["@playwright/mcp@latest"]
+    },
+    "fetch": {
+      "command": "uvx", // expect-warn: agent/unpinned-mcp-server
+      "args": ["mcp-server-fetch"]
+    },
+    "time": {
+      "command": "uvx", // ok: exact version
+      "args": ["mcp-server-time==2025.7.1"]
+    },
+    "github-docker": {
+      "command": "docker", // expect-warn: agent/unpinned-mcp-server
+      "args": ["run", "-i", "--rm", "-e", "GITHUB_PERSONAL_ACCESS_TOKEN", "ghcr.io/github/github-mcp-server"]
+    },
+    "github-docker-pinned": {
+      "command": "docker", // ok: tagged image
+      "args": ["run", "-i", "--rm", "-e", "GITHUB_PERSONAL_ACCESS_TOKEN", "ghcr.io/github/github-mcp-server:v0.13.0"]
+    },
+    "legacy": {
+      "type": "sse",
+      "url": "http://mcp.example.com/sse" // expect-warn: agent/unpinned-mcp-server
+    },
+    "figma": {
+      "type": "http",
+      "url": "http://127.0.0.1:3845/mcp" // ok: a server on this machine
+    },
+    "local": {
+      "command": "node", // ok: a script in the repository
+      "args": ["./tools/mcp-server.js"]
+    },
+    "docs": {
+      "command": "npx", // ok: a devDependency in package.json, so npx runs the installed version from the lockfile
+      "args": ["-y", "@fixture/docs-mcp"]
+    },
+    "docs-dlx": {
+      "command": "pnpm", // expect-warn: agent/unpinned-mcp-server
+      "args": ["dlx", "@fixture/docs-mcp"]
+    }
+  }
+}

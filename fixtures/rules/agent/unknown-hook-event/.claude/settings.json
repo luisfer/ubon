@@ -1,0 +1,7 @@
+{
+  "hooks": {
+    "PreToolUse": [{ "matcher": "Bash", "hooks": [{ "type": "command", "command": "npx --no-install ubon hook claude PreToolUse" }] }], // ok: a Claude Code event
+    "PostToolUSe": [{ "hooks": [{ "type": "command", "command": "npx prettier --write ." }] }], // expect-warn: agent/unknown-hook-event
+    "beforeShellExecution": [{ "hooks": [{ "type": "command", "command": "echo check" }] }] // expect-warn: agent/unknown-hook-event
+  }
+}

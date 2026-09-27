@@ -1,0 +1,7 @@
+pre-commit:
+  parallel: true
+  commands:
+    ubon:
+      run: npx ubon check --staged
+    lint:
+      run: npx eslint {staged_files}

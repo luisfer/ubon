@@ -1,0 +1,6 @@
+{
+  "version": 1,
+  "hooks": {
+    "workspaceOpen": [{ "command": "node .cursor/hooks/open.js" }] // expect-block: agent/autorun-config
+  }
+}

@@ -1,0 +1,8 @@
+{
+  "env": {
+    "INTERNAL_API_TOKEN": "{{fake:high-entropy:4}}", // expect-block: agent/secret-in-config
+    "NODE_ENV": "development", // ok: not a credential
+    "SESSION_TOKEN_TTL": "3600", // ok: a number is a setting, not a secret
+    "AUTH_MODE": "oauth2-device-flow" // ok: a setting written as words
+  }
+}

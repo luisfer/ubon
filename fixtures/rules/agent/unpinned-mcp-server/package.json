@@ -1,0 +1,7 @@
+{
+  "name": "unpinned-mcp-fixture",
+  "private": true,
+  "devDependencies": {
+    "@fixture/docs-mcp": "1.4.0"
+  }
+}

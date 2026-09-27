@@ -1,0 +1,41 @@
+{
+  "mcpServers": {
+    "search": {
+      "command": "npx",
+      "args": ["-y", "@example/search-mcp@1.4.0"],
+      "env": {
+        "SEARCH_API_KEY": "{{fake:high-entropy}}" // expect-block: agent/secret-in-config
+      }
+    },
+    "github": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-github@2025.4.8"],
+      "env": {
+        "GITHUB_PERSONAL_ACCESS_TOKEN": "{{fake:github-classic}}" // ok: a known provider format is reported by secret/provider-key instead
+      }
+    },
+    "linear": {
+      "command": "npx",
+      "args": ["-y", "mcp-remote@0.1.29", "https://mcp.linear.app/sse"],
+      "env": {
+        "LINEAR_API_KEY": "${LINEAR_API_KEY}" // ok: env reference
+      }
+    },
+    "docs": {
+      "type": "http",
+      "url": "https://mcp.example.com/mcp",
+      "headers": {
+        "Authorization": "Bearer {{fake:high-entropy:2}}" // expect-block: agent/secret-in-config
+      }
+    },
+    "postgres": {
+      "command": "npx",
+      "args": ["-y", "@example/postgres-mcp@2.0.1"],
+      "env": {
+        "DATABASE_URL": "postgres://app:{{fake:db-password}}@db.internal.example.com:5432/app", // ok: connection strings are reported by secret/db-url-password
+        "API_KEY": "your-api-key-here", // ok: placeholder
+        "LOG_LEVEL": "debug" // ok: not a credential name
+      }
+    }
+  }
+}

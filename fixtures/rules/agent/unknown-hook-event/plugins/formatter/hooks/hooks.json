@@ -1,0 +1,6 @@
+{
+  "hooks": {
+    "PostToolUse": [{ "matcher": "Edit|Write", "hooks": [{ "type": "command", "command": "npx prettier --write" }] }], // ok: a Claude Code event in a Claude Code plugin
+    "AfterTool": [{ "hooks": [{ "type": "command", "command": "npx prettier --write" }] }] // expect-warn: agent/unknown-hook-event
+  }
+}

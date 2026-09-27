@@ -1,0 +1,8 @@
+{
+  "version": 1,
+  "hooks": {
+    "userPromptSubmit": [{ "type": "command", "bash": "./scripts/check-prompt.sh" }], // expect-warn: agent/unknown-hook-event
+    "agentStop": [{ "type": "command", "bash": "npx --no-install ubon hook copilot agentStop" }], // ok: a Copilot event
+    "PreToolUse": [{ "type": "command", "command": "npx --no-install ubon hook copilot PreToolUse" }] // ok: the PascalCase name Copilot also accepts
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      { "matcher": "Bash|Read|Edit|Write", "hooks": [{ "type": "command", "command": "npx --no-install ubon hook claude PreToolUse" }] }
+    ],
+    "Stop": [
+      { "hooks": [{ "type": "command", "command": "npx --no-install ubon hook claude Stop" }] }
+    ],
+    "PostToolUse": [
+      { "matcher": "Edit|Write", "hooks": [{ "type": "command", "command": "npx prettier --write ." }] }
+    ]
+  }
+}

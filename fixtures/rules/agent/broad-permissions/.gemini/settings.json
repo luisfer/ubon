@@ -1,0 +1,20 @@
+{
+  "tools": {
+    "allowed": [
+      "run_shell_command(git status)", // ok: scoped to one command
+      "run_shell_command" // expect-warn: agent/broad-permissions
+    ]
+  },
+  "mcpServers": {
+    "local-db": {
+      "command": "node",
+      "args": ["tools/db-mcp.js"],
+      "trust": true // expect-warn: agent/broad-permissions
+    },
+    "docs": {
+      "command": "node",
+      "args": ["tools/docs-mcp.js"],
+      "trust": false // ok: asks before each tool call
+    }
+  }
+}

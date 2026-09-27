@@ -1,0 +1,7 @@
+{
+  "name": "guardrail-fixture",
+  "private": true,
+  "simple-git-hooks": {
+    "pre-commit": "npx lint-staged && npx ubon check --staged"
+  }
+}

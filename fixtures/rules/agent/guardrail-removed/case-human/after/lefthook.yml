@@ -1,0 +1,6 @@
+pre-commit: # expect-warn: agent/guardrail-removed
+  parallel: true
+pre-push:
+  commands:
+    ubon:
+      run: npx ubon check --staged # ok: moved to pre-push, still runs

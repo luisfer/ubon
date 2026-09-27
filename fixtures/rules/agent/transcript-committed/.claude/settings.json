@@ -1,0 +1,1 @@
+{ "permissions": { "allow": ["Bash(npm test)"] } } // ok: shared settings are meant to be committed

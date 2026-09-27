@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Shell(git)", // ok: scoped to git
+      "Shell(*)" // expect-warn: agent/broad-permissions
+    ]
+  }
+}

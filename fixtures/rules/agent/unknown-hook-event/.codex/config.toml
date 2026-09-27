@@ -1,0 +1,12 @@
+[[hooks.PostToolUse]] # ok: a Codex event
+matcher = "Bash"
+
+[[hooks.PostToolUse.hooks]]
+type = "command"
+command = "npx --no-install ubon hook codex PostToolUse"
+
+[[hooks.Stopp]] # expect-warn: agent/unknown-hook-event
+
+[[hooks.Stopp.hooks]]
+type = "command"
+command = "npx --no-install ubon hook codex Stop"

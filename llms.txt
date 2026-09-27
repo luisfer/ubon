@@ -64,6 +64,24 @@ Run `npx ubon check` to check the changes since the base branch. Exit code 1 mea
 - [deps/install-script](https://github.com/luisfer/ubon/blob/main/docs/rules/deps/install-script.md): New package with an install script (warn).
 - [deps/non-registry-source](https://github.com/luisfer/ubon/blob/main/docs/rules/deps/non-registry-source.md): New dependency from outside the registry (warn).
 - [deps/known-malicious](https://github.com/luisfer/ubon/blob/main/docs/rules/deps/known-malicious.md): New package with a malicious-package record (block).
+- [agent/hidden-unicode](https://github.com/luisfer/ubon/blob/main/docs/rules/agent/hidden-unicode.md): Hidden Unicode in agent files or code (block).
+- [agent/pipe-to-shell](https://github.com/luisfer/ubon/blob/main/docs/rules/agent/pipe-to-shell.md): Remote script piped into a shell (block).
+- [agent/secret-in-config](https://github.com/luisfer/ubon/blob/main/docs/rules/agent/secret-in-config.md): Credential in agent or MCP config (block).
+- [agent/broad-permissions](https://github.com/luisfer/ubon/blob/main/docs/rules/agent/broad-permissions.md): Agent settings that skip approvals (warn).
+- [agent/unpinned-mcp-server](https://github.com/luisfer/ubon/blob/main/docs/rules/agent/unpinned-mcp-server.md): MCP server without a pinned version (warn).
+- [agent/unknown-hook-event](https://github.com/luisfer/ubon/blob/main/docs/rules/agent/unknown-hook-event.md): Hook registered under an unknown event (warn).
+- [agent/unsafe-hook-script](https://github.com/luisfer/ubon/blob/main/docs/rules/agent/unsafe-hook-script.md): Unsafe agent hook command (warn).
+- [agent/instruction-injection](https://github.com/luisfer/ubon/blob/main/docs/rules/agent/instruction-injection.md): Prompt injection in agent instructions (warn).
+- [agent/transcript-committed](https://github.com/luisfer/ubon/blob/main/docs/rules/agent/transcript-committed.md): Agent transcript or state in git (warn).
+- [agent/guardrail-removed](https://github.com/luisfer/ubon/blob/main/docs/rules/agent/guardrail-removed.md): Checks removed or turned down (block).
+- [agent/autorun-config](https://github.com/luisfer/ubon/blob/main/docs/rules/agent/autorun-config.md): Code that runs when the project is opened (block).
+- [agent/destructive-command](https://github.com/luisfer/ubon/blob/main/docs/rules/agent/destructive-command.md): Destructive shell command (block).
+- [agent/secret-exfiltration](https://github.com/luisfer/ubon/blob/main/docs/rules/agent/secret-exfiltration.md): Secrets sent over the network (block).
+- [agent/verification-bypass](https://github.com/luisfer/ubon/blob/main/docs/rules/agent/verification-bypass.md): Git hooks skipped (block).
+- [agent/remote-script](https://github.com/luisfer/ubon/blob/main/docs/rules/agent/remote-script.md): Remote script executed (block).
+- [agent/package-install](https://github.com/luisfer/ubon/blob/main/docs/rules/agent/package-install.md): Package install that fails a package check (block).
+- [agent/publish-or-deploy](https://github.com/luisfer/ubon/blob/main/docs/rules/agent/publish-or-deploy.md): Publish or production deploy (block).
+- [agent/protected-path-write](https://github.com/luisfer/ubon/blob/main/docs/rules/agent/protected-path-write.md): Agent edits the checks that govern it (block).
 - [ci/expression-injection](https://github.com/luisfer/ubon/blob/main/docs/rules/ci/expression-injection.md): Untrusted input interpolated into a workflow script (block).
 - [ci/untrusted-checkout](https://github.com/luisfer/ubon/blob/main/docs/rules/ci/untrusted-checkout.md): Pull request code run in a privileged workflow (block).
 - [ci/publish-token](https://github.com/luisfer/ubon/blob/main/docs/rules/ci/publish-token.md): Package publishing that a stolen token or cache can hijack (warn).

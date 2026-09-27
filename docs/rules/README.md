@@ -2,7 +2,7 @@
 
 # Rules
 
-Ubon has 51 rules in 8 packs. A `block` finding stops an agent from finishing and fails `ubon check`; a `warn` finding is reported and does not. `ubon rules` prints this list with the levels set in your `ubon.json`.
+Ubon has 69 rules in 9 packs. A `block` finding stops an agent from finishing and fails `ubon check`; a `warn` finding is reported and does not. `ubon rules` prints this list with the levels set in your `ubon.json`.
 
 ## secret
 
@@ -75,6 +75,31 @@ Packages an agent adds: whether they exist, their age, their names, and their in
 | [deps/install-script](deps/install-script.md) | warn | New package with an install script |
 | [deps/non-registry-source](deps/non-registry-source.md) | warn | New dependency from outside the registry |
 | [deps/known-malicious](deps/known-malicious.md) | block | New package with a malicious-package record |
+
+## agent
+
+Agent configuration, instruction files, and the commands agents run.
+
+| Rule | Level | What it catches |
+| --- | --- | --- |
+| [agent/hidden-unicode](agent/hidden-unicode.md) | block | Hidden Unicode in agent files or code |
+| [agent/pipe-to-shell](agent/pipe-to-shell.md) | block | Remote script piped into a shell |
+| [agent/secret-in-config](agent/secret-in-config.md) | block | Credential in agent or MCP config |
+| [agent/broad-permissions](agent/broad-permissions.md) | warn | Agent settings that skip approvals |
+| [agent/unpinned-mcp-server](agent/unpinned-mcp-server.md) | warn | MCP server without a pinned version |
+| [agent/unknown-hook-event](agent/unknown-hook-event.md) | warn | Hook registered under an unknown event |
+| [agent/unsafe-hook-script](agent/unsafe-hook-script.md) | warn | Unsafe agent hook command |
+| [agent/instruction-injection](agent/instruction-injection.md) | warn | Prompt injection in agent instructions |
+| [agent/transcript-committed](agent/transcript-committed.md) | warn | Agent transcript or state in git |
+| [agent/guardrail-removed](agent/guardrail-removed.md) | block | Checks removed or turned down |
+| [agent/autorun-config](agent/autorun-config.md) | block | Code that runs when the project is opened |
+| [agent/destructive-command](agent/destructive-command.md) | block | Destructive shell command |
+| [agent/secret-exfiltration](agent/secret-exfiltration.md) | block | Secrets sent over the network |
+| [agent/verification-bypass](agent/verification-bypass.md) | block | Git hooks skipped |
+| [agent/remote-script](agent/remote-script.md) | block | Remote script executed |
+| [agent/package-install](agent/package-install.md) | block | Package install that fails a package check |
+| [agent/publish-or-deploy](agent/publish-or-deploy.md) | block | Publish or production deploy |
+| [agent/protected-path-write](agent/protected-path-write.md) | block | Agent edits the checks that govern it |
 
 ## ci
 

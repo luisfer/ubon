@@ -1,0 +1,11 @@
+{
+  "hooks": { // expect-block: agent/guardrail-removed
+    "PreToolUse": [
+      { "matcher": "Read", "hooks": [{ "type": "command", "command": "npx --no-install ubon hook claude PreToolUse" }] } // expect-block: agent/guardrail-removed
+    ],
+    // ok: removing the prettier hook is fine, a formatter is not a check
+    "SessionStart": [
+      { "hooks": [{ "type": "command", "command": "npx --no-install ubon hook claude SessionStart" }] } // ok: adding a hook removes nothing
+    ]
+  }
+}

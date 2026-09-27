@@ -1,0 +1,11 @@
+name: ci
+on: pull_request
+jobs:
+  checks: # expect-block: agent/guardrail-removed
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: npm ci
+      - uses: gitleaks/gitleaks-action@v2 # expect-block: agent/guardrail-removed
+        continue-on-error: true
+      - run: npm test -- --reporter=dot # ok: test steps are covered by integrity/checks-weakened, not this rule

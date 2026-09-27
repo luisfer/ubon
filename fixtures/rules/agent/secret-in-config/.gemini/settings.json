@@ -1,0 +1,10 @@
+{
+  "mcpServers": {
+    "tickets": {
+      "httpUrl": "https://tickets.example.com/mcp",
+      "headers": {
+        "X-API-Key": "{{fake:high-entropy:5}}" // expect-block: agent/secret-in-config
+      }
+    }
+  }
+}

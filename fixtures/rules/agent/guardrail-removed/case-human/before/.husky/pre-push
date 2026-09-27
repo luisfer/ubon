@@ -1,0 +1,2 @@
+npm test
+npx ubon check --base @{upstream}

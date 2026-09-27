@@ -1,0 +1,6 @@
+{
+  "version": 1,
+  "hooks": {
+    "stop": [{ "command": "npx --no-install ubon hook cursor stop", "timeout": 60 }]
+  }
+}

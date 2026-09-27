@@ -1,0 +1,9 @@
+{
+  "name": "autorun-all-fixture",
+  "private": true,
+  "scripts": {
+    "postinstall": "node scripts/postinstall.js", // expect-warn: agent/autorun-config
+    "prepare": "is-ci || husky", // ok: a git hook installer is not worth listing
+    "dev": "vite" // ok: runs only when someone starts it
+  }
+}

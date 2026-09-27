@@ -1,0 +1,6 @@
+{
+  "hooks": {
+    "SessionStart": [{ "hooks": [{ "type": "command", "command": "bash .claude/hooks/start.sh" }] }] // expect-warn: agent/autorun-config
+  },
+  "permissions": { "allow": ["Bash(npm test)"] } // ok: permissions are not commands that run by themselves
+}

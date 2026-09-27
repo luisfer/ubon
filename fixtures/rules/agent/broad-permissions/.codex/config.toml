@@ -1,0 +1,10 @@
+sandbox_mode = "danger-full-access" # expect-warn: agent/broad-permissions
+approval_policy = "never"
+
+[profiles.ci]
+sandbox_mode = "workspace-write" # ok: sandboxed, even without approvals
+approval_policy = "never"
+
+[profiles.review]
+sandbox_mode = "danger-full-access" # ok: full access still asks before commands
+approval_policy = "on-request"

@@ -1,0 +1,2 @@
+{"type":"user","message":"fixture transcript"} // expect-warn: agent/transcript-committed
+{"type":"assistant","message":"fixture reply"}

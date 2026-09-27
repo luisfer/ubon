@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Checks the npm package: the file list (no sources, tests, or fixtures), the
-// unpacked size (under 1 MB), and that the tarball installs with scripts
+// unpacked size (under 2 MB), and that the tarball installs with scripts
 // disabled and runs: --version, check, and a hook with a recorded payload.
 import { execFileSync, spawnSync } from 'node:child_process';
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
@@ -22,7 +22,7 @@ for (const required of ['dist/ubon.mjs', 'dist/cli.mjs', 'dist/index.mjs', 'dist
   if (!paths.includes(required)) problems.push(`missing from the package: ${required}`);
 }
 if (paths.some((p) => p.endsWith('.map'))) problems.push('source maps in the package');
-const limit = 1024 * 1024;
+const limit = 2 * 1024 * 1024;
 if (info.unpackedSize > limit) problems.push(`unpacked size ${info.unpackedSize} bytes is over ${limit}`);
 console.log(`package: ${paths.length} files, ${(info.unpackedSize / 1024).toFixed(0)} KB unpacked`);
 

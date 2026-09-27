@@ -1,0 +1,7 @@
+{
+  "rules": {
+    "agent/unsafe-hook-script": "block", // ok: raising a level is never reported
+    "secret/provider-key": "warn" // expect-block: agent/guardrail-removed
+  },
+  "ignore": ["generated/**"] // expect-block: agent/guardrail-removed
+}

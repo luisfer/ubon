@@ -1,0 +1,10 @@
+{
+  "mcpServers": {
+    "context": {
+      "command": "npx -y @upstash/context7-mcp" // expect-warn: agent/unpinned-mcp-server
+    },
+    "ubon": {
+      "command": "npx --no-install ubon mcp" // ok: uses the installed package, nothing is downloaded
+    }
+  }
+}
