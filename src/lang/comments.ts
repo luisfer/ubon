@@ -65,9 +65,12 @@ export function findComments(text: string, style: CommentStyle): CommentSpan[] {
     case 'sql':
       spans = scanSql(text);
       break;
-    case 'html':
-      spans = scanHtml(text, 0, text.length);
+    case 'html': {
+      // Markdown: `<!--` inside a code block or code span is shown as text, so it is not a comment.
+      const code = markdownCode(text);
+      spans = scanHtml(text, 0, text.length).filter((s) => !code.some(([from, to]) => s.start >= from && s.start < to));
       break;
+    }
     default:
       spans = [];
   }
@@ -323,6 +326,45 @@ function scanSql(text: string): CommentSpan[] {
     }
     i++;
   }
+  return out;
+}
+
+/**
+ * Offsets of Markdown code: fenced blocks (``` or ~~~, closed by a fence of
+ * the same character at least as long) and code spans on one line (a run of
+ * backticks up to the next run of the same length). An unclosed fence runs to
+ * the end of the file; an unmatched backtick is text.
+ */
+export function markdownCode(text: string): Array<[number, number]> {
+  const out: Array<[number, number]> = [];
+  let fence: { char: string; length: number; start: number } | null = null;
+  let offset = 0;
+  for (const line of text.split('\n')) {
+    const end = offset + line.length;
+    const opener = /^ {0,3}(`{3,}|~{3,})/.exec(line);
+    if (fence) {
+      if (opener && (opener[1] as string)[0] === fence.char && (opener[1] as string).length >= fence.length && /^ {0,3}(`+|~+)\s*$/.test(line)) {
+        out.push([fence.start, end]);
+        fence = null;
+      }
+    } else if (opener) {
+      fence = { char: (opener[1] as string)[0] as string, length: (opener[1] as string).length, start: offset };
+    } else {
+      const ticks = /`+/g;
+      let open: RegExpExecArray | null;
+      while ((open = ticks.exec(line))) {
+        const run = open[0];
+        const close = new RegExp(`(?<!\`)${run}(?!\`)`, 'g');
+        close.lastIndex = open.index + run.length;
+        const match = close.exec(line);
+        if (!match) continue;
+        out.push([offset + open.index, offset + match.index + run.length]);
+        ticks.lastIndex = match.index + run.length;
+      }
+    }
+    offset = end + 1;
+  }
+  if (fence) out.push([fence.start, text.length]);
   return out;
 }
 
