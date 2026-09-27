@@ -258,7 +258,8 @@ describe('a project reached through a symlink', () => {
     assert.equal(post.json?.decision, 'block', post.out || post.err);
     assert.match(post.json?.reason, /secret\/provider-key lib\/openai\.ts:1/);
 
-    for (const command of ['rm -rf .', `rm -rf ${link}`, `rm -rf ${real}`]) {
+    // Quoted: in a POSIX shell an unquoted backslash in a Windows path is an escape character.
+    for (const command of ['rm -rf .', `rm -rf '${link}'`, `rm -rf '${real}'`]) {
       const pre = await hook(link, 'claude', 'PreToolUse', { ...base, hook_event_name: 'PreToolUse', tool_name: 'Bash', tool_use_id: `toolu_${command}`, tool_input: { command } });
       assert.equal(pre.json?.hookSpecificOutput?.permissionDecision, 'ask', `${command}: ${pre.out}`);
       assert.match(pre.json?.hookSpecificOutput?.permissionDecisionReason, /agent\/destructive-command: .*(every file in the project|the whole project)/);
