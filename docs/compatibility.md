@@ -13,13 +13,13 @@
 
 ## Agents
 
-The hook adapters follow each agent's hook documentation or source code. The table lists what they were checked against and the date of the last check. Recorded sessions (`fixtures/sessions/`) replay real payloads through `ubon hook` in the test suite.
+The hook adapters follow each agent's hook documentation or source code. The table lists what they were checked against and the date of the last check. Recorded sessions (`fixtures/sessions/`) replay real payloads through `ubon hook` in the test suite; so far they exist for Claude Code only, and the other adapters are tested with payloads written from each agent's documentation and source.
 
 | Agent | Checked against | Last checked | Notes |
 | --- | --- | --- | --- |
 | Claude Code | Hook reference and Claude Code 2.1.283 | 2026-09-26 | Plugin or project hooks. [claude-code.md](integrations/claude-code.md) |
 | Codex | `openai/codex` source, commit `1a89aec` | 2026-09-26 | Codex has no "ask" answer; Ubon denies instead and says why. [codex.md](integrations/codex.md) |
-| Cursor | Hook reference and hook runs recorded with Cursor 3.9.16 | 2026-09-26 | "Ask" works only before shell commands. [cursor.md](integrations/cursor.md) |
+| Cursor | Hook reference, and third-party notes on hook runs with Cursor 3.9.16 | 2026-09-26 | "Ask" works only before shell commands. [cursor.md](integrations/cursor.md) |
 | Gemini CLI | `google-gemini/gemini-cli` source, 0.63.0 nightly of 2026-09-23 | 2026-09-26 | Hook timeouts are in milliseconds. [gemini-cli.md](integrations/gemini-cli.md) |
 | GitHub Copilot | Hooks reference in `github/docs`, commit `18945a3` | 2026-09-26 | Copilot CLI and the cloud agent. Prompt hooks cannot block. [github-copilot.md](integrations/github-copilot.md) |
 

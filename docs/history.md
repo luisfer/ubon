@@ -37,7 +37,7 @@ The v3 tests (230 of them) called internal functions with inline strings, so non
 | Job | Scan a repository and list issues | Check what an agent changed and ran, inside the agent loop |
 | Runs in | CLI, Cursor hooks (bash), MCP, VS Code | Hooks for Claude Code, Codex, Cursor, Gemini CLI, and GitHub Copilot; git hooks; CI; MCP |
 | Default scope | Whole repository | The changes since the base branch, or since the agent session started |
-| Rules | 155, many advisory | About 90, each with fixtures; `block` only for precise invariants |
+| Rules | 155, many advisory | 69 in 4.0, each with fixtures; `block` only for precise invariants |
 | Install size | 168 packages, about 66 MB | One package, no dependencies, under 2 MB |
 | Network | Link checks and OSV lookups by default | None unless `--online` |
 | Output | Text with a posture score, JSON, SARIF | Text, an agent format, JSON with a schema, SARIF, Markdown |

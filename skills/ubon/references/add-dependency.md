@@ -8,4 +8,4 @@ Use before you install a package or add one to `package.json`. Package names tha
 4. Install with the project's package manager (look at the lockfile: `package-lock.json` for npm, `pnpm-lock.yaml` for pnpm, `yarn.lock` for Yarn, `bun.lock` for Bun), with an exact or caret version, and commit the lockfile with the change.
 5. Mention in your report any new package that runs install scripts; Ubon warns about them (`deps/install-script`).
 
-Inside an agent session with Ubon's hooks, install commands are checked before they run, and a command for a package that does not exist or was published hours ago is stopped for a person to approve.
+Inside an agent session with Ubon's hooks, install commands are checked before they run: a package whose name imitates a popular one is stopped for a person to approve, and so is a package that does not exist or was published hours ago when `packages.online` is set in `ubon.json`. `ubon vet` always looks packages up, so run it first.

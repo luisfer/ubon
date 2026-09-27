@@ -62,7 +62,7 @@ Exit codes: 0 no blocking findings, 1 blocking findings, 2 usage or configuratio
 | Hook | What you see |
 | --- | --- |
 | Session start | One line saying Ubon is active. |
-| Before a shell command | Nothing, or a denial or a question to the user with the reason (for example `git commit --no-verify`, or installing a package that does not exist). |
+| Before a shell command | Nothing, or a denial or a question to the user with the reason (for example `git commit --no-verify`, or installing a package whose name imitates a popular one). |
 | Before a file read | A question to the user for `.env` files and private keys. |
 | Before a file write | A denial when the content contains a provider key or hidden Unicode in an agent file, with what to do instead. |
 | After a file edit | The findings for that file, while you still have the context to fix them. |

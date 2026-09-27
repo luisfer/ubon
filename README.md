@@ -9,12 +9,18 @@ Ubon is deterministic and runs locally. It has no dependencies, calls no languag
 $ npx ubon check
 ubon 4.0.0-alpha.0: 2 changed files since main
 
+block  web/ssrf  app/api/preview/route.ts:6
+       fetch() uses a URL from the request body (url, line 5).
+       5   url comes from the request body
+       6   reaches fetch()
+       Fix: Parse the URL with new URL() and check its hostname against an allowlist before fetching, or build the URL from a fixed base and pass the value only as a path segment or query parameter.
+
 block  secret/provider-key  lib/openai.ts:3
        OpenAI API key in source: sk-proj-...MsGg.
        3   export const openai = new OpenAI({ apiKey: 'sk-proj-...MsGg' });
        Fix: Move it to an environment variable (for example process.env.OPENAI_API_KEY) and rotate the key, because it is exposed.
 
-1 blocking.
+2 blocking.
 ```
 
 The exit code is 1 because there are blocking findings. This output is generated from [fixtures/demo](fixtures/demo), where `before/` is the base commit and `after/` is what an agent changed.
@@ -40,7 +46,7 @@ Version 4 is in alpha. Until 4.0.0 is published, use `ubon@next` in place of `ub
 
 ## What happens in an agent session
 
-- Before a command runs, Ubon checks it. `rm -rf` outside the project, `git push --force`, `git commit --no-verify`, and secrets piped to the network are denied or sent to you for approval. Package installs are checked for packages that do not exist or were published hours ago.
+- Before a command runs, Ubon checks it. `rm -rf` outside the project, `git push --force`, `git commit --no-verify`, and secrets piped to the network are denied or sent to you for approval. Package installs are checked against popular package names for typos; with `packages.online` in `ubon.json`, also for packages that do not exist or were published hours ago.
 - After each edit, Ubon checks the edited files and tells the agent what it found, with the rule, the line, and a fix.
 - When the agent tries to finish, Ubon checks everything it changed in the session. A `block` finding sends the agent back to fix it. Findings that were already in the code before the session are reported, not blocked.
 - Prompts that contain a provider key are stopped before they reach the model (in every agent above except GitHub Copilot, which ignores the answer of prompt hooks).
@@ -57,9 +63,9 @@ If Ubon itself fails, the hook lets the agent continue and prints a message. [do
 | `llm` | API keys in the browser, model output reaching `eval` or SQL, tools with unrestricted shell or file access |
 | `deps` | packages that do not exist, packages published hours ago, names close to popular packages, install scripts |
 | `agent` | hidden Unicode in instruction files, `curl \| sh` in hooks and skills, secrets and unpinned servers in MCP config, destructive commands |
-| `ci` | workflows that run untrusted code with secrets, unpinned actions, secrets in logs |
+| `ci` | issue titles and branch names expanded inside `run` steps, fork code checked out in privileged workflows, long-lived npm tokens in release jobs |
 | `integrity` | new `.skip` and `.only`, deleted tests, `@ts-nocheck`, lowered coverage thresholds, removed CI checks, suppressions without a reason |
-| `hygiene` | debug output of secrets, TLS verification turned off, placeholder auth checks |
+| `hygiene` | code left out with `// ... rest of the code`, placeholder values and stub functions, copies such as `page-v2.tsx` |
 
 Each rule has fixtures that show what it flags and what it leaves alone. [docs/rules](docs/rules/README.md) lists every rule with its examples, and `ubon explain <rule>` prints one.
 
