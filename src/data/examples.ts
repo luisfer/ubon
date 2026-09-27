@@ -277,12 +277,12 @@ export const EXAMPLES: Record<string, { flagged: RuleExample[]; safe: RuleExampl
         "code": "const page = await fetch(`${config.upstream}${path}`);"
       },
       {
-        "file": "app/api/image/route.ts",
-        "code": "return fetch(new URL(callback));"
+        "file": "app/api/fetch-url/route.ts",
+        "code": "const upstream = await fetch(url, { redirect: 'manual' });"
       },
       {
-        "file": "app/api/preview/route.ts",
-        "code": "const page = await fetch(url);"
+        "file": "app/api/fetch-url/route.ts",
+        "code": "const upstream = await fetch(url);"
       }
     ],
     "safe": [
@@ -292,14 +292,14 @@ export const EXAMPLES: Record<string, { flagged: RuleExample[]; safe: RuleExampl
         "note": "module constant fixes the host; the value goes in the query"
       },
       {
-        "file": "app/api/image/route.ts",
-        "code": "const image = await fetch(parsed);",
-        "note": "hostname checked against an allowlist"
+        "file": "app/api/fetch-url/route.ts",
+        "code": "const upstream = await fetch(target);",
+        "note": "the host of the URL parsed from target is on an allowlist"
       },
       {
-        "file": "app/api/image/route.ts",
-        "code": "await fetch(target, { method: 'POST', body: '{}' });",
-        "note": "validated by an allowlist helper"
+        "file": "app/api/fetch-url/route.ts",
+        "code": "const upstream = await fetch(target, { method: 'DELETE' });",
+        "note": "URL.parse result checked against an allowlist"
       }
     ]
   },
@@ -314,8 +314,8 @@ export const EXAMPLES: Record<string, { flagged: RuleExample[]; safe: RuleExampl
         "code": "const css = await readFile(`themes/${theme}.css`, 'utf8');"
       },
       {
-        "file": "server/files.js",
-        "code": "res.sendFile(path.join(UPLOADS, req.params.name));"
+        "file": "app/guides/[slug]/page.tsx",
+        "code": "const body = await readFile(`content/guides/${slug}.mdx`, 'utf8');"
       }
     ],
     "safe": [
@@ -1059,13 +1059,13 @@ export const EXAMPLES: Record<string, { flagged: RuleExample[]; safe: RuleExampl
       },
       {
         "file": "AGENTS.md",
-        "code": "Persian note: می‌خواهم",
-        "note": "a zero width non-joiner between Persian letters is normal writing"
+        "code": "The team: 👨‍👩‍👧",
+        "note": "one zero width joiner between two emoji is how combined emoji are written"
       },
       {
         "file": "AGENTS.md",
-        "code": "Japanese note: 葛󠄀",
-        "note": "one variation selector after a kanji is an ideographic variation sequence"
+        "code": "Persian note: می‌خواهم",
+        "note": "a zero width non-joiner between Persian letters is normal writing"
       }
     ]
   },
@@ -1336,33 +1336,33 @@ export const EXAMPLES: Record<string, { flagged: RuleExample[]; safe: RuleExampl
   "agent/guardrail-removed": {
     "flagged": [
       {
+        "file": ".github/workflows/ci.yml",
+        "code": "codeql:"
+      },
+      {
         "file": ".husky/pre-push",
         "code": "npm test"
       },
       {
         "file": "lefthook.yml",
         "code": "pre-commit:"
-      },
-      {
-        "file": "package.json",
-        "code": "\"simple-git-hooks\": {"
       }
     ],
     "safe": [
       {
-        "file": ".cursor/hooks.json",
-        "code": "\"stop\": [{ \"command\": \"npx --no-install ubon hook cursor stop\", \"timeout\": 120 }]",
-        "note": "a longer timeout keeps the check"
+        "file": ".github/workflows/ci.yml",
+        "code": "- run: npx ubon check --base origin/main --format agent",
+        "note": "the SARIF step and its upload are gone, but this step still runs ubon"
       },
       {
-        "file": "lefthook.yml",
-        "code": "run: npx ubon check --staged",
-        "note": "moved to pre-push, still runs"
+        "file": ".github/workflows/ci.yml",
+        "code": "- run: npx gitleaks detect --no-git --redact",
+        "note": "gitleaks moved to its own job"
       },
       {
-        "file": "package.json",
-        "code": "\"scripts\": { \"test\": \"vitest run\" },",
-        "note": "adding scripts does not touch the git hooks"
+        "file": ".github/workflows/ci.yml",
+        "code": "- uses: github/codeql-action/init@v3",
+        "note": "init alone does not run the analysis, so the removed analyze step is reported on the job"
       }
     ]
   },
@@ -1370,18 +1370,23 @@ export const EXAMPLES: Record<string, { flagged: RuleExample[]; safe: RuleExampl
     "flagged": [
       {
         "file": ".claude/settings.json",
-        "code": "\"SessionStart\": [{ \"hooks\": [{ \"type\": \"command\", \"command\": \"bash .claude/hooks/start.sh\" }] }]"
+        "code": "\"SessionStart\": [{ \"hooks\": [{ \"type\": \"command\", \"command\": \"bash .claude/hooks/start.sh\" }] }],"
+      },
+      {
+        "file": ".claude/settings.json",
+        "code": "\"Stop\": [{ \"hooks\": [{ \"type\": \"command\", \"command\": \"pnpm sync-notes\" }] }]"
       },
       {
         "file": ".vscode/tasks.json",
         "code": "{ \"label\": \"watch\", \"type\": \"shell\", \"command\": \"npm run watch\", \"runOptions\": { \"runOn\": \"folderOpen\" } },"
-      },
-      {
-        "file": "package.json",
-        "code": "\"postinstall\": \"node scripts/postinstall.js\","
       }
     ],
     "safe": [
+      {
+        "file": ".claude/settings.json",
+        "code": "\"PostToolUse\": [{ \"matcher\": \"Write|Edit\", \"hooks\": [{ \"type\": \"command\", \"command\": \"npm run format --silent\" }] }],",
+        "note": "the format script runs prettier"
+      },
       {
         "file": ".claude/settings.json",
         "code": "\"permissions\": { \"allow\": [\"Bash(npm test)\"] }",
@@ -1391,11 +1396,6 @@ export const EXAMPLES: Record<string, { flagged: RuleExample[]; safe: RuleExampl
         "file": ".vscode/tasks.json",
         "code": "{ \"label\": \"lint\", \"type\": \"shell\", \"command\": \"npm run lint\" }",
         "note": "runs only when someone starts it"
-      },
-      {
-        "file": "package.json",
-        "code": "\"prepare\": \"is-ci || husky\",",
-        "note": "a git hook installer is not worth listing"
       }
     ]
   },
@@ -1711,7 +1711,7 @@ export const EXAMPLES: Record<string, { flagged: RuleExample[]; safe: RuleExampl
       },
       {
         "file": "docs/setup.md",
-        "code": "<!-- ubon-ignore secret/provider-key: luisfer: the key below is the public Stripe example key -->"
+        "code": "<!-- ubon-ignore secret/provider-key: dana: the key below is the public Stripe example key -->"
       }
     ],
     "safe": [
