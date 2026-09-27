@@ -18,7 +18,7 @@ Ubon 4 is a rewrite. It checks what coding agents change and run, from inside th
 - `ubon init` sets up the agents it finds, a git pre-commit hook, and a GitHub Actions workflow. It shows a plan and writes only with `--yes`; `--remove` undoes it.
 - A Claude Code plugin (this repository is its marketplace) with the hooks, the `ubon` skill, the `/ubon:check`, `/ubon:finish`, `/ubon:review`, and `/ubon:vet` commands, and a reviewer subagent that reports without editing.
 - The `ubon` skill for agents that read skills, with playbooks for finishing a task, triaging findings, adding a dependency, handling secrets, data access, LLM features, and reviews.
-- `ubon vet <package...>` checks packages before an install: whether they exist, their age and the age of the version, install scripts, known vulnerabilities (OSV), and names close to popular packages.
+- `ubon vet <package...>` checks packages before an install: whether they exist, when the package and the version were published, malicious-package records in OSV, and names close to popular packages.
 - `ubon map` lists entry points (routes, Server Actions, webhooks), whether each checks auth, the data it reads and writes, the environment variables it uses, and model calls.
 - `ubon mcp`, an MCP server over stdio with the read-only tools `check`, `explain`, `map`, and `vet`. It serves both the `initialize` handshake and the 2026-07-28 revision.
 - `ubon doctor` shows the Node version, the integrations found, and recent hook activity.
@@ -36,7 +36,7 @@ Ubon 4 is a rewrite. It checks what coding agents change and run, from inside th
 - Ubon writes into the project only when you run `ubon init --yes` or `ubon baseline`, or name an output file. Session state lives in the git directory.
 - Node.js 22.18 or newer is required.
 - The package has no dependencies. The parser and YAML library are bundled into one file, and the published package is under 2 MB unpacked.
-- Releases are published from GitHub Actions with npm trusted publishing and provenance.
+- Releases are published from GitHub Actions with npm trusted publishing and provenance, and stay staged until the maintainer approves them with 2FA.
 
 ### Removed
 
