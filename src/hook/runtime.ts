@@ -9,7 +9,7 @@ import { toPosix } from '../core/files.ts';
 import { AGENT_INSTRUCTIONS, formatFindingLine } from '../report/agent.ts';
 import type { ActionVerdict, CommandContext } from '../rules/agent/command-types.ts';
 import type { PackageVetter } from '../rules/deps/verdict.ts';
-import { ruleIds } from '../rules/index.ts';
+import { RULE_IDS } from '../data/rule-ids.ts';
 import { isEnvFileName } from '../rules/secret/names.ts';
 import { findProviderKeys } from '../rules/secret/provider-key.ts';
 import { adapterFor } from './adapters/index.ts';
@@ -66,7 +66,7 @@ export async function runHookEvent(input: RunHookInput): Promise<RunHookResult> 
   let config: UbonConfig;
   let configNotice: string | undefined;
   try {
-    const loaded = loadConfig(root, ruleIds());
+    const loaded = loadConfig(root, new Set(RULE_IDS));
     config = applyEnvDefaults(loaded.config, loaded.raw, process.env);
   } catch (error) {
     if (!(error instanceof ConfigError)) throw error;

@@ -1,7 +1,11 @@
 import assert from 'node:assert/strict';
+import { spawnSync } from 'node:child_process';
 import { writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, test } from 'node:test';
+import { pathToFileURL } from 'node:url';
+import { RULE_IDS } from '../src/data/rule-ids.ts';
+import { RULES } from '../src/rules/index.ts';
 import { readEvents } from '../src/core/session.ts';
 import { runHook } from '../src/hook/command.ts';
 import { expandFakeKeys } from './support/fake-keys.ts';
@@ -202,5 +206,28 @@ describe('adapters produce each agent\'s exact output shape', () => {
     assert.equal(r.json?.hookSpecificOutput?.permissionDecision, 'deny');
     const vs = await hook(dir, 'copilot', 'PreToolUse', { session_id: 'p1', cwd: dir, hook_event_name: 'PreToolUse', tool_name: 'create_file', tool_input: { filePath: join(dir, 'y.ts'), content: `const k = '${KEY()}'` } });
     assert.equal(vs.json?.hookSpecificOutput?.permissionDecision, 'deny');
+  });
+});
+
+describe('hook start-up cost', () => {
+  test('the rule ID list that hooks use matches the rules', () => {
+    assert.deepEqual([...RULE_IDS], RULES.map((r) => r.meta.id));
+  });
+
+  test('a hook for a shell command loads neither the rules nor the parsers', () => {
+    const dir = tempDir();
+    initRepo(dir);
+    // A module resolution hook in the child process reports what it loads.
+    const tracer = `export async function resolve(specifier, context, next) {
+      const result = await next(specifier, context);
+      if (/\\/src\\/rules\\/index\\.ts$|@babel\\/parser|\\/node_modules\\/yaml\\//.test(result.url)) process.stderr.write('LOADED ' + result.url + '\\n');
+      return result;
+    }`;
+    const register = `import { register } from 'node:module'; register(${JSON.stringify(`data:text/javascript,${encodeURIComponent(tracer)}`)});`;
+    const main = pathToFileURL(join(import.meta.dirname, '../src/cli/main.ts')).href;
+    const payload = JSON.stringify({ session_id: 's', hook_event_name: 'PreToolUse', tool_name: 'Bash', tool_input: { command: 'npm test' } });
+    const run = spawnSync(process.execPath, ['--import', `data:text/javascript,${encodeURIComponent(register)}`, '--input-type=module', '-e', `const { main } = await import(${JSON.stringify(main)}); process.exitCode = await main(['hook', 'claude', 'PreToolUse']);`], { cwd: dir, input: payload, encoding: 'utf8' });
+    assert.equal(run.status, 0, run.stderr);
+    assert.doesNotMatch(run.stderr, /LOADED/);
   });
 });
