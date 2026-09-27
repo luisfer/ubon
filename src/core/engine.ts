@@ -272,7 +272,10 @@ class Run {
     };
     for (const s of applicable) {
       if (!s.rule.text) continue;
-      const ctx: TextContext = { config: this.config, project: this.project, mode: this.mode, session: this.inSession, file: info, text, lines, report: makeReport(s) };
+      const unreadable = (reason: string) => {
+        if (!isBase && !this.unparsable.some((u) => u === info.path || u.startsWith(`${info.path} (`))) this.unparsable.push(`${info.path} (${reason})`);
+      };
+      const ctx: TextContext = { config: this.config, project: this.project, mode: this.mode, session: this.inSession, file: info, text, lines, report: makeReport(s), unreadable };
       try {
         s.rule.text(ctx);
       } catch (error) {

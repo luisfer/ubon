@@ -58,10 +58,12 @@ export const expressionInjection: Rule = {
   },
   appliesTo: (file) => workflowStanding(file) !== 'skip',
   text(ctx) {
-    if (!ctx.text.includes('${{')) return;
     const standing = workflowStanding(ctx.file);
     const workflow = workflowFor(ctx.file.path, ctx.text);
     if (!workflow) return;
+    const firstError = workflow.errors[0];
+    if (firstError) ctx.unreadable(`YAML error on line ${firstError.line}, so GitHub will not run it`);
+    if (!ctx.text.includes('${{')) return;
     const callerTriggers = workflow.kind === 'action' ? compositeActionTriggers(ctx.file.path, ctx.text, ctx.project) : null;
     const seen = new Set<string>();
     const check = (scalar: YamlText, where: 'run' | 'script', resolve: (name: string) => Taint[], job: Job, step: Step) => {

@@ -85,6 +85,8 @@ export interface TextContext extends BaseContext {
   /** Lines without line terminators. Index 0 is line 1. */
   readonly lines: readonly string[];
   report(input: ReportInput): void;
+  /** The file could be read only in part (a syntax error); it is listed under "Not checked". */
+  unreadable(reason: string): void;
 }
 
 export interface JsContext extends BaseContext {

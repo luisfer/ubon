@@ -64,6 +64,8 @@ export interface Workflow {
   env: Map<string, YamlText>;
   permissions: Permissions | null;
   jobs: Job[];
+  /** YAML syntax errors; GitHub does not run a workflow that has one. */
+  errors: { line: number; message: string }[];
   lineAt(offset: number): number;
 }
 
@@ -250,6 +252,7 @@ export function parseWorkflow(path: string, text: string): Workflow | null {
     env: envOf(pairValue(root, 'env'), lc),
     permissions: permissionsOf(pairValue(root, 'permissions'), pairKeyLine(root, 'permissions', lc), lc),
     jobs,
+    errors: doc.errors.map((e) => ({ line: lc.linePos(e.pos[0]).line, message: e.message.split('\n')[0] ?? e.message })),
     lineAt: (offset: number) => lc.linePos(offset).line,
   };
 }
