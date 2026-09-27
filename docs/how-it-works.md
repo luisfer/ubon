@@ -42,6 +42,18 @@ Rules for JavaScript and TypeScript share one pass over each file's syntax tree 
 
 Other rules read text, SQL migrations, YAML workflows, JSON and TOML configuration, lockfiles, and the git diff. Project rules see every file; diff rules compare each changed file with its base version.
 
+## Speed
+
+Hooks run on every command and edit, so they have time budgets. `node scripts/bench.mjs` measures the built CLI, including Node.js start-up, and prints the median of several runs. On a 4-core cloud VM (Intel Xeon at 2.1 GHz, Node.js 22.22):
+
+| Measurement | Median | Target |
+| --- | --- | --- |
+| Hook decision for a shell command (`PreToolUse`) | 86 ms | 150 ms |
+| `ubon check` on a 10-file diff | 227 ms | 500 ms |
+| `ubon check --all` on a generated Next.js project with 2,000 files | 1,440 ms | 5,000 ms |
+
+Modules load when an event needs them: a hook for a shell command loads neither the rules nor the JavaScript and YAML parsers (a test checks this), and package lookups load only for install commands. `node scripts/bench.mjs --check` exits with 1 when a median is more than twice its target.
+
 ## Findings
 
 Findings are masked when they are created. Ubon then applies `ubon-ignore` comments, the baseline, and the levels in `ubon.json`, and marks findings that already existed at the base: those are reported as warnings and never block.
