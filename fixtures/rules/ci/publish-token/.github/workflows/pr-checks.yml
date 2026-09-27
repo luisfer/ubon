@@ -1,0 +1,15 @@
+name: PR checks
+
+on:
+  pull_request_target:
+    types: [opened, synchronize]
+
+permissions:
+  contents: read
+  id-token: write # expect-warn: ci/publish-token
+
+jobs:
+  label:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/labeler@v5

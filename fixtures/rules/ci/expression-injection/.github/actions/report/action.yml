@@ -1,0 +1,11 @@
+name: Report
+description: Composite action that posts a summary
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      run: echo "## ${{ github.event.issue.title }}" >> "$GITHUB_STEP_SUMMARY" # expect-warn: ci/expression-injection
+    - shell: bash
+      env:
+        TITLE: ${{ github.event.issue.title }}
+      run: echo "## $TITLE" >> "$GITHUB_STEP_SUMMARY" # ok: passed through env

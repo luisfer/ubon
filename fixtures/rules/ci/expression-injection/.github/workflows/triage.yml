@@ -1,0 +1,46 @@
+name: Triage
+
+on:
+  issues:
+    types: [opened, edited]
+  issue_comment:
+    types: [created]
+
+permissions:
+  issues: write
+
+env:
+  ISSUE_TITLE: ${{ github.event.issue.title }}
+
+jobs:
+  triage:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Log the title
+        run: echo "New issue - ${{ github.event.issue.title }}" # expect-block: ci/expression-injection
+
+      - name: Check the body
+        run: |
+          echo "Checking issue ${{ github.event.issue.number }}" # ok: numeric field
+          BODY="${{ github.event.issue.body }}" # expect-block: ci/expression-injection
+          echo "$ISSUE_TITLE" # ok: passed through env and quoted
+          if [ "${{ contains(github.event.issue.body, 'urgent') }}" = "true" ]; then # ok: contains() returns true or false
+            echo "urgent"
+          fi
+
+      - name: Reuse the env value in an expression
+        run: echo "${{ env.ISSUE_TITLE }}" # expect-block: ci/expression-injection
+
+      - name: Answer commands
+        if: github.event_name == 'issue_comment' && startsWith(github.event.comment.body, '/label')
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const text = `${{ github.event.comment.body }}`; // expect-block: ci/expression-injection
+            const safe = context.payload.comment.body; // ok: read from the event payload at run time
+            await github.rest.issues.addLabels({ ...context.repo, issue_number: context.issue.number, labels: [safe.slice(7)] });
+
+      - name: Title as JSON
+        run: |
+          printf '%s\n' ${{ toJSON(github.event.issue.title) }} # expect-block: ci/expression-injection
+          echo "${{ github.event.issue.title == 'help' }}" # ok: a comparison is true or false

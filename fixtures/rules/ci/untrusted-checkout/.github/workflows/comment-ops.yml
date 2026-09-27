@@ -1,0 +1,32 @@
+name: Comment commands
+
+on:
+  issue_comment:
+    types: [created]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  format:
+    if: github.event.issue.pull_request && startsWith(github.event.comment.body, '/format')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check out the pull request
+        run: |
+          gh pr checkout ${{ github.event.issue.number }} # expect-block: ci/untrusted-checkout
+          npm install
+          npx prettier --write .
+          git push
+        env:
+          GH_TOKEN: ${{ secrets.BOT_TOKEN }}
+
+  merged:
+    if: github.event.issue.pull_request
+    runs-on: ubuntu-latest
+    steps:
+      - run: gh pr view ${{ github.event.issue.number }} --json title # ok: reads metadata only, checks nothing out
+        env:
+          GH_TOKEN: ${{ github.token }}

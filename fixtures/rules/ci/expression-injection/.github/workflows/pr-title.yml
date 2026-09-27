@@ -1,0 +1,15 @@
+name: PR title
+
+on:
+  pull_request:
+    types: [opened, edited, synchronize]
+
+jobs:
+  lint-title:
+    runs-on: ubuntu-latest
+    steps:
+      # pull_request runs from forks get a read-only token and no secrets, so these are warnings.
+      - run: echo "${{ github.event.pull_request.title }}" | grep -Eq '^(feat|fix|chore)' # expect-warn: ci/expression-injection
+      - run: echo "Branch ${{ github.head_ref }}" # expect-warn: ci/expression-injection
+      - run: echo "Head ${{ github.event.pull_request.head.sha }}" # ok: commit SHAs are hex
+      - run: echo "Branch $GITHUB_HEAD_REF" # ok: the environment variable, not the expression

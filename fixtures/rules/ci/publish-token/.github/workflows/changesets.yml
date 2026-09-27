@@ -1,0 +1,42 @@
+name: Changesets
+
+on:
+  push:
+    branches: [main]
+
+concurrency: ${{ github.workflow }}-${{ github.ref }}
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+      id-token: write # ok: push-only workflow
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm # expect-warn: ci/publish-token
+      - uses: actions/cache@v4 # expect-warn: ci/publish-token
+        with:
+          path: ~/.cache/turbo
+          key: turbo-${{ github.sha }}
+      - run: pnpm install --frozen-lockfile
+      - uses: changesets/action@v1
+        with:
+          publish: pnpm changeset publish
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }} # expect-warn: ci/publish-token
+
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          cache: pnpm # ok: this job does not publish
+      - run: pnpm test

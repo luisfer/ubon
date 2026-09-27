@@ -1,0 +1,42 @@
+name: Fork branch checkouts
+
+on:
+  pull_request_target:
+    types: [opened, synchronize]
+
+jobs:
+  branch-name-only:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.ref }} # ok: a branch name alone is looked up in the base repository, where forks cannot push
+      - run: npm ci && npm run lint
+
+  fork-repository:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          repository: ${{ github.event.pull_request.head.repo.full_name }} # expect-block: ci/untrusted-checkout
+          ref: ${{ github.event.pull_request.head.ref }}
+      - run: yarn install --frozen-lockfile
+
+  either-event:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # ok: the head is only picked for pull_request events, which run without secrets
+          ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+      - run: npm ci
+
+  global-tool:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }} # ok: only a published tool is installed and it reads the files
+      - run: |
+          npm install -g markdownlint-cli2@0.18.1
+          markdownlint-cli2 "**/*.md"

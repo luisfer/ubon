@@ -1,0 +1,24 @@
+name: Welcome
+
+on:
+  pull_request_target:
+    types: [opened]
+
+permissions:
+  pull-requests: write
+
+jobs:
+  welcome:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Greet
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
+        run: |
+          echo "Thanks for opening a pull request"
+          title="${{ github.event.pull_request.title }}" # expect-block: ci/expression-injection
+          gh pr comment ${{ github.event.pull_request.number }} --body "Thanks! Title: $PR_TITLE" # ok: number is numeric, title comes from env
+          echo "Merging into ${{ github.event.pull_request.base.ref }}" # ok: the base branch is chosen by maintainers
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/label

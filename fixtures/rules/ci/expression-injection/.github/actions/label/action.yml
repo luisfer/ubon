@@ -1,0 +1,12 @@
+name: Label by title
+description: Composite action used by the pull_request_target workflow in this repository
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      run: |
+        case "${{ github.event.pull_request.title }}" in # expect-block: ci/expression-injection
+          feat*) gh pr edit "$PR_NUMBER" --add-label feature ;;
+        esac
+      env:
+        PR_NUMBER: ${{ github.event.pull_request.number }}

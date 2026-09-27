@@ -1,0 +1,76 @@
+name: Preview
+
+on:
+  pull_request_target:
+    types: [opened, synchronize]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  build-preview:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }} # expect-block: ci/untrusted-checkout
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm ci
+      - run: npm run build
+        env:
+          DEPLOY_TOKEN: ${{ secrets.DEPLOY_TOKEN }}
+
+  size-report:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4 # ok: the base branch, which this workflow trusts
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }} # ok: checked out into pr/ and only read as data
+          path: pr
+      - run: npm ci
+      - run: node scripts/compare-size.js pr/dist
+      - run: gh pr comment ${{ github.event.pull_request.number }} --body-file report.md
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+  local-action:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: refs/pull/${{ github.event.pull_request.number }}/merge # expect-block: ci/untrusted-checkout
+      - uses: ./.github/actions/setup
+
+  same-repo-only:
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.ref }} # ok: the job only runs for branches of this repository
+      - run: make test
+
+  labeled:
+    if: contains(github.event.pull_request.labels.*.name, 'safe to test')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }} # expect-warn: ci/untrusted-checkout
+      - run: ./scripts/e2e.sh
+
+  diff-only:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }} # ok: nothing from the checkout runs
+          fetch-depth: 0
+      - run: git diff --stat origin/${{ github.base_ref }}...HEAD
+      - run: gh pr edit ${{ github.event.pull_request.number }} --add-label needs-review
+        env:
+          GH_TOKEN: ${{ github.token }}

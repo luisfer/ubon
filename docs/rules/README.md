@@ -2,7 +2,7 @@
 
 # Rules
 
-Ubon has 11 rules in 2 packs. A `block` finding stops an agent from finishing and fails `ubon check`; a `warn` finding is reported and does not. `ubon rules` prints this list with the levels set in your `ubon.json`.
+Ubon has 18 rules in 4 packs. A `block` finding stops an agent from finishing and fails `ubon check`; a `warn` finding is reported and does not. `ubon rules` prints this list with the levels set in your `ubon.json`.
 
 ## secret
 
@@ -19,6 +19,27 @@ Credentials in code, config, prompts, and tool output.
 | [secret/in-prompt](secret/in-prompt.md) | block | Provider key in a prompt |
 | [secret/in-tool-output](secret/in-tool-output.md) | warn | Provider key in tool output |
 | [secret/read-sensitive-file](secret/read-sensitive-file.md) | block | Agent reads a secrets file |
+
+## data
+
+Data access policies: Supabase row level security, Firebase rules, and service keys.
+
+| Rule | Level | What it catches |
+| --- | --- | --- |
+| [data/rls-disabled](data/rls-disabled.md) | block | Supabase table without row level security |
+| [data/permissive-policy](data/permissive-policy.md) | block | Supabase policy that allows every row |
+| [data/service-role-in-client](data/service-role-in-client.md) | block | Supabase service role key in browser code |
+| [data/firebase-open-rules](data/firebase-open-rules.md) | block | Firebase rules open to everyone |
+
+## ci
+
+CI workflows: untrusted input, permissions, pinning, and secrets.
+
+| Rule | Level | What it catches |
+| --- | --- | --- |
+| [ci/expression-injection](ci/expression-injection.md) | block | Untrusted input interpolated into a workflow script |
+| [ci/untrusted-checkout](ci/untrusted-checkout.md) | block | Pull request code run in a privileged workflow |
+| [ci/publish-token](ci/publish-token.md) | warn | Package publishing that a stolen token or cache can hijack |
 
 ## integrity
 

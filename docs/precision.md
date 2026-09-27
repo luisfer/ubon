@@ -12,9 +12,9 @@ A rule may report `block` only if at least 95 percent of its findings on the cor
 | [documenso/documenso](https://github.com/documenso/documenso/tree/a1d4bec1430a937395db9a4aae28979cd71c2831) | product | 0 | 1 |
 | [dubinc/dub](https://github.com/dubinc/dub/tree/ac13d86c09664909db8aa88e9c601070660aede0) | product | 0 | 0 |
 | [formbricks/formbricks](https://github.com/formbricks/formbricks/tree/bfe7933cb2882c99f2196aa6a46edd104cd7fbb8) | product | 0 | 0 |
-| [t3-oss/create-t3-app](https://github.com/t3-oss/create-t3-app/tree/4709861f7e67a15564c0460c13e7b4b6cfcae40d) | template | 2 | 0 |
-| [vercel/nextjs-subscription-payments](https://github.com/vercel/nextjs-subscription-payments/tree/bdd0813206e47e6b218d42f15a7976c8a0d3c3eb) | template | 0 | 0 |
-| [mckaywrigley/chatbot-ui](https://github.com/mckaywrigley/chatbot-ui/tree/81328b61d2a4ab597a7a057be70e785cf756d9f8) | AI app | 0 | 0 |
+| [t3-oss/create-t3-app](https://github.com/t3-oss/create-t3-app/tree/4709861f7e67a15564c0460c13e7b4b6cfcae40d) | template | 2 | 1 |
+| [vercel/nextjs-subscription-payments](https://github.com/vercel/nextjs-subscription-payments/tree/bdd0813206e47e6b218d42f15a7976c8a0d3c3eb) | template | 0 | 2 |
+| [mckaywrigley/chatbot-ui](https://github.com/mckaywrigley/chatbot-ui/tree/81328b61d2a4ab597a7a057be70e785cf756d9f8) | AI app | 0 | 1 |
 | [usebasejump/basejump](https://github.com/usebasejump/basejump/tree/7a1f95ccef74eb2e638d5e4233b66b6cbbe175e6) | Supabase schema | 0 | 0 |
 | [juice-shop/juice-shop](https://github.com/juice-shop/juice-shop/tree/1618a611b173b4bf114028e6e02549950606e29d) | intentionally vulnerable | 2 | 0 |
 | [vitejs/vite](https://github.com/vitejs/vite/tree/bc598a6a8a6b7d6e157e9f19c16911cff8d2360c) | workflows | 0 | 0 |
@@ -30,5 +30,7 @@ A rule may report `block` only if at least 95 percent of its findings on the cor
 | [secret/provider-key](rules/secret/provider-key.md) | block | 2 | 2 | 0 | 0 | 100% |
 | [secret/public-env-name](rules/secret/public-env-name.md) | block | 2 | 2 | 0 | 0 | 100% |
 | [secret/key-file-committed](rules/secret/key-file-committed.md) | block | 1 | 1 | 0 | 0 | 100% |
+| [data/permissive-policy](rules/data/permissive-policy.md) | block | 3 | 3 | 0 | 0 | 100% |
+| [ci/publish-token](rules/ci/publish-token.md) | warn | 1 | 1 | 0 | 0 | 100% |
 
-Rules with no findings on the corpus: `secret/db-url-password`, `secret/env-file-committed`, `secret/server-env-in-client`, `integrity/invalid-suppression`, `integrity/unused-suppression`.
+Rules with no findings on the corpus: `secret/db-url-password`, `secret/env-file-committed`, `secret/server-env-in-client`, `data/rls-disabled`, `data/service-role-in-client`, `data/firebase-open-rules`, `ci/expression-injection`, `ci/untrusted-checkout`, `integrity/invalid-suppression`, `integrity/unused-suppression`.

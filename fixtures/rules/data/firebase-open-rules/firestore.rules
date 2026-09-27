@@ -1,0 +1,38 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isOwner(userId) {
+      return request.auth != null && request.auth.uid == userId;
+    }
+
+    match /users/{userId} {
+      allow read, write: if isOwner(userId); // ok: owner check through a function
+    }
+
+    match /posts/{postId} {
+      allow read: if true; // expect-warn: data/firebase-open-rules
+      allow create: if request.auth != null; // ok: any signed-in user may create a post on this path
+      allow update, delete: if true; // expect-block: data/firebase-open-rules
+    }
+
+    match /contactRequests/{id} {
+      allow create: if true; // expect-warn: data/firebase-open-rules
+    }
+
+    match /admin/{doc=**} {
+      allow read, write: if false; // ok: closed
+    }
+
+    match /profiles/{userId} {
+      allow read: if request.auth != null; // ok: reads for signed-in users on one path
+      allow write: if request.auth.uid == userId
+        && request.resource.data.keys().hasOnly(['name', 'bio']); // ok: owner check across two lines
+    }
+
+    // Left over from the console's test mode:
+    match /{document=**} {
+      allow read, write: if request.time < timestamp.date(2026, 10, 1); // expect-block: data/firebase-open-rules
+    }
+  }
+}

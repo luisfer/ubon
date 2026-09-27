@@ -1,0 +1,13 @@
+{
+  "files": {
+    "database.rules.json": [
+      { "line": 3, "level": "warn" },
+      { "line": 4, "level": "warn" },
+      { "line": 13, "level": "block" }
+    ]
+  },
+  "ok": [
+    "database.rules.json: /users/$uid reads and writes check the owner",
+    "database.rules.json: a public read of /messages is not reported below the root"
+  ]
+}

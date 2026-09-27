@@ -1,0 +1,10 @@
+name: Build fork pull requests
+
+on:
+  pull_request_target:
+    types: [opened, synchronize]
+
+jobs:
+  build:
+    uses: ./.github/workflows/reusable-build.yml
+    secrets: inherit

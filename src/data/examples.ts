@@ -204,6 +204,237 @@ export const EXAMPLES: Record<string, { flagged: RuleExample[]; safe: RuleExampl
     "flagged": [],
     "safe": []
   },
+  "data/rls-disabled": {
+    "flagged": [
+      {
+        "file": "supabase/migrations/20240501000000_add_invoices.sql",
+        "code": "create table public.invoices ("
+      },
+      {
+        "file": "supabase/migrations/20240301000000_tables.sql",
+        "code": "create table public.comments (id uuid primary key, body text);"
+      },
+      {
+        "file": "supabase/migrations/20240301000000_tables.sql",
+        "code": "create table public.labels (id int, name text);"
+      }
+    ],
+    "safe": [
+      {
+        "file": "supabase/migrations/20240101000000_init.sql",
+        "code": "create table public.legacy_logs (id bigserial primary key, line text);",
+        "note": "existing debt in an unchanged migration is not reported in diff mode"
+      },
+      {
+        "file": "supabase/migrations/20240501000000_add_invoices.sql",
+        "code": "create table public.invoice_lines (",
+        "note": "row level security enabled in the same migration"
+      },
+      {
+        "file": "supabase/migrations/20240301000000_tables.sql",
+        "code": "create table public.projects (id uuid primary key, owner uuid);",
+        "note": "the DO block below enables row level security on every public table"
+      }
+    ]
+  },
+  "data/permissive-policy": {
+    "flagged": [
+      {
+        "file": "supabase/migrations/20240601000000_message_edits.sql",
+        "code": "create policy \"Anyone can edit messages\" on public.messages for update using (true) with check (true);"
+      },
+      {
+        "file": "supabase/migrations/20240101000000_posts.sql",
+        "code": "create policy \"Anyone can read posts\" on public.posts for select using (true);"
+      },
+      {
+        "file": "supabase/migrations/20240101000000_posts.sql",
+        "code": "create policy \"Anyone can create posts\" on public.posts for insert with check (true);"
+      }
+    ],
+    "safe": [
+      {
+        "file": "supabase/migrations/20240101000000_init.sql",
+        "code": "create policy \"Anyone can post\" on public.messages for insert with check (true);",
+        "note": "existing policy in an unchanged migration is not reported in diff mode"
+      },
+      {
+        "file": "supabase/migrations/20240601000000_message_edits.sql",
+        "code": "create policy \"Senders can delete their messages\" on public.messages for delete to authenticated using (sender = (select auth.uid()));",
+        "note": "checks the sender"
+      },
+      {
+        "file": "supabase/migrations/20240101000000_posts.sql",
+        "code": "create policy \"Owners can edit their posts\" on public.posts",
+        "note": "checks the row owner"
+      }
+    ]
+  },
+  "data/service-role-in-client": {
+    "flagged": [
+      {
+        "file": "app/admin/page.tsx",
+        "code": "const admin = createClient(supabaseUrl, process.env.NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY!);"
+      },
+      {
+        "file": "app/admin/page.tsx",
+        "code": "const client = createClient(supabaseUrl, serviceKey);"
+      },
+      {
+        "file": "lib/supabase-admin.ts",
+        "code": "export const adminClient = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, serviceRole!, {"
+      }
+    ],
+    "safe": [
+      {
+        "file": "app/admin/actions.ts",
+        "code": "const admin = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SECRET_KEY!);",
+        "note": "a Server Action module stays on the server"
+      },
+      {
+        "file": "app/admin/page.tsx",
+        "code": "const anon = createClient(supabaseUrl, 'eyJhbGciOiJI...');",
+        "note": "the anon key is public by design"
+      },
+      {
+        "file": "app/api/admin/route.ts",
+        "code": "await createServiceClient().from('posts').delete().eq('id', id);",
+        "note": "server code calls the service client"
+      }
+    ]
+  },
+  "data/firebase-open-rules": {
+    "flagged": [
+      {
+        "file": "apps/site/firestore.rules",
+        "code": "allow read: if true;"
+      },
+      {
+        "file": "apps/site/firestore.rules",
+        "code": "allow write: if request.auth != null;"
+      },
+      {
+        "file": "examples/chat/firestore.rules",
+        "code": "allow read, write: if true;"
+      }
+    ],
+    "safe": [
+      {
+        "file": "apps/site/firestore.rules",
+        "code": "allow read: if resource.data.visible == true;",
+        "note": "reads limited to visible comments"
+      },
+      {
+        "file": "apps/site/firestore.rules",
+        "code": "allow update: if request.auth.uid != null && request.auth.uid == resource.data.author;",
+        "note": "author check"
+      },
+      {
+        "file": "apps/site/firestore.rules",
+        "code": "allow update: if request.auth.uid != null;",
+        "note": "signed-in writes on one path are not reported"
+      }
+    ]
+  },
+  "ci/expression-injection": {
+    "flagged": [
+      {
+        "file": ".github/actions/label/action.yml",
+        "code": "case \"${{ github.event.pull_request.title }}\" in"
+      },
+      {
+        "file": ".github/actions/report/action.yml",
+        "code": "run: echo \"## ${{ github.event.issue.title }}\" >> \"$GITHUB_STEP_SUMMARY\""
+      },
+      {
+        "file": ".github/workflows/pr-target.yml",
+        "code": "title=\"${{ github.event.pull_request.title }}\""
+      }
+    ],
+    "safe": [
+      {
+        "file": ".github/actions/report/action.yml",
+        "code": "run: echo \"## $TITLE\" >> \"$GITHUB_STEP_SUMMARY\"",
+        "note": "passed through env"
+      },
+      {
+        "file": ".github/workflows/pr-target.yml",
+        "code": "gh pr comment ${{ github.event.pull_request.number }} --body \"Thanks! Title: $PR_TITLE\"",
+        "note": "number is numeric, title comes from env"
+      },
+      {
+        "file": ".github/workflows/pr-target.yml",
+        "code": "echo \"Merging into ${{ github.event.pull_request.base.ref }}\"",
+        "note": "the base branch is chosen by maintainers"
+      }
+    ]
+  },
+  "ci/untrusted-checkout": {
+    "flagged": [
+      {
+        "file": ".github/workflows/comment-ops.yml",
+        "code": "gh pr checkout ${{ github.event.issue.number }}"
+      },
+      {
+        "file": ".github/workflows/coverage.yml",
+        "code": "ref: ${{ github.event.workflow_run.head_sha }}"
+      },
+      {
+        "file": ".github/workflows/fork-branch.yml",
+        "code": "repository: ${{ github.event.pull_request.head.repo.full_name }}"
+      }
+    ],
+    "safe": [
+      {
+        "file": ".github/workflows/ci.yml",
+        "code": "- run: npm ci && npm test",
+        "note": "pull_request workflows run without secrets"
+      },
+      {
+        "file": ".github/workflows/comment-ops.yml",
+        "code": "- run: gh pr view ${{ github.event.issue.number }} --json title",
+        "note": "reads metadata only, checks nothing out"
+      },
+      {
+        "file": ".github/workflows/fork-branch.yml",
+        "code": "ref: ${{ github.event.pull_request.head.ref }}",
+        "note": "a branch name alone is looked up in the base repository, where forks cannot push"
+      }
+    ]
+  },
+  "ci/publish-token": {
+    "flagged": [
+      {
+        "file": ".github/workflows/changesets.yml",
+        "code": "cache: pnpm"
+      },
+      {
+        "file": ".github/workflows/changesets.yml",
+        "code": "- uses: actions/cache@v4"
+      },
+      {
+        "file": ".github/workflows/changesets.yml",
+        "code": "NPM_TOKEN: ${{ secrets.NPM_TOKEN }}"
+      }
+    ],
+    "safe": [
+      {
+        "file": ".github/workflows/changesets.yml",
+        "code": "id-token: write",
+        "note": "push-only workflow"
+      },
+      {
+        "file": ".github/workflows/changesets.yml",
+        "code": "cache: pnpm",
+        "note": "this job does not publish"
+      },
+      {
+        "file": ".github/workflows/ci.yml",
+        "code": "id-token: write",
+        "note": "a test job (cloud login); forks get no OIDC token and nothing is published"
+      }
+    ]
+  },
   "integrity/invalid-suppression": {
     "flagged": [],
     "safe": []

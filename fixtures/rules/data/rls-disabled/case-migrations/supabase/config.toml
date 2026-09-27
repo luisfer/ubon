@@ -1,0 +1,15 @@
+project_id = "fixture"
+
+[api]
+enabled = true
+port = 54321
+# The Data API exposes these schemas.
+schemas = [
+  "public",
+  "graphql_public",
+  "api", # extra schema for the REST API
+]
+extra_search_path = ["public", "extensions"]
+
+[db]
+port = 54322

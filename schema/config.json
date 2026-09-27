@@ -25,6 +25,13 @@
               "secret/in-prompt",
               "secret/in-tool-output",
               "secret/read-sensitive-file",
+              "data/rls-disabled",
+              "data/permissive-policy",
+              "data/service-role-in-client",
+              "data/firebase-open-rules",
+              "ci/expression-injection",
+              "ci/untrusted-checkout",
+              "ci/publish-token",
               "integrity/invalid-suppression",
               "integrity/unused-suppression"
             ]
@@ -32,6 +39,8 @@
           {
             "enum": [
               "secret/*",
+              "data/*",
+              "ci/*",
               "integrity/*"
             ]
           }

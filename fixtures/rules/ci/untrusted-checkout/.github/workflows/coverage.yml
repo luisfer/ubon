@@ -1,0 +1,19 @@
+name: Coverage report
+
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+
+jobs:
+  report:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }} # expect-block: ci/untrusted-checkout
+      - run: |
+          pip install -r requirements.txt
+          python -m coverage report
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}

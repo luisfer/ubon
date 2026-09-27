@@ -1025,7 +1025,7 @@ Exit codes: 0 no blocking findings, 1 blocking findings, 2 a usage or config err
 
 # Rules
 
-Ubon has 11 rules in 2 packs. A `block` finding stops an agent from finishing and fails `ubon check`; a `warn` finding is reported and does not. `ubon rules` prints this list with the levels set in your `ubon.json`.
+Ubon has 18 rules in 4 packs. A `block` finding stops an agent from finishing and fails `ubon check`; a `warn` finding is reported and does not. `ubon rules` prints this list with the levels set in your `ubon.json`.
 
 ## secret
 
@@ -1042,6 +1042,27 @@ Credentials in code, config, prompts, and tool output.
 | [secret/in-prompt](secret/in-prompt.md) | block | Provider key in a prompt |
 | [secret/in-tool-output](secret/in-tool-output.md) | warn | Provider key in tool output |
 | [secret/read-sensitive-file](secret/read-sensitive-file.md) | block | Agent reads a secrets file |
+
+## data
+
+Data access policies: Supabase row level security, Firebase rules, and service keys.
+
+| Rule | Level | What it catches |
+| --- | --- | --- |
+| [data/rls-disabled](data/rls-disabled.md) | block | Supabase table without row level security |
+| [data/permissive-policy](data/permissive-policy.md) | block | Supabase policy that allows every row |
+| [data/service-role-in-client](data/service-role-in-client.md) | block | Supabase service role key in browser code |
+| [data/firebase-open-rules](data/firebase-open-rules.md) | block | Firebase rules open to everyone |
+
+## ci
+
+CI workflows: untrusted input, permissions, pinning, and secrets.
+
+| Rule | Level | What it catches |
+| --- | --- | --- |
+| [ci/expression-injection](ci/expression-injection.md) | block | Untrusted input interpolated into a workflow script |
+| [ci/untrusted-checkout](ci/untrusted-checkout.md) | block | Pull request code run in a privileged workflow |
+| [ci/publish-token](ci/publish-token.md) | warn | Package publishing that a stolen token or cache can hijack |
 
 ## integrity
 
@@ -1587,6 +1608,639 @@ Ask the user for the variable names you need, or read `.env.example` instead.
 ## If the check is wrong
 
 This check runs in agent hooks. Allow a command prefix with `commands.allow` in `ubon.json`, or set `"rules": { "secret/read-sensitive-file": "off" }`. See [configuration](../../config.md).
+
+<!-- docs/rules/data/rls-disabled.md -->
+
+# data/rls-disabled
+
+Supabase table without row level security.
+
+A table in a schema exposed by the Supabase Data API (public, plus the schemas in supabase/config.toml) that no migration or declarative schema gives row level security, or whose row level security is disabled.
+
+- Default level: `block`.
+- Levels: block for tables; warn for views created without security_invoker, materialized views, and partitions (which do not inherit row level security from their parent); warn for everything under example and template folders. Tables whose privileges are revoked from both anon and authenticated are not reported.
+- Looks at: the project as a whole, across files.
+- References: [CWE-284](https://cwe.mitre.org/data/definitions/284.html), [CWE-862](https://cwe.mitre.org/data/definitions/862.html), OWASP A01:2025.
+
+## Why it matters
+
+Supabase grants the anon and authenticated roles access to tables in exposed schemas. Without row level security, anyone with the project URL and the anon key, which ships in every client bundle, can read and change every row.
+
+## Flagged
+
+`supabase/migrations/20240501000000_add_invoices.sql` (block):
+
+```sql
+create table public.invoices (
+```
+
+`supabase/migrations/20240301000000_tables.sql` (block):
+
+```sql
+create table public.comments (id uuid primary key, body text);
+```
+
+`supabase/migrations/20240301000000_tables.sql` (block):
+
+```sql
+create table public.labels (id int, name text);
+```
+
+`supabase/migrations/20240101000000_init.sql` (block):
+
+```sql
+create table todos (
+```
+
+`supabase/migrations/20240101000000_init.sql` (block):
+
+```sql
+CREATE TABLE IF NOT EXISTS "public"."Audit Log" (
+```
+
+`supabase/migrations/20240101000000_init.sql` (block):
+
+```sql
+create table api.orders (
+```
+
+`supabase/migrations/20240201000000_changes.sql` (block):
+
+```sql
+alter table public.flags disable row level security;
+```
+
+`supabase/migrations/20240201000000_changes.sql` (block):
+
+```sql
+create table archive as select * from todos;
+```
+
+## Not flagged
+
+- `create table public.legacy_logs (id bigserial primary key, line text);` in `supabase/migrations/20240101000000_init.sql`: existing debt in an unchanged migration is not reported in diff mode
+- `create table public.invoice_lines (` in `supabase/migrations/20240501000000_add_invoices.sql`: row level security enabled in the same migration
+- `create table public.projects (id uuid primary key, owner uuid);` in `supabase/migrations/20240301000000_tables.sql`: the DO block below enables row level security on every public table
+- `create table public.tasks (id uuid primary key, project uuid);` in `supabase/migrations/20240301000000_tables.sql`: the DO block below enables row level security on every public table
+- `create table public.tags (id int);` in `supabase/migrations/20240301000000_tables.sql`: the EXECUTE string below enables it
+- `create table public.profiles (` in `supabase/migrations/20240101000000_init.sql`: row level security is enabled right below
+- `create table private.api_keys (` in `supabase/migrations/20240101000000_init.sql`: the private schema is not exposed through the Data API
+- `create temporary table import_scratch (line text);` in `supabase/migrations/20240101000000_init.sql`: temporary tables are not exposed
+- `create table public.teams (` in `supabase/migrations/20240101000000_init.sql`: a later migration enables row level security
+- `create table staging_items (id int);` in `supabase/migrations/20240101000000_init.sql`: renamed below, and the new name gets row level security
+
+## How to fix
+
+Enable row level security on the table in the same migration (`alter table <name> enable row level security;`) and add policies for the access each role needs.
+
+## If the finding is wrong
+
+Add a comment on the line above, in the comment syntax of the file, that says who decided and why:
+
+```
+ubon-ignore data/rls-disabled: <who decided>: <evidence>
+```
+
+Or turn the rule off for the project in `ubon.json`: `"rules": { "data/rls-disabled": "off" }`. See [configuration](../../config.md).
+
+Fixtures: [fixtures/rules/data/rls-disabled](../../../fixtures/rules/data/rls-disabled).
+
+<!-- docs/rules/data/permissive-policy.md -->
+
+# data/permissive-policy
+
+Supabase policy that allows every row.
+
+A `create policy` for insert, update, delete, or all whose `using` or `with check` expression is `true` (or, on storage.objects, only a bucket filter) for anon, authenticated, or public. A select policy with `using (true)` is a warning.
+
+- Default level: `block`.
+- Levels: block for insert, update, delete, and all policies; warn for select policies (often meant for public content), for update policies whose using clause restricts rows but whose with check is true, and for everything under example and template folders. Restrictive policies and policies only for service_role or other roles are ignored.
+- Looks at: the project as a whole, across files.
+- References: [CWE-284](https://cwe.mitre.org/data/definitions/284.html), [CWE-862](https://cwe.mitre.org/data/definitions/862.html), OWASP A01:2025.
+
+## Why it matters
+
+A policy whose check is `true` turns row level security off for the roles it names. Sign-up is open on most Supabase projects, so "authenticated" means anyone who creates an account, and "anon" or "public" means anyone with the anon key.
+
+## Flagged
+
+`supabase/migrations/20240601000000_message_edits.sql` (block):
+
+```sql
+create policy "Anyone can edit messages" on public.messages for update using (true) with check (true);
+```
+
+`supabase/migrations/20240101000000_posts.sql` (warn):
+
+```sql
+create policy "Anyone can read posts" on public.posts for select using (true);
+```
+
+`supabase/migrations/20240101000000_posts.sql` (block):
+
+```sql
+create policy "Anyone can create posts" on public.posts for insert with check (true);
+```
+
+`supabase/migrations/20240101000000_posts.sql` (block):
+
+```sql
+create policy "Signed-in users can edit posts" on public.posts
+```
+
+`supabase/migrations/20240101000000_posts.sql` (block):
+
+```sql
+create policy "Logged-in users can delete" on public.posts
+```
+
+`supabase/migrations/20240101000000_posts.sql` (warn):
+
+```sql
+create policy "Users update own notes" on public.notes
+```
+
+`supabase/migrations/20240201000000_storage_and_changes.sql` (block):
+
+```sql
+create policy "Avatar uploads" on storage.objects for insert to authenticated with check (bucket_id = 'avatars');
+```
+
+`supabase/migrations/20240201000000_storage_and_changes.sql` (warn):
+
+```sql
+create policy "Avatars are public" on storage.objects for select using (bucket_id = 'avatars');
+```
+
+## Not flagged
+
+- `create policy "Anyone can post" on public.messages for insert with check (true);` in `supabase/migrations/20240101000000_init.sql`: existing policy in an unchanged migration is not reported in diff mode
+- `create policy "Senders can delete their messages" on public.messages for delete to authenticated using (sender = (select auth.uid()));` in `supabase/migrations/20240601000000_message_edits.sql`: checks the sender
+- `create policy "Owners can edit their posts" on public.posts` in `supabase/migrations/20240101000000_posts.sql`: checks the row owner
+- `create policy "Owners can delete their posts" on public.posts for delete using (auth.uid() = user_id);` in `supabase/migrations/20240101000000_posts.sql`: checks the row owner
+- `create policy "Service role manages posts" on public.posts for all to service_role using (true) with check (true);` in `supabase/migrations/20240101000000_posts.sql`: only the service_role, which bypasses row level security anyway
+- `create policy "Hide flagged posts" on public.posts as restrictive for select to authenticated using (true);` in `supabase/migrations/20240101000000_posts.sql`: restrictive policies only narrow access
+- `create policy "Temporary open access" on public.posts for all using (true);` in `supabase/migrations/20240101000000_posts.sql`: dropped in a later migration
+- `create policy "Private log writes" on private.audit for insert with check (true);` in `supabase/migrations/20240101000000_posts.sql`: the private schema is not exposed through the Data API
+- `create policy "Own avatar uploads" on storage.objects for insert to authenticated with check (` in `supabase/migrations/20240201000000_storage_and_changes.sql`: the folder must match the user id
+- `create policy "Editors update docs" on public.docs for update using (public.is_editor(team_id));` in `supabase/migrations/20240201000000_storage_and_changes.sql`: the alter below replaces this check
+
+## How to fix
+
+Replace `true` with a check on the row owner, such as `(select auth.uid()) = user_id`, or limit the policy to service_role.
+
+## If the finding is wrong
+
+Add a comment on the line above, in the comment syntax of the file, that says who decided and why:
+
+```
+ubon-ignore data/permissive-policy: <who decided>: <evidence>
+```
+
+Or turn the rule off for the project in `ubon.json`: `"rules": { "data/permissive-policy": "off" }`. See [configuration](../../config.md).
+
+Fixtures: [fixtures/rules/data/permissive-policy](../../../fixtures/rules/data/permissive-policy).
+
+<!-- docs/rules/data/service-role-in-client.md -->
+
+# data/service-role-in-client
+
+Supabase service role key in browser code.
+
+A Supabase client created with the service role or secret key (SUPABASE_SERVICE_ROLE_KEY, SUPABASE_SECRET_KEY, an sb_secret_ key, or a JWT with role service_role) in a module that ships to the browser.
+
+- Default level: `block`.
+- Levels: block when the client is created at module level, in a 'use client' module, in a single-page app, or inside a function that browser code calls; warn when it is created inside a function of a shared module that browser code imports but does not call, and under example and template folders.
+- Looks at: the project as a whole, across files.
+- References: [CWE-798](https://cwe.mitre.org/data/definitions/798.html), [CWE-284](https://cwe.mitre.org/data/definitions/284.html), OWASP A01:2025.
+
+## Why it matters
+
+The service role key bypasses row level security and can read, change, and delete every row. Browser code is public: the key either ships in the bundle, or it is undefined there and the usual next step, renaming it with a public prefix, publishes it.
+
+## Flagged
+
+`app/admin/page.tsx` (block):
+
+```tsx
+const admin = createClient(supabaseUrl, process.env.NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY!);
+```
+
+`app/admin/page.tsx` (block):
+
+```tsx
+const client = createClient(supabaseUrl, serviceKey);
+```
+
+`lib/supabase-admin.ts` (block):
+
+```ts
+export const adminClient = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, serviceRole!, {
+```
+
+`lib/supabase.ts` (warn):
+
+```ts
+return createSupabaseClient(url, process.env.SUPABASE_SERVICE_ROLE_KEY!);
+```
+
+`src/lib/supabase.ts` (block):
+
+```ts
+export const admin = createClient(url, serviceRoleKey);
+```
+
+`src/lib/supabase.ts` (block):
+
+```ts
+export const legacy = new SupabaseClient(url, 'sb_secret_...UT6j');
+```
+
+## Not flagged
+
+- `const admin = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SECRET_KEY!);` in `app/admin/actions.ts`: a Server Action module stays on the server
+- `const anon = createClient(supabaseUrl, 'eyJhbGciOiJI...');` in `app/admin/page.tsx`: the anon key is public by design
+- `await createServiceClient().from('posts').delete().eq('id', id);` in `app/api/admin/route.ts`: server code calls the service client
+- `const admin = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);` in `app/api/users/route.ts`: route handlers run on the server
+- `export const browserClient = createBrowserClient(` in `lib/supabase-browser.ts`: the anon key is meant for the browser
+- `export const publishable = createBrowserClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!);` in `lib/supabase-browser.ts`: publishable keys are public by design
+- `return createBrowserClient(url, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!);` in `lib/supabase.ts`: anon key in the browser
+- `const admin = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!);` in `supabase/functions/cleanup/index.ts`: Edge Functions run on the server
+- `return create(import.meta.env.VITE_SUPABASE_URL, import.meta.env.VITE_SUPABASE_ANON_KEY);` in `src/lib/client-factory.ts`: anon key
+- `export const supabase = createClient(url, import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY);` in `src/lib/supabase.ts`: publishable key
+
+## How to fix
+
+Create the service role client only in server code (a route handler, Server Action, or server-only module) and use the anon or publishable key in the browser.
+
+## If the finding is wrong
+
+Add a comment on the line above, in the comment syntax of the file, that says who decided and why:
+
+```
+ubon-ignore data/service-role-in-client: <who decided>: <evidence>
+```
+
+Or turn the rule off for the project in `ubon.json`: `"rules": { "data/service-role-in-client": "off" }`. See [configuration](../../config.md).
+
+Fixtures: [fixtures/rules/data/service-role-in-client](../../../fixtures/rules/data/service-role-in-client).
+
+<!-- docs/rules/data/firebase-open-rules.md -->
+
+# data/firebase-open-rules
+
+Firebase rules open to everyone.
+
+firestore.rules or storage.rules with `allow read, write: if true`, `allow write: if true`, or the test-mode rule `if request.time < timestamp.date(...)`; database.rules.json with ".write": true.
+
+- Default level: `block`.
+- Levels: block for public writes and for a public read of the whole Firestore database; warn for public reads of a specific path or a whole Storage bucket, public create-only rules on a specific path, writes open to any signed-in user on the whole database, a root ".read": true in database.rules.json, and everything under example and template folders. Rules under test folders are skipped.
+- Looks at: each file in scope, on its own.
+- References: [CWE-284](https://cwe.mitre.org/data/definitions/284.html), [CWE-862](https://cwe.mitre.org/data/definitions/862.html), OWASP A01:2025.
+
+## Why it matters
+
+Firebase clients talk to the database directly with a public config, so the rules are the only access control. Open or test-mode rules let anyone read, change, or delete the data.
+
+## Flagged
+
+`apps/site/firestore.rules` (block):
+
+```text
+allow read: if true;
+```
+
+`apps/site/firestore.rules` (warn):
+
+```text
+allow write: if request.auth != null;
+```
+
+`examples/chat/firestore.rules` (warn):
+
+```text
+allow read, write: if true;
+```
+
+`firestore.rules` (block):
+
+```text
+allow update, delete: if true;
+```
+
+`firestore.rules` (warn):
+
+```text
+allow create: if true;
+```
+
+`firestore.rules` (block):
+
+```text
+allow read, write: if request.time < timestamp.date(2026, 10, 1);
+```
+
+`storage.rules` (warn):
+
+```text
+allow read;
+```
+
+`storage.rules` (block):
+
+```text
+allow write: if true;
+```
+
+## Not flagged
+
+- `allow read: if resource.data.visible == true;` in `apps/site/firestore.rules`: reads limited to visible comments
+- `allow update: if request.auth.uid != null && request.auth.uid == resource.data.author;` in `apps/site/firestore.rules`: author check
+- `allow update: if request.auth.uid != null;` in `apps/site/firestore.rules`: signed-in writes on one path are not reported
+- `allow read, write: if isOwner(userId);` in `firestore.rules`: owner check through a function
+- `allow create: if request.auth != null;` in `firestore.rules`: any signed-in user may create a post on this path
+- `allow read, write: if false;` in `firestore.rules`: closed
+- `allow read: if request.auth != null;` in `firestore.rules`: reads for signed-in users on one path
+- `&& request.resource.data.keys().hasOnly(['name', 'bio']);` in `firestore.rules`: owner check across two lines
+- `allow read, write: if request.auth != null && request.auth.uid == userId;` in `storage.rules`: owner check
+- `allow read, write: if true;` in `test/emulator/firestore.rules`: emulator rules under a test folder are not deployed
+
+## How to fix
+
+Replace the condition with a check on the signed-in user, such as `request.auth != null && request.auth.uid == userId`, and deny everything else.
+
+## If the finding is wrong
+
+Add a comment on the line above, in the comment syntax of the file, that says who decided and why:
+
+```
+ubon-ignore data/firebase-open-rules: <who decided>: <evidence>
+```
+
+Or turn the rule off for the project in `ubon.json`: `"rules": { "data/firebase-open-rules": "off" }`. See [configuration](../../config.md).
+
+Fixtures: [fixtures/rules/data/firebase-open-rules](../../../fixtures/rules/data/firebase-open-rules).
+
+<!-- docs/rules/ci/expression-injection.md -->
+
+# ci/expression-injection
+
+Untrusted input interpolated into a workflow script.
+
+A `${{ }}` expression that an outsider controls (issue, pull request, and comment text, branch names, commit messages) placed directly in a `run:` script or an actions/github-script `script:`.
+
+- Default level: `block`.
+- Levels: block when the workflow runs on events that carry secrets or a write token (issues, comments, pull_request_target, workflow_run, push, and reusable workflows), and for composite actions that such a workflow in the repository uses; warn when only fork-restricted pull_request events fill the value, for composite actions without a known caller, and for workflows outside the repository root .github/workflows. Expressions that no trigger of the workflow fills are ignored.
+- Looks at: each file in scope, on its own.
+- References: [CWE-78](https://cwe.mitre.org/data/definitions/78.html), [CWE-94](https://cwe.mitre.org/data/definitions/94.html), OWASP A03:2025, OWASP A05:2025, <https://docs.github.com/en/actions/security-for-github-actions/security-guides/security-hardening-for-github-actions#understanding-the-risk-of-script-injections>.
+
+## Why it matters
+
+GitHub pastes the expression text into the script before it runs, so a crafted title or branch name runs as code with the workflow token and secrets. The Nx compromise of August 2025 started this way, from a pull request title in a pull_request_target workflow.
+
+## Flagged
+
+`.github/actions/label/action.yml` (block):
+
+```yaml
+case "${{ github.event.pull_request.title }}" in
+```
+
+`.github/actions/report/action.yml` (warn):
+
+```yaml
+run: echo "## ${{ github.event.issue.title }}" >> "$GITHUB_STEP_SUMMARY"
+```
+
+`.github/workflows/pr-target.yml` (block):
+
+```yaml
+title="${{ github.event.pull_request.title }}"
+```
+
+`.github/workflows/pr-title.yml` (warn):
+
+```yaml
+- run: echo "${{ github.event.pull_request.title }}" | grep -Eq '^(feat|fix|chore)'
+```
+
+`.github/workflows/pr-title.yml` (warn):
+
+```yaml
+- run: echo "Branch ${{ github.head_ref }}"
+```
+
+`.github/workflows/push.yml` (block):
+
+```yaml
+-d "text=${{ github.event.head_commit.message }}"
+```
+
+`.github/workflows/push.yml` (block):
+
+```yaml
+- run: echo "${{ github.event.workflow_run.head_branch }}"
+```
+
+`.github/workflows/triage.yml` (block):
+
+```yaml
+run: echo "New issue - ${{ github.event.issue.title }}"
+```
+
+## Not flagged
+
+- `run: echo "## $TITLE" >> "$GITHUB_STEP_SUMMARY"` in `.github/actions/report/action.yml`: passed through env
+- `gh pr comment ${{ github.event.pull_request.number }} --body "Thanks! Title: $PR_TITLE"` in `.github/workflows/pr-target.yml`: number is numeric, title comes from env
+- `echo "Merging into ${{ github.event.pull_request.base.ref }}"` in `.github/workflows/pr-target.yml`: the base branch is chosen by maintainers
+- `- run: echo "Head ${{ github.event.pull_request.head.sha }}"` in `.github/workflows/pr-title.yml`: commit SHAs are hex
+- `- run: echo "Branch $GITHUB_HEAD_REF"` in `.github/workflows/pr-title.yml`: the environment variable, not the expression
+- `- run: echo "${{ github.event.pull_request.title }}"` in `.github/workflows/push.yml`: no trigger of this workflow fills the pull request fields
+- `echo "Checking issue ${{ github.event.issue.number }}"` in `.github/workflows/triage.yml`: numeric field
+- `echo "$ISSUE_TITLE"` in `.github/workflows/triage.yml`: passed through env and quoted
+- `if [ "${{ contains(github.event.issue.body, 'urgent') }}" = "true" ]; then` in `.github/workflows/triage.yml`: contains() returns true or false
+- `const safe = context.payload.comment.body;` in `.github/workflows/triage.yml`: read from the event payload at run time
+
+## How to fix
+
+Pass the value through `env:` (for example `TITLE: ${{ github.event.issue.title }}`) and use "$TITLE" in the script.
+
+## If the finding is wrong
+
+Add a comment on the line above, in the comment syntax of the file, that says who decided and why:
+
+```
+ubon-ignore ci/expression-injection: <who decided>: <evidence>
+```
+
+Or turn the rule off for the project in `ubon.json`: `"rules": { "ci/expression-injection": "off" }`. See [configuration](../../config.md).
+
+Fixtures: [fixtures/rules/ci/expression-injection](../../../fixtures/rules/ci/expression-injection).
+
+<!-- docs/rules/ci/untrusted-checkout.md -->
+
+# ci/untrusted-checkout
+
+Pull request code run in a privileged workflow.
+
+A pull_request_target, workflow_run, or issue_comment workflow (or a reusable workflow one of them calls) that checks out the pull request head (head.sha, head.ref, refs/pull/N/merge, workflow_run.head_sha) and then installs dependencies, builds, runs scripts, or uses a local action from it in the same job.
+
+- Default level: `block`.
+- Levels: block; warn when the job waits for approval (a label, author_association, or actor check, a deployment environment, or a job it needs that checks permissions or membership), and for workflows outside the repository root .github/workflows. Jobs limited to same-repository or merged pull requests, and workflow_run workflows triggered only by workflows without pull request events, are skipped.
+- Looks at: each file in scope, on its own.
+- References: [CWE-829](https://cwe.mitre.org/data/definitions/829.html), [CWE-94](https://cwe.mitre.org/data/definitions/94.html), OWASP A03:2025, <https://securitylab.github.com/resources/github-actions-preventing-pwn-requests/>.
+
+## Why it matters
+
+These workflows run with the base repository's secrets and a token that can write to it. Install scripts, build scripts, and local actions in the pull request run with that access, so anyone who opens a pull request can steal the secrets or push to the repository.
+
+## Flagged
+
+`.github/workflows/comment-ops.yml` (block):
+
+```yaml
+gh pr checkout ${{ github.event.issue.number }}
+```
+
+`.github/workflows/coverage.yml` (block):
+
+```yaml
+ref: ${{ github.event.workflow_run.head_sha }}
+```
+
+`.github/workflows/fork-branch.yml` (block):
+
+```yaml
+repository: ${{ github.event.pull_request.head.repo.full_name }}
+```
+
+`.github/workflows/gated.yml` (warn):
+
+```yaml
+ref: ${{ github.event.pull_request.head.sha }}
+```
+
+`.github/workflows/preview.yml` (block):
+
+```yaml
+ref: refs/pull/${{ github.event.pull_request.number }}/merge
+```
+
+## Not flagged
+
+- `- run: npm ci && npm test` in `.github/workflows/ci.yml`: pull_request workflows run without secrets
+- `- run: gh pr view ${{ github.event.issue.number }} --json title` in `.github/workflows/comment-ops.yml`: reads metadata only, checks nothing out
+- `ref: ${{ github.event.pull_request.head.ref }}` in `.github/workflows/fork-branch.yml`: a branch name alone is looked up in the base repository, where forks cannot push
+- `ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}` in `.github/workflows/fork-branch.yml`: the head is only picked for pull_request events, which run without secrets
+- `ref: ${{ github.event.pull_request.head.sha }}` in `.github/workflows/fork-branch.yml`: only a published tool is installed and it reads the files
+- `- uses: actions/checkout@v4` in `.github/workflows/preview.yml`: the base branch, which this workflow trusts
+- `ref: ${{ github.event.pull_request.head.sha }}` in `.github/workflows/preview.yml`: checked out into pr/ and only read as data
+- `ref: ${{ github.event.pull_request.head.ref }}` in `.github/workflows/preview.yml`: the job only runs for branches of this repository
+- `ref: ${{ github.event.pull_request.head.sha }}` in `.github/workflows/preview.yml`: nothing from the checkout runs
+- `ref: ${{ github.event.workflow_run.head_sha }}` in `.github/workflows/release-notes.yml`: the Release workflow runs only on tag pushes
+
+## How to fix
+
+Build and test pull request code in a pull_request workflow without secrets, and pass results to the privileged workflow as artifacts; if you must check out the head here, do not run anything from it.
+
+## If the finding is wrong
+
+Add a comment on the line above, in the comment syntax of the file, that says who decided and why:
+
+```
+ubon-ignore ci/untrusted-checkout: <who decided>: <evidence>
+```
+
+Or turn the rule off for the project in `ubon.json`: `"rules": { "ci/untrusted-checkout": "off" }`. See [configuration](../../config.md).
+
+Fixtures: [fixtures/rules/ci/untrusted-checkout](../../../fixtures/rules/ci/untrusted-checkout).
+
+<!-- docs/rules/ci/publish-token.md -->
+
+# ci/publish-token
+
+Package publishing that a stolen token or cache can hijack.
+
+npm publish (or pnpm, yarn, changesets, semantic-release) authenticated with NODE_AUTH_TOKEN or NPM_TOKEN from a secret instead of trusted publishing; id-token: write in a workflow that pull requests trigger; a dependency cache restored in the job that publishes.
+
+- Default level: `warn`.
+- Levels: warn. Publishing to GitHub Packages or another registry set with registry-url is not reported, because those registries do not accept npm trusted publishing.
+- Looks at: each file in scope, on its own.
+- References: [CWE-522](https://cwe.mitre.org/data/definitions/522.html), [CWE-829](https://cwe.mitre.org/data/definitions/829.html), OWASP A03:2025, <https://docs.npmjs.com/trusted-publishers>.
+
+## Why it matters
+
+A long-lived npm token in CI can be stolen by any code that runs in the job and used later from anywhere; trusted publishing issues a short-lived token per run instead. A cache restored before publishing can carry files written by another workflow run, which is how the May 2026 TanStack compromise published malware with valid provenance.
+
+## Flagged
+
+`.github/workflows/changesets.yml` (warn):
+
+```yaml
+cache: pnpm
+```
+
+`.github/workflows/changesets.yml` (warn):
+
+```yaml
+- uses: actions/cache@v4
+```
+
+`.github/workflows/changesets.yml` (warn):
+
+```yaml
+NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+```
+
+`.github/workflows/ci.yml` (warn):
+
+```yaml
+id-token: write
+```
+
+`.github/workflows/ci.yml` (warn):
+
+```yaml
+echo "//registry.npmjs.org/:_authToken=${{ secrets.NPM_TOKEN }}" > ~/.npmrc
+```
+
+`.github/workflows/release.yml` (warn):
+
+```yaml
+cache: npm
+```
+
+`.github/workflows/release.yml` (warn):
+
+```yaml
+NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+```
+
+## Not flagged
+
+- `id-token: write` in `.github/workflows/changesets.yml`: push-only workflow
+- `cache: pnpm` in `.github/workflows/changesets.yml`: this job does not publish
+- `id-token: write` in `.github/workflows/ci.yml`: a test job (cloud login); forks get no OIDC token and nothing is published
+- `id-token: write` in `.github/workflows/ci.yml`: this job runs only for tag pushes
+- `NODE_AUTH_TOKEN: ${{ secrets.PACKAGES_TOKEN }}` in `.github/workflows/github-packages.yml`: GitHub Packages does not accept npm trusted publishing
+- `id-token: write` in `.github/workflows/trusted.yml`: trusted publishing in a workflow that pull requests do not trigger
+- `- run: npm publish` in `.github/workflows/trusted.yml`: trusted publishing needs no token
+
+## How to fix
+
+Publish with npm trusted publishing (OIDC, id-token: write) in a job that runs only on push, release, or workflow_dispatch, and restore no caches in that job.
+
+## If the finding is wrong
+
+Add a comment on the line above, in the comment syntax of the file, that says who decided and why:
+
+```
+ubon-ignore ci/publish-token: <who decided>: <evidence>
+```
+
+Or turn the rule off for the project in `ubon.json`: `"rules": { "ci/publish-token": "off" }`. See [configuration](../../config.md).
+
+Fixtures: [fixtures/rules/ci/publish-token](../../../fixtures/rules/ci/publish-token).
 
 <!-- docs/rules/integrity/invalid-suppression.md -->
 

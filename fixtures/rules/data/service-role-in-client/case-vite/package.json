@@ -1,0 +1,12 @@
+{
+  "name": "service-role-vite-fixture",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@supabase/supabase-js": "2.57.4",
+    "react": "19.1.0"
+  },
+  "devDependencies": {
+    "vite": "7.1.5"
+  }
+}

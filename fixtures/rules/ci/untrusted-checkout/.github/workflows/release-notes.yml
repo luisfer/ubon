@@ -1,0 +1,15 @@
+name: Release notes
+
+on:
+  workflow_run:
+    workflows: [Release]
+    types: [completed]
+
+jobs:
+  notes:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }} # ok: the Release workflow runs only on tag pushes
+      - run: npm ci && npm run notes

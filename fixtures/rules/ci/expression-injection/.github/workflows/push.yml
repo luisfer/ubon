@@ -1,0 +1,20 @@
+name: Notify
+
+on:
+  push:
+    branches: [main]
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+    steps:
+      - run: >-
+          curl -X POST "$SLACK_WEBHOOK"
+          -d "text=${{ github.event.head_commit.message }}" # expect-block: ci/expression-injection
+        env:
+          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+      - run: echo "${{ github.event.workflow_run.head_branch }}" # expect-block: ci/expression-injection
+      - run: echo "${{ github.event.pull_request.title }}" # ok: no trigger of this workflow fills the pull request fields

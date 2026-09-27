@@ -15,4 +15,4 @@ node scripts/corpus.mjs report    # write docs/precision.md
 
 `run --strict` exits with 1 when a finding has no triage line. The weekly `corpus` workflow runs it, so a rule change that adds findings on the corpus needs triage before the next release.
 
-When you triage, read the code around the finding. A finding is a true positive when the rule's message is correct and the fix it suggests is worth doing. Explain false positives in the note, then change the rule or its fixtures so the same shape is not reported again.
+When you triage, read the code around the finding. A `block` finding is a true positive when its message is correct and the fix it suggests is worth doing. A `warn` finding is a true positive when its message is correct and the code is worth a reviewer's look, even if the answer is that it is fine (a public-read policy on a public product catalog, for example). Explain false positives in the note, then change the rule or its fixtures so the same shape is not reported again.
