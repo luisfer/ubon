@@ -22,6 +22,7 @@ jobs:
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 24
+          package-manager-cache: false
       - run: npm ci
       - run: npm run verify
       - name: The tag matches package.json
@@ -43,10 +44,12 @@ jobs:
         with:
           persist-credentials: false
       # No dependency cache in the release job: a poisoned cache published malware with valid provenance in May 2026.
+      # setup-node caches the npm cache by default, so it is turned off explicitly.
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 24
           registry-url: https://registry.npmjs.org
+          package-manager-cache: false
       - run: npm ci
       - run: npm run build
       - name: Stage the release on npm
