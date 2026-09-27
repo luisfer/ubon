@@ -36,10 +36,20 @@ Run `npx ubon check` to check the changes since the base branch. Exit code 1 mea
 - [secret/in-prompt](https://github.com/luisfer/ubon/blob/main/docs/rules/secret/in-prompt.md): Provider key in a prompt (block).
 - [secret/in-tool-output](https://github.com/luisfer/ubon/blob/main/docs/rules/secret/in-tool-output.md): Provider key in tool output (warn).
 - [secret/read-sensitive-file](https://github.com/luisfer/ubon/blob/main/docs/rules/secret/read-sensitive-file.md): Agent reads a secrets file (block).
+- [web/sql-injection](https://github.com/luisfer/ubon/blob/main/docs/rules/web/sql-injection.md): Request data in raw SQL (block).
+- [web/command-injection](https://github.com/luisfer/ubon/blob/main/docs/rules/web/command-injection.md): Request data in a shell command (block).
+- [web/ssrf](https://github.com/luisfer/ubon/blob/main/docs/rules/web/ssrf.md): Server request to a URL from the request (block).
+- [web/path-traversal](https://github.com/luisfer/ubon/blob/main/docs/rules/web/path-traversal.md): Request data in a file path (block).
+- [web/code-eval](https://github.com/luisfer/ubon/blob/main/docs/rules/web/code-eval.md): Request data evaluated as code (block).
+- [web/xss-html-sink](https://github.com/luisfer/ubon/blob/main/docs/rules/web/xss-html-sink.md): Value rendered as HTML without sanitizing (warn).
+- [web/open-redirect](https://github.com/luisfer/ubon/blob/main/docs/rules/web/open-redirect.md): Redirect to a URL from the request (warn).
 - [data/rls-disabled](https://github.com/luisfer/ubon/blob/main/docs/rules/data/rls-disabled.md): Supabase table without row level security (block).
 - [data/permissive-policy](https://github.com/luisfer/ubon/blob/main/docs/rules/data/permissive-policy.md): Supabase policy that allows every row (block).
 - [data/service-role-in-client](https://github.com/luisfer/ubon/blob/main/docs/rules/data/service-role-in-client.md): Supabase service role key in browser code (block).
 - [data/firebase-open-rules](https://github.com/luisfer/ubon/blob/main/docs/rules/data/firebase-open-rules.md): Firebase rules open to everyone (block).
+- [llm/output-to-sink](https://github.com/luisfer/ubon/blob/main/docs/rules/llm/output-to-sink.md): Model output used as code, SQL, a command, or HTML (block).
+- [llm/tool-dangerous-capability](https://github.com/luisfer/ubon/blob/main/docs/rules/llm/tool-dangerous-capability.md): Tool passes model-chosen arguments to commands, code, SQL, files, or fetch (block).
+- [llm/untrusted-system-prompt](https://github.com/luisfer/ubon/blob/main/docs/rules/llm/untrusted-system-prompt.md): Request or fetched text in a system prompt (warn).
 - [deps/undeclared-import](https://github.com/luisfer/ubon/blob/main/docs/rules/deps/undeclared-import.md): Import of a package that package.json does not declare (warn).
 - [deps/nonexistent-package](https://github.com/luisfer/ubon/blob/main/docs/rules/deps/nonexistent-package.md): New dependency that does not exist on the registry (block).
 - [deps/young-package](https://github.com/luisfer/ubon/blob/main/docs/rules/deps/young-package.md): New dependency or version published too recently (block).

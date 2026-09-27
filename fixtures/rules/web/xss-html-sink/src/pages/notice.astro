@@ -1,0 +1,7 @@
+---
+const message = Astro.url.searchParams.get('msg') ?? '';
+---
+
+<div set:html={message} /> <!-- expect-block: web/xss-html-sink -->
+<Fragment set:html="<b>Maintenance tonight</b>" /> <!-- ok: constant string -->
+<p>{message}</p> <!-- ok: expressions are escaped -->

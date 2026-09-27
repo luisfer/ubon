@@ -204,6 +204,237 @@ export const EXAMPLES: Record<string, { flagged: RuleExample[]; safe: RuleExampl
     "flagged": [],
     "safe": []
   },
+  "web/sql-injection": {
+    "flagged": [
+      {
+        "file": "app/api/users/route.ts",
+        "code": "const users = await prisma.$queryRawUnsafe(`SELECT * FROM \"User\" WHERE name = '${name}'`);"
+      },
+      {
+        "file": "app/api/users/route.ts",
+        "code": "const sorted = await db.execute(sql.raw(`select * from users order by ${name}`));"
+      },
+      {
+        "file": "server/routes/items.js",
+        "code": "const sorted = await pool.query('SELECT * FROM items ORDER BY ' + req.query.sort);"
+      }
+    ],
+    "safe": [
+      {
+        "file": "app/api/users/route.ts",
+        "code": "const same = await prisma.$queryRaw`SELECT * FROM \"User\" WHERE name = ${name}`;",
+        "note": "Prisma tagged template sends name as a parameter"
+      },
+      {
+        "file": "app/api/users/route.ts",
+        "code": "const rows = await db.execute(sql`select * from users where name = ${name}`);",
+        "note": "Drizzle sql tag parameterizes interpolated values"
+      },
+      {
+        "file": "app/api/users/route.ts",
+        "code": "const found = await prisma.$executeRawUnsafe('UPDATE \"User\" SET verified = true WHERE email = $1', email);",
+        "note": "the SQL text is constant; email is a positional parameter"
+      }
+    ]
+  },
+  "web/command-injection": {
+    "flagged": [
+      {
+        "file": "app/api/convert/route.ts",
+        "code": "await execAsync(`convert ${file} out.${format}`);"
+      },
+      {
+        "file": "app/api/convert/route.ts",
+        "code": "spawn('convert', [file, 'out.png'], { shell: true });"
+      },
+      {
+        "file": "server/media.ts",
+        "code": "await execa(`ffmpeg -i ${input} out.mp4`, { shell: true });"
+      }
+    ],
+    "safe": [
+      {
+        "file": "app/api/convert/route.ts",
+        "code": "execFile('convert', [file, `out.${format}`]);",
+        "note": "argument array without a shell"
+      },
+      {
+        "file": "app/api/convert/route.ts",
+        "code": "spawn('convert', [file, 'out.png']);",
+        "note": "fixed program, no shell"
+      },
+      {
+        "file": "app/api/convert/route.ts",
+        "code": "await execAsync(`convert ${quote([file])} out.png`);",
+        "note": "shell-quote escapes the value"
+      }
+    ]
+  },
+  "web/ssrf": {
+    "flagged": [
+      {
+        "file": "app/api/favicon/route.ts",
+        "code": "const page = await fetch(`${config.upstream}${path}`);"
+      },
+      {
+        "file": "app/api/image/route.ts",
+        "code": "return fetch(new URL(callback));"
+      },
+      {
+        "file": "app/api/preview/route.ts",
+        "code": "const page = await fetch(url);"
+      }
+    ],
+    "safe": [
+      {
+        "file": "app/api/favicon/route.ts",
+        "code": "const icon = await fetch(`${FAVICONS}${domain}`);",
+        "note": "module constant fixes the host; the value goes in the query"
+      },
+      {
+        "file": "app/api/image/route.ts",
+        "code": "const image = await fetch(parsed);",
+        "note": "hostname checked against an allowlist"
+      },
+      {
+        "file": "app/api/image/route.ts",
+        "code": "await fetch(target, { method: 'POST', body: '{}' });",
+        "note": "validated by an allowlist helper"
+      }
+    ]
+  },
+  "web/path-traversal": {
+    "flagged": [
+      {
+        "file": "app/api/upload/route.ts",
+        "code": "await writeFile(`public/uploads/${name}`, bytes);"
+      },
+      {
+        "file": "app/api/upload/route.ts",
+        "code": "const css = await readFile(`themes/${theme}.css`, 'utf8');"
+      },
+      {
+        "file": "server/files.js",
+        "code": "res.sendFile(path.join(UPLOADS, req.params.name));"
+      }
+    ],
+    "safe": [
+      {
+        "file": "app/api/upload/route.ts",
+        "code": "await writeFile(`public/uploads/${randomUUID()}.png`, bytes);",
+        "note": "file name generated on the server"
+      },
+      {
+        "file": "app/api/upload/route.ts",
+        "code": "return Response.json({ ok: true });",
+        "note": "true });"
+      },
+      {
+        "file": "app/api/upload/route.ts",
+        "code": "const doc = await readFile(`data/${id}.json`, 'utf8');",
+        "note": "numeric cast"
+      }
+    ]
+  },
+  "web/code-eval": {
+    "flagged": [
+      {
+        "file": "lib/formula.ts",
+        "code": "return eval(formula);"
+      },
+      {
+        "file": "server/calc.js",
+        "code": "const result = eval(req.body.expression);"
+      },
+      {
+        "file": "server/calc.js",
+        "code": "const fn = new Function('x', req.body.body);"
+      }
+    ],
+    "safe": [
+      {
+        "file": "lib/formula.ts",
+        "code": "return import(`../locales/${locale}.json`);",
+        "note": "dynamic import of unknown origin is code splitting, not reported"
+      },
+      {
+        "file": "lib/formula.ts",
+        "code": "return eval(text);",
+        "note": "model output is reported by llm/output-to-sink, not here"
+      },
+      {
+        "file": "server/calc.js",
+        "code": "setTimeout(() => res.end(), 100);",
+        "note": "a function, not a string"
+      }
+    ]
+  },
+  "web/xss-html-sink": {
+    "flagged": [
+      {
+        "file": "app/providers.tsx",
+        "code": "<script dangerouslySetInnerHTML={{ __html: `window.__USER__ = ${JSON.stringify(state.user)};` }} />"
+      },
+      {
+        "file": "app/search/page.tsx",
+        "code": "<h1 dangerouslySetInnerHTML={{ __html: `Results for ${q}` }} />"
+      },
+      {
+        "file": "components/Post.tsx",
+        "code": "<div dangerouslySetInnerHTML={{ __html: html }} />"
+      }
+    ],
+    "safe": [
+      {
+        "file": "app/layout.tsx",
+        "code": "<script dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }} />",
+        "note": "constant theme-flash script"
+      },
+      {
+        "file": "app/layout.tsx",
+        "code": "<script dangerouslySetInnerHTML={{ __html: ANALYTICS_SNIPPET }} />",
+        "note": "constant imported from another module"
+      },
+      {
+        "file": "app/providers.tsx",
+        "code": "<script dangerouslySetInnerHTML={{ __html: `window.__STATE__ = ${serialized};` }} />",
+        "note": "'<' escaped before it reaches the script"
+      }
+    ]
+  },
+  "web/open-redirect": {
+    "flagged": [
+      {
+        "file": "app/api/auth/callback/route.ts",
+        "code": "return NextResponse.redirect(new URL(next, request.url));"
+      },
+      {
+        "file": "app/auth/confirm/route.ts",
+        "code": "if (next) return NextResponse.redirect(requestUrl.origin + next);"
+      },
+      {
+        "file": "app/login/actions.ts",
+        "code": "redirect(destination);"
+      }
+    ],
+    "safe": [
+      {
+        "file": "app/api/auth/callback/route.ts",
+        "code": "if (searchParams.has('error')) return NextResponse.redirect(new URL('/login', request.url));",
+        "note": "constant path on the request's own origin"
+      },
+      {
+        "file": "app/api/auth/callback/route.ts",
+        "code": "return NextResponse.redirect(new URL(target, request.url));",
+        "note": "only relative paths pass the check"
+      },
+      {
+        "file": "app/api/auth/callback/route.ts",
+        "code": "return NextResponse.redirect(url);",
+        "note": "origin compared with the request's origin"
+      }
+    ]
+  },
   "data/rls-disabled": {
     "flagged": [
       {
@@ -333,6 +564,105 @@ export const EXAMPLES: Record<string, { flagged: RuleExample[]; safe: RuleExampl
         "file": "apps/site/firestore.rules",
         "code": "allow update: if request.auth.uid != null;",
         "note": "signed-in writes on one path are not reported"
+      }
+    ]
+  },
+  "llm/output-to-sink": {
+    "flagged": [
+      {
+        "file": "app/api/report/route.ts",
+        "code": "const rows = await pool.query(text);"
+      },
+      {
+        "file": "app/api/report/route.ts",
+        "code": "const noted = await pool.query(`INSERT INTO notes (body) VALUES ('${object.note}')`);"
+      },
+      {
+        "file": "components/Chat.tsx",
+        "code": "<div dangerouslySetInnerHTML={{ __html: marked.parse(m.content) }} />"
+      }
+    ],
+    "safe": [
+      {
+        "file": "app/api/report/route.ts",
+        "code": "const sorted = await pool.query(`SELECT * FROM invoices ORDER BY ${object.sortBy}`);",
+        "note": "enum field of a schema-checked object"
+      },
+      {
+        "file": "app/api/report/route.ts",
+        "code": "const safe = await pool.query('INSERT INTO notes (body) VALUES ($1)', [text]);",
+        "note": "model output passed as a parameter"
+      },
+      {
+        "file": "components/Chat.tsx",
+        "code": "<div dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(marked.parse(m.content) as string) }} />",
+        "note": "sanitized"
+      }
+    ]
+  },
+  "llm/tool-dangerous-capability": {
+    "flagged": [
+      {
+        "file": "agents/sql-tool.ts",
+        "code": "const rows = await db.query(query);"
+      },
+      {
+        "file": "lib/ai/tools.ts",
+        "code": "const { stdout } = await run(command);"
+      },
+      {
+        "file": "lib/ai/tools.ts",
+        "code": "execute: async ({ path, content }) => fs.writeFile(path, content),"
+      }
+    ],
+    "safe": [
+      {
+        "file": "lib/ai/tools.ts",
+        "code": "execute: async ({ branch }) => (await run(`git log ${branch} --oneline`)).stdout,",
+        "note": "branch is an enum"
+      },
+      {
+        "file": "lib/ai/tools.ts",
+        "code": "return (await run(command)).stdout;",
+        "note": "checked against an allowlist"
+      },
+      {
+        "file": "lib/ai/tools.ts",
+        "code": "execute: async ({ title, content }) => fs.writeFile(`notes/${randomUUID()}.md`, `# ${title}\\n\\n${content}`),",
+        "note": "the path is generated in code; the model only writes the content"
+      }
+    ]
+  },
+  "llm/untrusted-system-prompt": {
+    "flagged": [
+      {
+        "file": "app/api/chat/route.ts",
+        "code": "system: `You are ${persona}. Answer briefly.`,"
+      },
+      {
+        "file": "server/summarize.ts",
+        "code": "instructions: `Summarize using this page: ${page}`,"
+      },
+      {
+        "file": "server/summarize.ts",
+        "code": "{ role: 'system', content: `Reply in a ${tone} tone.` },"
+      }
+    ],
+    "safe": [
+      {
+        "file": "app/api/chat/route.ts",
+        "code": "system: SYSTEM,",
+        "note": "constant system prompt"
+      },
+      {
+        "file": "app/api/chat/route.ts",
+        "code": "messages: convertToModelMessages(messages),",
+        "note": "user messages are where user text belongs"
+      },
+      {
+        "file": "server/summarize.ts",
+        "code": "input: question,",
+        "note": "the user's question goes in the input"
       }
     ]
   },

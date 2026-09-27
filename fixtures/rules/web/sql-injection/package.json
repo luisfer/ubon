@@ -1,0 +1,1 @@
+{ "name": "sql-injection-fixture", "private": true, "dependencies": { "next": "15.5.0", "@prisma/client": "6.16.0", "drizzle-orm": "0.44.5", "pg": "8.16.3", "express": "5.1.0", "hono": "4.9.8", "better-sqlite3": "12.4.1", "postgres": "3.4.7", "knex": "3.1.0", "@trpc/server": "11.6.0", "zod": "4.1.11" } }

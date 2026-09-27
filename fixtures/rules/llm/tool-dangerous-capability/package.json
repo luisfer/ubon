@@ -1,0 +1,1 @@
+{ "name": "tool-capability-fixture", "private": true, "dependencies": { "ai": "5.0.44", "zod": "4.1.11", "@modelcontextprotocol/sdk": "1.18.0", "@langchain/core": "0.3.77", "pg": "8.16.3", "@e2b/code-interpreter": "2.0.0" } }

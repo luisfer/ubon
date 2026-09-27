@@ -11,12 +11,18 @@ Ubon is deterministic and runs locally. It has no dependencies, calls no languag
 $ npx ubon check
 ubon 4.0.0-alpha.0: 2 changed files since main
 
+block  web/ssrf  app/api/preview/route.ts:6
+       fetch() uses a URL from the request body (url, line 5).
+       5   url comes from the request body
+       6   reaches fetch()
+       Fix: Parse the URL with new URL() and check its hostname against an allowlist before fetching, or build the URL from a fixed base and pass the value only as a path segment or query parameter.
+
 block  secret/provider-key  lib/openai.ts:3
        OpenAI API key in source: sk-proj-...MsGg.
        3   export const openai = new OpenAI({ apiKey: 'sk-proj-...MsGg' });
        Fix: Move it to an environment variable (for example process.env.OPENAI_API_KEY) and rotate the key, because it is exposed.
 
-1 blocking.
+2 blocking.
 ```
 
 The exit code is 1 because there are blocking findings. This output is generated from [fixtures/demo](fixtures/demo), where `before/` is the base commit and `after/` is what an agent changed.
@@ -1025,7 +1031,7 @@ Exit codes: 0 no blocking findings, 1 blocking findings, 2 a usage or config err
 
 # Rules
 
-Ubon has 34 rules in 6 packs. A `block` finding stops an agent from finishing and fails `ubon check`; a `warn` finding is reported and does not. `ubon rules` prints this list with the levels set in your `ubon.json`.
+Ubon has 44 rules in 8 packs. A `block` finding stops an agent from finishing and fails `ubon check`; a `warn` finding is reported and does not. `ubon rules` prints this list with the levels set in your `ubon.json`.
 
 ## secret
 
@@ -1043,6 +1049,20 @@ Credentials in code, config, prompts, and tool output.
 | [secret/in-tool-output](secret/in-tool-output.md) | warn | Provider key in tool output |
 | [secret/read-sensitive-file](secret/read-sensitive-file.md) | block | Agent reads a secrets file |
 
+## web
+
+Trust boundaries in web code: request data reaching SQL, shells, file paths, URLs, and HTML, and routes without auth.
+
+| Rule | Level | What it catches |
+| --- | --- | --- |
+| [web/sql-injection](web/sql-injection.md) | block | Request data in raw SQL |
+| [web/command-injection](web/command-injection.md) | block | Request data in a shell command |
+| [web/ssrf](web/ssrf.md) | block | Server request to a URL from the request |
+| [web/path-traversal](web/path-traversal.md) | block | Request data in a file path |
+| [web/code-eval](web/code-eval.md) | block | Request data evaluated as code |
+| [web/xss-html-sink](web/xss-html-sink.md) | warn | Value rendered as HTML without sanitizing |
+| [web/open-redirect](web/open-redirect.md) | warn | Redirect to a URL from the request |
+
 ## data
 
 Data access policies: Supabase row level security, Firebase rules, and service keys.
@@ -1053,6 +1073,16 @@ Data access policies: Supabase row level security, Firebase rules, and service k
 | [data/permissive-policy](data/permissive-policy.md) | block | Supabase policy that allows every row |
 | [data/service-role-in-client](data/service-role-in-client.md) | block | Supabase service role key in browser code |
 | [data/firebase-open-rules](data/firebase-open-rules.md) | block | Firebase rules open to everyone |
+
+## llm
+
+Features built on language models: keys in the browser, model output reaching code or queries, and tools with too much power.
+
+| Rule | Level | What it catches |
+| --- | --- | --- |
+| [llm/output-to-sink](llm/output-to-sink.md) | block | Model output used as code, SQL, a command, or HTML |
+| [llm/tool-dangerous-capability](llm/tool-dangerous-capability.md) | block | Tool passes model-chosen arguments to commands, code, SQL, files, or fetch |
+| [llm/untrusted-system-prompt](llm/untrusted-system-prompt.md) | warn | Request or fetched text in a system prompt |
 
 ## deps
 
@@ -1639,6 +1669,607 @@ Ask the user for the variable names you need, or read `.env.example` instead.
 
 This check runs in agent hooks. Allow a command prefix with `commands.allow` in `ubon.json`, or set `"rules": { "secret/read-sensitive-file": "off" }`. See [configuration](../../config.md).
 
+<!-- docs/rules/web/sql-injection.md -->
+
+# web/sql-injection
+
+Request data in raw SQL.
+
+Request data concatenated or interpolated into the SQL text of a raw query API: Prisma $queryRawUnsafe and $executeRawUnsafe, Drizzle sql.raw(), postgres.js sql.unsafe(), Knex raw(), pg and mysql2 query() and execute(), better-sqlite3 prepare() and exec(), Sequelize query() and literal().
+
+- Default level: `block`.
+- Levels: block when request data reaches the SQL text; warn when the value passed a schema whose constraints Ubon cannot read, and in example or template folders.
+- Looks at: each file in scope, on its own.
+- References: [CWE-89](https://cwe.mitre.org/data/definitions/89.html), OWASP A05:2025.
+
+## Why it matters
+
+Whoever sends the request can rewrite the statement and read or change data the query was never meant to touch. Tagged templates such as Drizzle sql`...` and Prisma $queryRaw`...` send values separately from the SQL text, which is why they are safe.
+
+## Flagged
+
+`app/api/users/route.ts`:
+
+```ts
+const users = await prisma.$queryRawUnsafe(`SELECT * FROM "User" WHERE name = '${name}'`);
+```
+
+`app/api/users/route.ts`:
+
+```ts
+const sorted = await db.execute(sql.raw(`select * from users order by ${name}`));
+```
+
+`server/routes/items.js`:
+
+```js
+const sorted = await pool.query('SELECT * FROM items ORDER BY ' + req.query.sort);
+```
+
+`server/routes/items.js`:
+
+```js
+await pool.query(`INSERT INTO notes (title) VALUES ('${title}')`);
+```
+
+`server/search.ts`:
+
+```ts
+const stmt = db.prepare(`SELECT * FROM notes WHERE body LIKE '%${q}%'`);
+```
+
+`server/search.ts`:
+
+```ts
+const unsafe = await sql.unsafe(`select * from notes where title = '${q}'`);
+```
+
+`server/search.ts`:
+
+```ts
+const where = await qb('notes').whereRaw(`title = '${q}'`);
+```
+
+`server/trpc/posts.ts`:
+
+```ts
+return ctx.db.$queryRawUnsafe(`SELECT * FROM posts WHERE title ILIKE '%${input.term}%' LIMIT ${input.limit}`);
+```
+
+## Not flagged
+
+- `const same = await prisma.$queryRaw'SELECT * FROM "User" WHERE name = ${name}';` in `app/api/users/route.ts`: Prisma tagged template sends name as a parameter
+- `const rows = await db.execute(sql'select * from users where name = ${name}');` in `app/api/users/route.ts`: Drizzle sql tag parameterizes interpolated values
+- `const found = await prisma.$executeRawUnsafe('UPDATE "User" SET verified = true WHERE email = $1', email);` in `app/api/users/route.ts`: the SQL text is constant; email is a positional parameter
+- `const { rows } = await pool.query('SELECT * FROM items WHERE owner = $1', [req.query.owner]);` in `server/routes/items.js`: placeholder with a values array
+- `const paged = await pool.query('SELECT * FROM items LIMIT 20 OFFSET ${(page - 1) * 20}');` in `server/routes/items.js`: numeric cast
+- `const active = await pool.query('SELECT * FROM items WHERE status = '${STATUS}'');` in `server/routes/items.js`: module constant, not request data
+- `const { rows } = await pool.query('SELECT * FROM items ORDER BY ${column}');` in `server/routes/items.js`: column checked against an allowlist first
+- `const { rows } = await pool.query('SELECT * FROM items WHERE id IN (${placeholders})', ids);` in `server/routes/items.js`: placeholders only use the index
+- `const hit = await cache.get('item:${req.params.id}');` in `server/routes/items.js`: a cache key, not SQL
+- `const gql = await client.query({ query: ITEM_QUERY, variables: { id: req.params.id } });` in `server/routes/items.js`: GraphQL variables, not SQL text
+
+## How to fix
+
+Pass the value as a query parameter (a tagged sql`...` template, $queryRaw`...`, or a placeholder with a values array) instead of building the SQL string.
+
+## If the finding is wrong
+
+Add a comment on the line above, in the comment syntax of the file, that says who decided and why:
+
+```
+ubon-ignore web/sql-injection: <who decided>: <evidence>
+```
+
+Or turn the rule off for the project in `ubon.json`: `"rules": { "web/sql-injection": "off" }`. See [configuration](../../config.md).
+
+Fixtures: [fixtures/rules/web/sql-injection](../../../fixtures/rules/web/sql-injection).
+
+<!-- docs/rules/web/command-injection.md -->
+
+# web/command-injection
+
+Request data in a shell command.
+
+Request data in a command string run through a shell (child_process exec and execSync, spawn, execFile, or execa with shell: true, shelljs exec, sh -c), or used as the name of the program to run.
+
+- Default level: `block`.
+- Levels: block when request data reaches the command; warn when the value passed a schema whose constraints Ubon cannot read, and in example or template folders.
+- Looks at: each file in scope, on its own.
+- References: [CWE-78](https://cwe.mitre.org/data/definitions/78.html), OWASP A05:2025.
+
+## Why it matters
+
+A shell treats characters such as ; | $() and backticks as syntax, so whoever sends the request can append their own commands and run them with the permissions of the server process.
+
+## Flagged
+
+`app/api/convert/route.ts`:
+
+```ts
+await execAsync(`convert ${file} out.${format}`);
+```
+
+`app/api/convert/route.ts`:
+
+```ts
+spawn('convert', [file, 'out.png'], { shell: true });
+```
+
+`server/media.ts`:
+
+```ts
+await execa(`ffmpeg -i ${input} out.mp4`, { shell: true });
+```
+
+`server/media.ts`:
+
+```ts
+await execaCommand(`${input} --help`);
+```
+
+`server/tools.js`:
+
+```js
+const out = execSync('ping -c 1 ' + req.body.host);
+```
+
+`server/tools.js`:
+
+```js
+spawnSync('sh', ['-c', `git log ${req.body.ref}`]);
+```
+
+`server/tools.js`:
+
+```js
+const child = spawn(req.body.tool, ['--version']);
+```
+
+## Not flagged
+
+- `execFile('convert', [file, 'out.${format}']);` in `app/api/convert/route.ts`: argument array without a shell
+- `spawn('convert', [file, 'out.png']);` in `app/api/convert/route.ts`: fixed program, no shell
+- `await execAsync('convert ${quote([file])} out.png');` in `app/api/convert/route.ts`: shell-quote escapes the value
+- `await execAsync('convert input.png out.${Number(format)}');` in `app/api/convert/route.ts`: numeric cast
+- `return Response.json({ ok: true });` in `app/api/convert/route.ts`: true });
+- `await execa('ffmpeg', ['-i', input, 'out.mp4']);` in `server/media.ts`: execa without a shell passes input as one argument
+- `await $'ffmpeg -i ${input} out.mp4';` in `server/media.ts`: zx quotes interpolated values
+- `return c.json({ ok: true });` in `server/media.ts`: true });
+- `res.send(execSync('git show ${ref}'));` in `server/tools.js`: ref must match an anchored character allowlist
+- `db.exec('INSERT INTO jobs (name) VALUES ('${req.body.name}')');` in `server/tools.js`: a database client's exec, not a shell (see web/sql-injection)
+
+## How to fix
+
+Call execFile() or spawn() with a fixed program and the value as one element of the argument array, without shell: true.
+
+## If the finding is wrong
+
+Add a comment on the line above, in the comment syntax of the file, that says who decided and why:
+
+```
+ubon-ignore web/command-injection: <who decided>: <evidence>
+```
+
+Or turn the rule off for the project in `ubon.json`: `"rules": { "web/command-injection": "off" }`. See [configuration](../../config.md).
+
+Fixtures: [fixtures/rules/web/command-injection](../../../fixtures/rules/web/command-injection).
+
+<!-- docs/rules/web/ssrf.md -->
+
+# web/ssrf
+
+Server request to a URL from the request.
+
+Server-side fetch, axios, got, ky, undici, http.get, or page.goto whose URL (or host) comes from request data.
+
+- Default level: `block`.
+- Levels: block when request data controls the scheme or host of the URL; warn when the data is appended directly to a base Ubon cannot read (it changes the host only if the base does not end with '/'), when the value passed a schema whose constraints Ubon cannot read, and in example or template folders. A fixed scheme and host with request data in the path or query is not reported.
+- Looks at: each file in scope, on its own.
+- References: [CWE-918](https://cwe.mitre.org/data/definitions/918.html), OWASP A01:2025.
+
+## Why it matters
+
+The server makes the request from inside your network, so whoever controls the URL can reach internal services and cloud metadata endpoints (169.254.169.254) and read the responses.
+
+## Flagged
+
+`app/api/favicon/route.ts` (warn):
+
+```ts
+const page = await fetch(`${config.upstream}${path}`);
+```
+
+`app/api/image/route.ts`:
+
+```ts
+return fetch(new URL(callback));
+```
+
+`app/api/preview/route.ts`:
+
+```ts
+const page = await fetch(url);
+```
+
+`server/proxy.js`:
+
+```js
+const { data } = await axios.get(req.query.url);
+```
+
+`server/proxy.js`:
+
+```js
+http.get(req.query.feed, (upstream) => upstream.pipe(res));
+```
+
+## Not flagged
+
+- `const icon = await fetch('${FAVICONS}${domain}');` in `app/api/favicon/route.ts`: module constant fixes the host; the value goes in the query
+- `const image = await fetch(parsed);` in `app/api/image/route.ts`: hostname checked against an allowlist
+- `await fetch(target, { method: 'POST', body: '{}' });` in `app/api/image/route.ts`: validated by an allowlist helper
+- `await fetch(icon);` in `app/api/image/route.ts`: hostname suffix check
+- `const meta = await fetch('https://api.github.com/repos/${repo}');` in `app/api/preview/route.ts`: fixed scheme and host; request data only in the path
+- `const self = await fetch(new URL('/api/health', request.url));` in `app/api/preview/route.ts`: same origin as the request
+- `return fetch(target);` in `app/api/proxy/[...path]/route.ts`: the path and query go to a fixed upstream origin
+- `fetch(params.get('u') ?? '/').then((r) => r.text()).then(setHtml);` in `components/LinkPreview.tsx`: the browser makes this request, not the server
+- `const { data } = await axios.get('${API_BASE}/users/${req.params.id}');` in `server/proxy.js`: base URL from config; request data only in the path
+- `const { data } = await axios.get('http://${host}/internal/status');` in `server/proxy.js`: the Host header names this server
+
+## How to fix
+
+Parse the URL with new URL() and check its hostname against an allowlist before fetching, or build the URL from a fixed base and pass the value only as a path segment or query parameter.
+
+## If the finding is wrong
+
+Add a comment on the line above, in the comment syntax of the file, that says who decided and why:
+
+```
+ubon-ignore web/ssrf: <who decided>: <evidence>
+```
+
+Or turn the rule off for the project in `ubon.json`: `"rules": { "web/ssrf": "off" }`. See [configuration](../../config.md).
+
+Fixtures: [fixtures/rules/web/ssrf](../../../fixtures/rules/web/ssrf).
+
+<!-- docs/rules/web/path-traversal.md -->
+
+# web/path-traversal
+
+Request data in a file path.
+
+fs reads, writes, and deletes, createReadStream, res.sendFile, res.download, Bun.file, and Bun.write with a path built from request data.
+
+- Default level: `block`.
+- Levels: block when request data reaches the path; warn when the value passed a schema whose constraints Ubon cannot read, and in example or template folders.
+- Looks at: each file in scope, on its own.
+- References: [CWE-22](https://cwe.mitre.org/data/definitions/22.html), OWASP A01:2025.
+
+## Why it matters
+
+A path segment such as ../../ or an absolute path lets whoever sends the request read or overwrite files outside the directory the code meant to use, such as .env files, keys, or source code.
+
+## Flagged
+
+`app/api/upload/route.ts`:
+
+```ts
+await writeFile(`public/uploads/${name}`, bytes);
+```
+
+`app/api/upload/route.ts`:
+
+```ts
+const css = await readFile(`themes/${theme}.css`, 'utf8');
+```
+
+`server/files.js`:
+
+```js
+res.sendFile(path.join(UPLOADS, req.params.name));
+```
+
+`server/files.js`:
+
+```js
+fs.readFile(`./uploads/${req.params.name}`, (err, data) => res.send(data));
+```
+
+`server/files.js`:
+
+```js
+await fs.promises.unlink(path.join(UPLOADS, req.params.name));
+```
+
+## Not flagged
+
+- `await writeFile('public/uploads/${randomUUID()}.png', bytes);` in `app/api/upload/route.ts`: file name generated on the server
+- `return Response.json({ ok: true });` in `app/api/upload/route.ts`: true });
+- `const doc = await readFile('data/${id}.json', 'utf8');` in `app/api/upload/route.ts`: numeric cast
+- `const page = await readFile('content/${slug}.md', 'utf8');` in `app/api/upload/route.ts`: rejects '..' and '/' first
+- `return readFile(request.path);` in `lib/files.ts`: typed as FileRequest, not an HTTP request
+- `res.sendFile(path.join(UPLOADS, path.basename(req.params.name)));` in `server/files.js`: basename keeps only the file name
+- `res.sendFile(req.params.name, { root: UPLOADS });` in `server/files.js`: sendFile with a root rejects paths that leave it
+- `fs.createReadStream(full).pipe(res);` in `server/files.js`: resolved path checked against the upload root
+- `fs.createReadStream(target).pipe(res);` in `server/files.js`: path.relative check keeps the file inside the root
+- `fs.readFile(path.join(__dirname, 'reports', 'summary.pdf'), (err, data) => res.send(data));` in `server/files.js`: constant path
+
+## How to fix
+
+Reduce the value to a file name with path.basename(), or resolve it with path.resolve(root, value) and reject it unless it starts with root plus path.sep.
+
+## If the finding is wrong
+
+Add a comment on the line above, in the comment syntax of the file, that says who decided and why:
+
+```
+ubon-ignore web/path-traversal: <who decided>: <evidence>
+```
+
+Or turn the rule off for the project in `ubon.json`: `"rules": { "web/path-traversal": "off" }`. See [configuration](../../config.md).
+
+Fixtures: [fixtures/rules/web/path-traversal](../../../fixtures/rules/web/path-traversal).
+
+<!-- docs/rules/web/code-eval.md -->
+
+# web/code-eval
+
+Request data evaluated as code.
+
+eval, new Function, vm.runIn*Context and vm.Script, setTimeout or setInterval with a string, dynamic import() or require(), and template compilers (lodash template, ejs, pug) with request data; eval, Function, and vm with any value that is not a constant.
+
+- Default level: `block`.
+- Levels: block when request data reaches the code; warn for eval, Function, and vm with a value of unknown origin that is not a constant, when the value passed a schema whose constraints Ubon cannot read, and in example or template folders. Dynamic import() of unknown origin is not reported (code splitting uses it).
+- Looks at: each file in scope, on its own.
+- References: [CWE-95](https://cwe.mitre.org/data/definitions/95.html), OWASP A05:2025.
+
+## Why it matters
+
+Evaluated strings run with every permission of the page or the server process, so request data there lets whoever sends it run their own code.
+
+## Flagged
+
+`lib/formula.ts` (warn):
+
+```ts
+return eval(formula);
+```
+
+`server/calc.js`:
+
+```js
+const result = eval(req.body.expression);
+```
+
+`server/calc.js`:
+
+```js
+const fn = new Function('x', req.body.body);
+```
+
+`server/calc.js`:
+
+```js
+const mod = await import(`./plugins/${req.query.name}.js`);
+```
+
+`server/calc.js`:
+
+```js
+setTimeout(req.body.code, 100);
+```
+
+`server/calc.js`:
+
+```js
+res.json(vm.runInNewContext(req.body.script, {}));
+```
+
+## Not flagged
+
+- `return import('../locales/${locale}.json');` in `lib/formula.ts`: dynamic import of unknown origin is code splitting, not reported
+- `return eval(text);` in `lib/formula.ts`: model output is reported by llm/output-to-sink, not here
+- `setTimeout(() => res.end(), 100);` in `server/calc.js`: a function, not a string
+- `const data = JSON.parse(req.body.payload);` in `server/calc.js`: parsing data does not run it
+- `const globalObject = new Function('return this')();` in `server/calc.js`: constant code
+- `const plugin = await load();` in `server/calc.js`: module chosen from a fixed map in code
+- `define: eval('(${flags})'),` in `vite.config.ts`: build tool config files are not checked
+
+## How to fix
+
+Parse data instead of evaluating it (JSON.parse, a schema), and choose modules and templates from a fixed map in code.
+
+## If the finding is wrong
+
+Add a comment on the line above, in the comment syntax of the file, that says who decided and why:
+
+```
+ubon-ignore web/code-eval: <who decided>: <evidence>
+```
+
+Or turn the rule off for the project in `ubon.json`: `"rules": { "web/code-eval": "off" }`. See [configuration](../../config.md).
+
+Fixtures: [fixtures/rules/web/code-eval](../../../fixtures/rules/web/code-eval).
+
+<!-- docs/rules/web/xss-html-sink.md -->
+
+# web/xss-html-sink
+
+Value rendered as HTML without sanitizing.
+
+dangerouslySetInnerHTML, innerHTML, outerHTML, insertAdjacentHTML, document.write, Vue v-html, Svelte {@html}, or Astro set:html with request data (block) or with any value that is not a constant (warn).
+
+- Default level: `warn`.
+- Levels: block when request data reaches the HTML; warn for other values that are not constants, for unescaped JSON.stringify() output inside a <script> element, when the value passed a schema whose constraints Ubon cannot read, and in example or template folders. Constants, sanitizer output, escaped HTML (renderToString, code highlighters, QR code renderers), <style> content, and script bodies built in code are not reported. Model output at these sinks is reported by llm/output-to-sink.
+- Looks at: each file in scope, on its own.
+- References: [CWE-79](https://cwe.mitre.org/data/definitions/79.html), OWASP A05:2025.
+
+## Why it matters
+
+HTML sinks run any script or event handler inside the markup. When the markup can contain text from users, they can run code in the sessions of other users and act as them.
+
+## Flagged
+
+`app/providers.tsx` (warn):
+
+```tsx
+<script dangerouslySetInnerHTML={{ __html: `window.__USER__ = ${JSON.stringify(state.user)};` }} />
+```
+
+`app/search/page.tsx` (block):
+
+```tsx
+<h1 dangerouslySetInnerHTML={{ __html: `Results for ${q}` }} />
+```
+
+`components/Post.tsx` (warn):
+
+```tsx
+<div dangerouslySetInnerHTML={{ __html: html }} />
+```
+
+`components/Post.tsx` (warn):
+
+```tsx
+<script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
+```
+
+`src/app/search.component.ts` (block):
+
+```ts
+this.searchValue = this.sanitizer.bypassSecurityTrustHtml(query);
+```
+
+`src/components/Comment.vue` (warn):
+
+```vue
+<div v-html="comment.body"></div>
+```
+
+`src/components/Comment.vue` (block):
+
+```vue
+<p v-html="note"></p>
+```
+
+`src/pages/notice.astro` (block):
+
+```astro
+<div set:html={message} />
+```
+
+## Not flagged
+
+- `<script dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }} />` in `app/layout.tsx`: constant theme-flash script
+- `<script dangerouslySetInnerHTML={{ __html: ANALYTICS_SNIPPET }} />` in `app/layout.tsx`: constant imported from another module
+- `<script dangerouslySetInnerHTML={{ __html: 'window.__STATE__ = ${serialized};' }} />` in `app/providers.tsx`: '<' escaped before it reaches the script
+- `<script dangerouslySetInnerHTML={{ __html: themeScript(storageKey) }} />` in `app/providers.tsx`: script body built in code
+- `<p>Results for {q}</p>` in `app/search/page.tsx`: JSX text is escaped
+- `<div dangerouslySetInnerHTML={{ __html: html }} />` in `components/CodeBlock.tsx`: state only ever set to highlighter output
+- `<div dangerouslySetInnerHTML={{ __html: preview }} />` in `components/CodeBlock.tsx`: set through .then(setPreview) from the highlighter
+- `<div dangerouslySetInnerHTML={{ __html: renderSVG(shareUrl) }} />` in `components/CodeBlock.tsx`: QR code SVG, the data is encoded as modules
+- `<style dangerouslySetInnerHTML={{ __html: themeCss(code) }} />` in `components/CodeBlock.tsx`: CSS inside a <style> element
+- `<div dangerouslySetInnerHTML={{ __html: dark }} />` in `components/CodeBlock.tsx`: set from .then((html) => ...) on highlighter output
+
+## How to fix
+
+Render the value as text, or sanitize it with DOMPurify.sanitize() or sanitize-html before rendering it as HTML.
+
+## If the finding is wrong
+
+Add a comment on the line above, in the comment syntax of the file, that says who decided and why:
+
+```
+ubon-ignore web/xss-html-sink: <who decided>: <evidence>
+```
+
+Or turn the rule off for the project in `ubon.json`: `"rules": { "web/xss-html-sink": "off" }`. See [configuration](../../config.md).
+
+Fixtures: [fixtures/rules/web/xss-html-sink](../../../fixtures/rules/web/xss-html-sink).
+
+<!-- docs/rules/web/open-redirect.md -->
+
+# web/open-redirect
+
+Redirect to a URL from the request.
+
+redirect() (Next.js, Remix, React Router, SvelteKit), NextResponse.redirect, Response.redirect, res.redirect, c.redirect, a Location header, router.push or router.replace, or location.href with a target from request data and no same-origin check.
+
+- Default level: `warn`.
+- Looks at: each file in scope, on its own.
+- References: [CWE-601](https://cwe.mitre.org/data/definitions/601.html), OWASP A01:2025.
+
+## Why it matters
+
+A link to your site that forwards to a look-alike site borrows the trust people have in your domain, which makes phishing pages and stolen OAuth codes look legitimate.
+
+## Flagged
+
+`app/api/auth/callback/route.ts`:
+
+```ts
+return NextResponse.redirect(new URL(next, request.url));
+```
+
+`app/auth/confirm/route.ts`:
+
+```ts
+if (next) return NextResponse.redirect(requestUrl.origin + next);
+```
+
+`app/login/actions.ts`:
+
+```ts
+redirect(destination);
+```
+
+`components/AfterLogin.tsx`:
+
+```tsx
+router.push(params.get('callbackUrl') ?? '/');
+```
+
+`components/AfterLogin.tsx`:
+
+```tsx
+window.location.href = new URLSearchParams(window.location.search).get('next') ?? '/';
+```
+
+`server/auth.js`:
+
+```js
+res.redirect(req.query.returnTo);
+```
+
+## Not flagged
+
+- `if (searchParams.has('error')) return NextResponse.redirect(new URL('/login', request.url));` in `app/api/auth/callback/route.ts`: constant path on the request's own origin
+- `return NextResponse.redirect(new URL(target, request.url));` in `app/api/auth/callback/route.ts`: only relative paths pass the check
+- `return NextResponse.redirect(url);` in `app/api/auth/callback/route.ts`: origin compared with the request's origin
+- `return NextResponse.redirect(new URL('/${workspace}/links?created=${requestUrl.searchParams.get('link')}', request.url));` in `app/auth/confirm/route.ts`: the value is in the query after a fixed path
+- `redirect('/login?next=${encodeURIComponent(pathname)}');` in `app/login/actions.ts`: fixed path; the value is only in the query
+- `router.replace('/onboarding?step=${params.get('step')}');` in `components/AfterLogin.tsx`: fixed path
+- `<button type="button" onClick={() => router.push('/${slug}/settings')}>` in `components/WorkspaceNav.tsx`: a route parameter as one path segment
+- `res.redirect(302, '/users/${req.params.id}');` in `server/auth.js`: fixed first path segment
+- `res.redirect(next);` in `server/auth.js`: checked against an allowlist
+
+## How to fix
+
+Accept only relative paths (target.startsWith('/') && !target.startsWith('//')), or compare new URL(target, base).origin with your own origin before redirecting.
+
+## If the finding is wrong
+
+Add a comment on the line above, in the comment syntax of the file, that says who decided and why:
+
+```
+ubon-ignore web/open-redirect: <who decided>: <evidence>
+```
+
+Or turn the rule off for the project in `ubon.json`: `"rules": { "web/open-redirect": "off" }`. See [configuration](../../config.md).
+
+Fixtures: [fixtures/rules/web/open-redirect](../../../fixtures/rules/web/open-redirect).
+
 <!-- docs/rules/data/rls-disabled.md -->
 
 # data/rls-disabled
@@ -2010,6 +2641,257 @@ ubon-ignore data/firebase-open-rules: <who decided>: <evidence>
 Or turn the rule off for the project in `ubon.json`: `"rules": { "data/firebase-open-rules": "off" }`. See [configuration](../../config.md).
 
 Fixtures: [fixtures/rules/data/firebase-open-rules](../../../fixtures/rules/data/firebase-open-rules).
+
+<!-- docs/rules/llm/output-to-sink.md -->
+
+# llm/output-to-sink
+
+Model output used as code, SQL, a command, or HTML.
+
+Output of a language model call (generateText().text, result.object, choices[0].message.content, content[0].text, streamed text, useChat messages) reaching eval, new Function, child_process, raw SQL, or an HTML sink without a sanitizer or schema check.
+
+- Default level: `block`.
+- Levels: block; warn in example or template folders. A schema parse or a sanitizer on the value clears it.
+- Looks at: each file in scope, on its own.
+- References: [CWE-94](https://cwe.mitre.org/data/definitions/94.html), [CWE-78](https://cwe.mitre.org/data/definitions/78.html), [CWE-89](https://cwe.mitre.org/data/definitions/89.html), [CWE-79](https://cwe.mitre.org/data/definitions/79.html), OWASP LLM05:2025.
+
+## Why it matters
+
+Models follow instructions hidden in the text they read (prompt injection), so executing their output or rendering it as HTML gives whoever wrote that text control of the server or the page. OWASP LLM05 (improper output handling).
+
+## Flagged
+
+`app/api/report/route.ts`:
+
+```ts
+const rows = await pool.query(text);
+```
+
+`app/api/report/route.ts`:
+
+```ts
+const noted = await pool.query(`INSERT INTO notes (body) VALUES ('${object.note}')`);
+```
+
+`components/Chat.tsx`:
+
+```tsx
+<div dangerouslySetInnerHTML={{ __html: marked.parse(m.content) }} />
+```
+
+`server/agent.ts`:
+
+```ts
+const result = eval(code);
+```
+
+`server/agent.ts`:
+
+```ts
+execSync(command);
+```
+
+`server/agent.ts`:
+
+```ts
+execSync(`grep -r ${args.pattern} src`);
+```
+
+`src/stream.ts`:
+
+```ts
+output.innerHTML = html;
+```
+
+## Not flagged
+
+- `const sorted = await pool.query('SELECT * FROM invoices ORDER BY ${object.sortBy}');` in `app/api/report/route.ts`: enum field of a schema-checked object
+- `const safe = await pool.query('INSERT INTO notes (body) VALUES ($1)', [text]);` in `app/api/report/route.ts`: model output passed as a parameter
+- `<div dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(marked.parse(m.content) as string) }} />` in `components/Chat.tsx`: sanitized
+- `<p>{m.content}</p>` in `components/Chat.tsx`: JSX text is escaped
+- `<div dangerouslySetInnerHTML={{ __html: input }} />` in `components/Chat.tsx`: the draft the user is typing is not model output (web/xss-html-sink warns)
+- `if (ALLOWED_COMMANDS.includes(command)) execSync(command);` in `server/agent.ts`: checked against an allowlist first
+- `return eval(expression);` in `server/agent.ts`: not model output (reported by web/code-eval as warn)
+- `const rows = await pool.query('SELECT * FROM faq WHERE topic = '${req.body.topic}' AND answer = '${text}'');` in `server/mixed.js`: request data at the same sink is reported by web/sql-injection
+- `output.textContent = await result.text;` in `src/stream.ts`: textContent is not parsed as HTML
+
+## How to fix
+
+Treat model output as untrusted input: map it to fixed values with a schema or an allowlist, sanitize HTML with DOMPurify, and never pass it to eval, a shell, or raw SQL.
+
+## If the finding is wrong
+
+Add a comment on the line above, in the comment syntax of the file, that says who decided and why:
+
+```
+ubon-ignore llm/output-to-sink: <who decided>: <evidence>
+```
+
+Or turn the rule off for the project in `ubon.json`: `"rules": { "llm/output-to-sink": "off" }`. See [configuration](../../config.md).
+
+Fixtures: [fixtures/rules/llm/output-to-sink](../../../fixtures/rules/llm/output-to-sink).
+
+<!-- docs/rules/llm/tool-dangerous-capability.md -->
+
+# llm/tool-dangerous-capability
+
+Tool passes model-chosen arguments to commands, code, SQL, files, or fetch.
+
+A tool handler the model can call (AI SDK tool({ execute }), OpenAI Agents tool(), MCP server tools, LangChain and Mastra tools) that passes an argument chosen by the model to a shell command, eval, raw SQL, a file write or delete, or fetch, with no enum, regex, or allowlist constraint on that argument.
+
+- Default level: `block`.
+- Levels: block for shell commands, code, raw SQL, file writes and deletes, and fetch; warn for file reads, for tools that require human approval (needsApproval), when the argument passed a schema whose constraints Ubon cannot read, and in example or template folders.
+- Looks at: each file in scope, on its own.
+- References: [CWE-78](https://cwe.mitre.org/data/definitions/78.html), [CWE-94](https://cwe.mitre.org/data/definitions/94.html), [CWE-89](https://cwe.mitre.org/data/definitions/89.html), [CWE-22](https://cwe.mitre.org/data/definitions/22.html), [CWE-918](https://cwe.mitre.org/data/definitions/918.html), OWASP LLM06:2025.
+
+## Why it matters
+
+Anything the model reads (a web page, an email, a file) can tell it to call the tool with arguments of the attacker's choosing, so the tool's power becomes theirs. OWASP LLM06 (excessive agency).
+
+## Flagged
+
+`agents/sql-tool.ts`:
+
+```ts
+const rows = await db.query(query);
+```
+
+`lib/ai/tools.ts`:
+
+```ts
+const { stdout } = await run(command);
+```
+
+`lib/ai/tools.ts`:
+
+```ts
+execute: async ({ path, content }) => fs.writeFile(path, content),
+```
+
+`lib/ai/tools.ts` (warn):
+
+```ts
+execute: async ({ path }) => fs.readFile(path, 'utf8'),
+```
+
+`lib/ai/tools.ts` (warn):
+
+```ts
+execute: async ({ path }) => fs.rm(path),
+```
+
+`lib/ai/tools.ts`:
+
+```ts
+execute: async ({ expression }) => String(eval(expression)),
+```
+
+`mastra/workflow.ts`:
+
+```ts
+await rm(context.path);
+```
+
+`mcp/server.ts`:
+
+```ts
+const { rows } = await pool.query(sql);
+```
+
+## Not flagged
+
+- `execute: async ({ branch }) => (await run('git log ${branch} --oneline')).stdout,` in `lib/ai/tools.ts`: branch is an enum
+- `return (await run(command)).stdout;` in `lib/ai/tools.ts`: checked against an allowlist
+- `execute: async ({ title, content }) => fs.writeFile('notes/${randomUUID()}.md', '# ${title}\n\n${content}'),` in `lib/ai/tools.ts`: the path is generated in code; the model only writes the content
+- `return sandbox.runCode(code);` in `lib/ai/tools.ts`: the code runs in a remote sandbox, not on this server
+- `outputSchema: z.object({ ok: z.boolean() }),` in `mastra/workflow.ts`: z.boolean() }),
+- `await rm(inputData.dir, { recursive: true });` in `mastra/workflow.ts`: a workflow step; its input comes from the workflow, not the model
+- `return { ok: true };` in `mastra/workflow.ts`: true };
+- `const { rows } = await pool.query('SELECT * FROM orders WHERE customer_id = '${customerId}'');` in `mcp/server.ts`: uuid format constrains the value
+- `const res = await fetch('https://docs.example.com/${page}');` in `mcp/server.ts`: fixed host; the model only chooses the path
+- `const { rows } = await pool.query('SELECT * FROM products WHERE name ILIKE $1', ['%${term}%']);` in `mcp/server.ts`: parameterized query
+
+## How to fix
+
+Constrain the argument in the input schema (z.enum() or a regex) or check it against an allowlist in the handler, and require human approval (needsApproval) for commands and file writes.
+
+## If the finding is wrong
+
+Add a comment on the line above, in the comment syntax of the file, that says who decided and why:
+
+```
+ubon-ignore llm/tool-dangerous-capability: <who decided>: <evidence>
+```
+
+Or turn the rule off for the project in `ubon.json`: `"rules": { "llm/tool-dangerous-capability": "off" }`. See [configuration](../../config.md).
+
+Fixtures: [fixtures/rules/llm/tool-dangerous-capability](../../../fixtures/rules/llm/tool-dangerous-capability).
+
+<!-- docs/rules/llm/untrusted-system-prompt.md -->
+
+# llm/untrusted-system-prompt
+
+Request or fetched text in a system prompt.
+
+Request data or the body of a network response interpolated into a system prompt: the system option of AI SDK and Anthropic calls, instructions in the OpenAI Responses and Agents APIs, Gemini systemInstruction, or a message with role system or developer.
+
+- Default level: `warn`.
+- Looks at: each file in scope, on its own.
+- References: [CWE-1427](https://cwe.mitre.org/data/definitions/1427.html), OWASP LLM01:2025.
+
+## Why it matters
+
+Models give the system prompt more authority than user messages, so text placed there by whoever sends the request, or by whoever controls a fetched page, can override the instructions that keep the model on task. OWASP LLM01 (prompt injection).
+
+## Flagged
+
+`app/api/chat/route.ts`:
+
+```ts
+system: `You are ${persona}. Answer briefly.`,
+```
+
+`server/summarize.ts`:
+
+```ts
+instructions: `Summarize using this page: ${page}`,
+```
+
+`server/summarize.ts`:
+
+```ts
+{ role: 'system', content: `Reply in a ${tone} tone.` },
+```
+
+`server/summarize.ts`:
+
+```ts
+system: c.req.query('system') ?? 'Be helpful.',
+```
+
+## Not flagged
+
+- `system: SYSTEM,` in `app/api/chat/route.ts`: constant system prompt
+- `messages: convertToModelMessages(messages),` in `app/api/chat/route.ts`: user messages are where user text belongs
+- `input: question,` in `server/summarize.ts`: the user's question goes in the input
+- `{ role: 'user', content: question },` in `server/summarize.ts`: user message
+- `{ role: 'user', content: '<document>${page}</document>' },` in `server/summarize.ts`: fetched text passed as data in a user message
+
+## How to fix
+
+Keep the system prompt fixed in code, and pass request or fetched text in a user message, marked as data (for example inside <document> tags).
+
+## If the finding is wrong
+
+Add a comment on the line above, in the comment syntax of the file, that says who decided and why:
+
+```
+ubon-ignore llm/untrusted-system-prompt: <who decided>: <evidence>
+```
+
+Or turn the rule off for the project in `ubon.json`: `"rules": { "llm/untrusted-system-prompt": "off" }`. See [configuration](../../config.md).
+
+Fixtures: [fixtures/rules/llm/untrusted-system-prompt](../../../fixtures/rules/llm/untrusted-system-prompt).
 
 <!-- docs/rules/deps/undeclared-import.md -->
 

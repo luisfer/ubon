@@ -2,7 +2,7 @@
 
 # Rules
 
-Ubon has 34 rules in 6 packs. A `block` finding stops an agent from finishing and fails `ubon check`; a `warn` finding is reported and does not. `ubon rules` prints this list with the levels set in your `ubon.json`.
+Ubon has 44 rules in 8 packs. A `block` finding stops an agent from finishing and fails `ubon check`; a `warn` finding is reported and does not. `ubon rules` prints this list with the levels set in your `ubon.json`.
 
 ## secret
 
@@ -20,6 +20,20 @@ Credentials in code, config, prompts, and tool output.
 | [secret/in-tool-output](secret/in-tool-output.md) | warn | Provider key in tool output |
 | [secret/read-sensitive-file](secret/read-sensitive-file.md) | block | Agent reads a secrets file |
 
+## web
+
+Trust boundaries in web code: request data reaching SQL, shells, file paths, URLs, and HTML, and routes without auth.
+
+| Rule | Level | What it catches |
+| --- | --- | --- |
+| [web/sql-injection](web/sql-injection.md) | block | Request data in raw SQL |
+| [web/command-injection](web/command-injection.md) | block | Request data in a shell command |
+| [web/ssrf](web/ssrf.md) | block | Server request to a URL from the request |
+| [web/path-traversal](web/path-traversal.md) | block | Request data in a file path |
+| [web/code-eval](web/code-eval.md) | block | Request data evaluated as code |
+| [web/xss-html-sink](web/xss-html-sink.md) | warn | Value rendered as HTML without sanitizing |
+| [web/open-redirect](web/open-redirect.md) | warn | Redirect to a URL from the request |
+
 ## data
 
 Data access policies: Supabase row level security, Firebase rules, and service keys.
@@ -30,6 +44,16 @@ Data access policies: Supabase row level security, Firebase rules, and service k
 | [data/permissive-policy](data/permissive-policy.md) | block | Supabase policy that allows every row |
 | [data/service-role-in-client](data/service-role-in-client.md) | block | Supabase service role key in browser code |
 | [data/firebase-open-rules](data/firebase-open-rules.md) | block | Firebase rules open to everyone |
+
+## llm
+
+Features built on language models: keys in the browser, model output reaching code or queries, and tools with too much power.
+
+| Rule | Level | What it catches |
+| --- | --- | --- |
+| [llm/output-to-sink](llm/output-to-sink.md) | block | Model output used as code, SQL, a command, or HTML |
+| [llm/tool-dangerous-capability](llm/tool-dangerous-capability.md) | block | Tool passes model-chosen arguments to commands, code, SQL, files, or fetch |
+| [llm/untrusted-system-prompt](llm/untrusted-system-prompt.md) | warn | Request or fetched text in a system prompt |
 
 ## deps
 
