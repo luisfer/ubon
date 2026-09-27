@@ -17,6 +17,12 @@ An agent that is blocked by a check can make the block go away by removing the c
 
 ## Flagged
 
+`.github/workflows/ci.yml` (block):
+
+```yaml
+codeql:
+```
+
 `.husky/pre-push` (warn):
 
 ```text
@@ -59,14 +65,11 @@ checks:
 - uses: gitleaks/gitleaks-action@v2
 ```
 
-`.husky/pre-commit` (block):
-
-```text
-npx lint-staged
-```
-
 ## Not flagged
 
+- `- run: npx ubon check --base origin/main --format agent` in `.github/workflows/ci.yml`: the SARIF step and its upload are gone, but this step still runs ubon
+- `- run: npx gitleaks detect --no-git --redact` in `.github/workflows/ci.yml`: gitleaks moved to its own job
+- `- uses: github/codeql-action/init@v3` in `.github/workflows/ci.yml`: init alone does not run the analysis, so the removed analyze step is reported on the job
 - `"stop": [{ "command": "npx --no-install ubon hook cursor stop", "timeout": 120 }]` in `.cursor/hooks.json`: a longer timeout keeps the check
 - `run: npx ubon check --staged` in `lefthook.yml`: moved to pre-push, still runs
 - `"scripts": { "test": "vitest run" },` in `package.json`: adding scripts does not touch the git hooks
@@ -74,7 +77,6 @@ npx lint-staged
 - `{ "hooks": [{ "type": "command", "command": "npx --no-install ubon hook claude SessionStart" }] }` in `.claude/settings.json`: adding a hook removes nothing
 - `- run: npm test -- --reporter=dot` in `.github/workflows/ci.yml`: test steps are covered by integrity/checks-weakened, not this rule
 - `- id: check-yaml` in `.pre-commit-config.yaml`: removing trailing-whitespace removes a fixer, not a check
-- `"agent/unsafe-hook-script": "block",` in `ubon.json`: raising a level is never reported
 
 ## How to fix
 

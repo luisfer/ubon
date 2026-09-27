@@ -295,9 +295,26 @@ function workflowSteps(data: unknown): Step[] {
   return out;
 }
 
+/**
+ * The part of a step that says which checker it runs. The CodeQL actions
+ * other than analyze prepare the analysis or upload another tool's results
+ * (upload-sarif), so they do not count as running CodeQL.
+ */
+function checkerText(text: string): string {
+  return text.replace(/github\/codeql-action\/(init|autobuild|upload-sarif|resolve-environment)@\S*/gi, '');
+}
+
+/** Every CI checker the steps run, by name. */
+function ciCheckerNames(steps: readonly Step[]): Set<string> {
+  const global = new RegExp(CI_CHECKER.source, 'gi');
+  return new Set(steps.flatMap((s) => [...checkerText(s.text).matchAll(global)].map((m) => m[0].trim().toLowerCase())));
+}
+
 function workflowRemovals(ctx: DiffContext): Removal[] {
-  const before = workflowSteps(yamlData(ctx.before)).filter((s) => CI_CHECKER.test(s.text) && !s.disabled);
+  const before = workflowSteps(yamlData(ctx.before)).filter((s) => CI_CHECKER.test(checkerText(s.text)) && !s.disabled);
   const after = workflowSteps(yamlData(ctx.after));
+  // A checker still counts when another step runs it after the change (steps merged or moved to another job).
+  const stillRuns = ciCheckerNames(after.filter((a) => !a.disabled));
   const out: Removal[] = [];
   const lineOf = (needle: string) => {
     const lines = (ctx.after ?? '').split('\n');
@@ -310,9 +327,10 @@ function workflowRemovals(ctx: DiffContext): Removal[] {
     return i >= 0 ? i + 1 : 1;
   };
   for (const s of before) {
-    const match = after.find((a) => norm(a.text) === norm(s.text)) ?? after.find((a) => a.key === s.key && CI_CHECKER.test(a.text));
-    const name = checkerName(s.text, CI_CHECKER);
+    const match = after.find((a) => norm(a.text) === norm(s.text)) ?? after.find((a) => a.key === s.key && CI_CHECKER.test(checkerText(a.text)));
+    const name = checkerName(checkerText(s.text), CI_CHECKER);
     if (!match) {
+      if (stillRuns.has(name.toLowerCase())) continue;
       out.push({ line: jobLine(s.key.split('/')[0] as string), message: `This change removes the CI step that runs ${name}.`, key: `ci:${s.key}` });
       continue;
     }

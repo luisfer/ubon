@@ -1,0 +1,23 @@
+name: ci
+on: pull_request
+permissions:
+  contents: read
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: npm ci
+      - run: npx ubon check --base origin/main --format agent # ok: the SARIF step and its upload are gone, but this step still runs ubon
+  secrets:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: npx gitleaks detect --no-git --redact # ok: gitleaks moved to its own job
+  codeql: # expect-block: agent/guardrail-removed
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: github/codeql-action/init@v3 # ok: init alone does not run the analysis, so the removed analyze step is reported on the job
+        with:
+          languages: javascript-typescript

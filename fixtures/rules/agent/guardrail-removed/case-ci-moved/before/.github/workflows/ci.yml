@@ -1,0 +1,27 @@
+name: ci
+on: pull_request
+permissions:
+  contents: read
+  security-events: write
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: npm ci
+      - name: Ubon (SARIF)
+        run: npx ubon check --base origin/main --format sarif > ubon.sarif
+      - uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: ubon.sarif
+      - name: Ubon
+        run: npx ubon check --base origin/main
+      - run: npx gitleaks detect --no-git
+  codeql:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: github/codeql-action/init@v3
+        with:
+          languages: javascript-typescript
+      - uses: github/codeql-action/analyze@v3
