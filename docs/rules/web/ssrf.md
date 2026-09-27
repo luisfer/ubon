@@ -7,7 +7,7 @@ Server request to a URL from the request.
 Server-side fetch, axios, got, ky, undici, http.get, or page.goto whose URL (or host) comes from request data.
 
 - Default level: `block`.
-- Levels: block when request data controls the scheme or host of the URL; warn when the data is appended directly to a base Ubon cannot read (it changes the host only if the base does not end with '/'), when the value passed a schema whose constraints Ubon cannot read, and in example or template folders. A fixed scheme and host with request data in the path or query is not reported.
+- Levels: block when request data controls the scheme or host of the URL, including when the host is only compared with 'localhost' or checked against private addresses without a DNS lookup; warn when the address the host resolves to is checked against private ranges (DNS can answer differently when the request connects), when the data is appended directly to a base Ubon cannot read (it changes the host only if the base is a scheme and host without a path), when the value passed a schema whose constraints Ubon cannot read, and in example or template folders. A fixed scheme and host with request data in the path or query is not reported.
 - Looks at: each file in scope, on its own.
 - References: [CWE-918](https://cwe.mitre.org/data/definitions/918.html), OWASP A01:2025.
 
@@ -21,6 +21,24 @@ The server makes the request from inside your network, so whoever controls the U
 
 ```ts
 const page = await fetch(`${config.upstream}${path}`);
+```
+
+`app/api/fetch-url/route.ts` (warn):
+
+```ts
+const upstream = await fetch(url, { redirect: 'manual' });
+```
+
+`app/api/fetch-url/route.ts`:
+
+```ts
+const upstream = await fetch(url);
+```
+
+`app/api/fetch-url/route.ts`:
+
+```ts
+const upstream = await fetch(parsed);
 ```
 
 `app/api/image/route.ts`:
@@ -50,6 +68,8 @@ http.get(req.query.feed, (upstream) => upstream.pipe(res));
 ## Not flagged
 
 - `const icon = await fetch('${FAVICONS}${domain}');` in `app/api/favicon/route.ts`: module constant fixes the host; the value goes in the query
+- `const upstream = await fetch(target);` in `app/api/fetch-url/route.ts`: the host of the URL parsed from target is on an allowlist
+- `const upstream = await fetch(target, { method: 'DELETE' });` in `app/api/fetch-url/route.ts`: URL.parse result checked against an allowlist
 - `const image = await fetch(parsed);` in `app/api/image/route.ts`: hostname checked against an allowlist
 - `await fetch(target, { method: 'POST', body: '{}' });` in `app/api/image/route.ts`: validated by an allowlist helper
 - `await fetch(icon);` in `app/api/image/route.ts`: hostname suffix check
@@ -57,8 +77,6 @@ http.get(req.query.feed, (upstream) => upstream.pipe(res));
 - `const self = await fetch(new URL('/api/health', request.url));` in `app/api/preview/route.ts`: same origin as the request
 - `return fetch(target);` in `app/api/proxy/[...path]/route.ts`: the path and query go to a fixed upstream origin
 - `fetch(params.get('u') ?? '/').then((r) => r.text()).then(setHtml);` in `components/LinkPreview.tsx`: the browser makes this request, not the server
-- `const { data } = await axios.get('${API_BASE}/users/${req.params.id}');` in `server/proxy.js`: base URL from config; request data only in the path
-- `const { data } = await axios.get('http://${host}/internal/status');` in `server/proxy.js`: the Host header names this server
 
 ## How to fix
 

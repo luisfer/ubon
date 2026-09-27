@@ -1,13 +1,15 @@
 import type { Node } from '@babel/types';
 import type { Rule } from '../types.ts';
-import { contextLevel, findGuard, isCheckedCode, liveTaints, requestTaint, schemaChecked, sinkVisitors, traceOf, valueLabel, where } from './flow.ts';
+import { contextLevel, findGuard, findLookup, isCheckedCode, liveTaints, requestTaint, schemaChecked, sinkVisitors, traceOf, valueLabel, where } from './flow.ts';
 import type { Sink } from './sinks.ts';
 import { sinksOf } from './sinks.ts';
 
 /**
  * File system calls whose path comes from the request. path.basename() clears
  * the finding, and so does resolving the path and checking that it starts
- * with the allowed directory.
+ * with the allowed directory. A lookup of the value that the code must pass
+ * first (`if (!(await findChallenge(key))) return`) lowers the finding to
+ * warn: the lookup admits only the values it knows, which Ubon cannot read.
  */
 
 function verb(sink: Sink): string {
@@ -30,7 +32,8 @@ export const pathTraversal: Rule = {
     fix: 'Reduce the value to a file name with path.basename(), or resolve it with path.resolve(root, value) and reject it unless it starts with root plus path.sep.',
     cwe: ['CWE-22'],
     owasp: ['A01:2025'],
-    levels: 'block when request data reaches the path; warn when the value passed a schema whose constraints Ubon cannot read, and in example or template folders.',
+    levels:
+      'block when request data reaches the path; warn when the value passed a schema whose constraints Ubon cannot read, when the code first looks the value up and goes on only if the lookup finds it (Ubon cannot read which values the lookup accepts), and in example or template folders.',
   },
   appliesTo: isCheckedCode,
   js(ctx) {
@@ -40,14 +43,22 @@ export const pathTraversal: Rule = {
         const live = liveTaints(ctx, sink);
         const hit = requestTaint(live, true);
         if (!hit) continue;
-        if (findGuard(ctx, sink, live.filter((l) => l.taint.kind === 'request'), ['path-prefix', 'dotdot', 'allowlist', 'regex']).cleared) continue;
+        const request = live.filter((l) => l.taint.kind === 'request');
+        if (findGuard(ctx, sink, request, ['path-prefix', 'dotdot', 'allowlist', 'regex']).cleared) continue;
         const label = valueLabel(ctx, hit.value, hit.taint);
         const schema = schemaChecked(hit.taint);
+        const lookup = schema ? undefined : findLookup(ctx, sink, request);
         const text = `${sink.name} ${verb(sink)} a path built from ${hit.taint.source} ${where(label, hit.taint)}`;
+        const trace = traceOf(label, hit.taint, sink);
+        if (lookup) trace.splice(1, 0, { line: lookup.line, note: `${label} is looked up with ${lookup.name}` });
         ctx.report(sink.node, {
-          message: schema ? `${text}, checked only by a schema whose constraints Ubon cannot read.` : `${text}.`,
-          level: contextLevel(ctx.file, schema ? 'warn' : 'block'),
-          trace: traceOf(label, hit.taint, sink),
+          message: schema
+            ? `${text}, checked only by a schema whose constraints Ubon cannot read.`
+            : lookup
+              ? `${text}, checked only by a lookup Ubon cannot read (${lookup.name}, line ${lookup.line}).`
+              : `${text}.`,
+          level: contextLevel(ctx.file, schema || lookup ? 'warn' : 'block'),
+          trace,
           key: label,
         });
       }

@@ -7,7 +7,7 @@ Request data in a file path.
 fs reads, writes, and deletes, createReadStream, res.sendFile, res.download, Bun.file, and Bun.write with a path built from request data.
 
 - Default level: `block`.
-- Levels: block when request data reaches the path; warn when the value passed a schema whose constraints Ubon cannot read, and in example or template folders.
+- Levels: block when request data reaches the path; warn when the value passed a schema whose constraints Ubon cannot read, when the code first looks the value up and goes on only if the lookup finds it (Ubon cannot read which values the lookup accepts), and in example or template folders.
 - Looks at: each file in scope, on its own.
 - References: [CWE-22](https://cwe.mitre.org/data/definitions/22.html), OWASP A01:2025.
 
@@ -29,22 +29,40 @@ await writeFile(`public/uploads/${name}`, bytes);
 const css = await readFile(`themes/${theme}.css`, 'utf8');
 ```
 
-`server/files.js`:
+`app/guides/[slug]/page.tsx` (warn):
 
-```js
-res.sendFile(path.join(UPLOADS, req.params.name));
+```tsx
+const body = await readFile(`content/guides/${slug}.mdx`, 'utf8');
 ```
 
-`server/files.js`:
+`routes/codefixes.ts` (warn):
 
-```js
-fs.readFile(`./uploads/${req.params.name}`, (err, data) => res.send(data));
+```ts
+const info = await readFile(`${FIXES_DIR}/${key}.info.yml`, 'utf8');
 ```
 
-`server/files.js`:
+`routes/codefixes.ts` (warn):
 
-```js
-await fs.promises.unlink(path.join(UPLOADS, req.params.name));
+```ts
+const hints = fs.readFileSync(path.join(FIXES_DIR, `${key}.hints.yml`), 'utf8');
+```
+
+`routes/codefixes.ts` (warn):
+
+```ts
+res.send(await readFile(path.join(FIXES_DIR, `${key}.hint.md`), 'utf8'));
+```
+
+`routes/codefixes.ts` (block):
+
+```ts
+res.send(await readFile(path.join(FIXES_DIR, `${key}.solution.md`), 'utf8'));
+```
+
+`routes/codefixes.ts` (block):
+
+```ts
+res.send(fs.readFileSync(file, 'utf8'));
 ```
 
 ## Not flagged
