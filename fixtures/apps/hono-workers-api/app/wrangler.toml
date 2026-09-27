@@ -1,0 +1,6 @@
+name = "posts-api"
+main = "src/index.ts"
+compatibility_date = "2025-09-01"
+
+[vars]
+ALLOWED_ORIGIN = "https://app.example.com"

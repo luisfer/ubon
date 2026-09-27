@@ -1,0 +1,20 @@
+{
+  "name": "sveltekit-blog",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite dev",
+    "build": "vite build"
+  },
+  "devDependencies": {
+    "@sveltejs/adapter-node": "5.3.2",
+    "@sveltejs/kit": "2.43.2",
+    "@sveltejs/vite-plugin-svelte": "6.2.0",
+    "svelte": "5.39.4",
+    "vite": "7.1.7"
+  },
+  "dependencies": {
+    "better-sqlite3": "12.4.1",
+    "marked": "16.3.0"
+  }
+}

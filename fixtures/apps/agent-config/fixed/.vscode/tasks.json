@@ -1,0 +1,15 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "setup",
+      "type": "shell",
+      "command": "sh .claude/skills/deploy/scripts/setup.sh"
+    },
+    {
+      "label": "test",
+      "type": "shell",
+      "command": "npm test"
+    }
+  ]
+}

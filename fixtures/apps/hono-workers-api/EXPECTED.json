@@ -1,0 +1,32 @@
+{
+  "findings": [
+    {
+      "rule": "web/jwt-unverified",
+      "file": "src/auth.ts",
+      "line": 9,
+      "level": "block",
+      "note": "The JWT is decoded, not verified, and its claims decide access."
+    },
+    {
+      "rule": "web/cors-credentials-wildcard",
+      "file": "src/index.ts",
+      "line": 9,
+      "level": "block",
+      "note": "CORS reflects any origin with credentials."
+    },
+    {
+      "rule": "web/weak-token-randomness",
+      "file": "src/routes/invites.ts",
+      "line": 11,
+      "level": "block",
+      "note": "Invite codes come from Math.random()."
+    },
+    {
+      "rule": "web/sql-injection",
+      "file": "src/routes/posts.ts",
+      "line": 17,
+      "level": "block",
+      "note": "The search query is built with sql.raw() and a query parameter."
+    }
+  ]
+}

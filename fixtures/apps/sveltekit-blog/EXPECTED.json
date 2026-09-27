@@ -1,0 +1,27 @@
+{
+  "findings": [
+    {
+      "rule": "web/xss-html-sink",
+      "file": "src/routes/preview/+page.svelte",
+      "line": 11,
+      "level": "block",
+      "note": "The preview page renders HTML built from a form field."
+    },
+    {
+      "rule": "web/xss-html-sink",
+      "file": "src/routes/posts/[slug]/+page.svelte",
+      "line": 8,
+      "level": "warn",
+      "note": "A saved post rendered with {@html}. The HTML comes from Markdown an admin published, a shape the app accepts."
+    }
+  ],
+  "fixedWarnings": [
+    {
+      "rule": "web/xss-html-sink",
+      "file": "src/routes/posts/[slug]/+page.svelte",
+      "line": 8,
+      "level": "warn",
+      "note": "A saved post rendered with {@html}. The HTML comes from Markdown an admin published, a shape the app accepts."
+    }
+  ]
+}

@@ -1,0 +1,13 @@
+{
+  "name": "express-legacy",
+  "private": true,
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js"
+  },
+  "dependencies": {
+    "cookie-parser": "1.4.7",
+    "express": "4.21.2",
+    "pg": "8.16.3"
+  }
+}

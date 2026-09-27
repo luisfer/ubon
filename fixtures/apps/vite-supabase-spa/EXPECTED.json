@@ -1,0 +1,48 @@
+{
+  "findings": [
+    {
+      "rule": "llm/browser-key",
+      "file": "src/pages/Assistant.tsx",
+      "line": 5,
+      "level": "block",
+      "note": "The OpenAI client runs in the browser with the key from a VITE_ variable."
+    },
+    {
+      "rule": "secret/public-env-name",
+      "file": "src/pages/Assistant.tsx",
+      "line": 5,
+      "level": "block",
+      "note": "VITE_OPENAI_API_KEY ships to the browser."
+    },
+    {
+      "rule": "data/permissive-policy",
+      "file": "supabase/migrations/20260910120000_recipes.sql",
+      "line": 14,
+      "level": "block",
+      "note": "Anyone can insert recipes: with check (true)."
+    },
+    {
+      "rule": "data/permissive-policy",
+      "file": "supabase/migrations/20260910120000_recipes.sql",
+      "line": 19,
+      "level": "block",
+      "note": "Anyone can upload to the public recipe-photos bucket."
+    },
+    {
+      "rule": "data/permissive-policy",
+      "file": "supabase/migrations/20260910120000_recipes.sql",
+      "line": 11,
+      "level": "warn",
+      "note": "Anyone can read recipes; they are meant to be public, and the warning asks to confirm that."
+    }
+  ],
+  "fixedWarnings": [
+    {
+      "rule": "data/permissive-policy",
+      "file": "supabase/migrations/20260910120000_recipes.sql",
+      "line": 11,
+      "level": "warn",
+      "note": "Anyone can read recipes; they are meant to be public, and the warning asks to confirm that."
+    }
+  ]
+}

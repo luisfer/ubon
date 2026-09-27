@@ -1,0 +1,25 @@
+{
+  "findings": [
+    {
+      "rule": "web/path-traversal",
+      "file": "src/routes/files.js",
+      "line": 9,
+      "level": "block",
+      "note": "The download route joins a query parameter into a file path."
+    },
+    {
+      "rule": "web/command-injection",
+      "file": "src/routes/tools.js",
+      "line": 8,
+      "level": "block",
+      "note": "The ping route builds a shell command from a query parameter."
+    },
+    {
+      "rule": "web/insecure-cookie",
+      "file": "src/routes/auth.js",
+      "line": 24,
+      "level": "warn",
+      "note": "The session cookie is set without httpOnly and secure."
+    }
+  ]
+}

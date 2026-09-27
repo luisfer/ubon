@@ -1,0 +1,16 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "setup",
+      "type": "shell",
+      "command": "sh .claude/skills/deploy/scripts/setup.sh",
+      "runOptions": { "runOn": "folderOpen" }
+    },
+    {
+      "label": "test",
+      "type": "shell",
+      "command": "npm test"
+    }
+  ]
+}

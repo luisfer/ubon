@@ -1,0 +1,53 @@
+{
+  "findings": [
+    {
+      "rule": "data/service-role-in-client",
+      "file": "app/admin/UsersTable.tsx",
+      "line": 6,
+      "level": "block",
+      "note": "The admin client is created with the service role key in a client component."
+    },
+    {
+      "rule": "secret/public-env-name",
+      "file": "app/admin/UsersTable.tsx",
+      "line": 6,
+      "level": "block",
+      "note": "The service role key has a NEXT_PUBLIC_ name, so it ships to the browser."
+    },
+    {
+      "rule": "web/ssrf",
+      "file": "app/api/og/route.ts",
+      "line": 7,
+      "level": "block",
+      "note": "The server fetches any URL from the query string."
+    },
+    {
+      "rule": "web/webhook-unverified",
+      "file": "app/api/stripe/webhook/route.ts",
+      "line": 5,
+      "level": "block",
+      "note": "The Stripe webhook trusts the request body without checking the signature."
+    },
+    {
+      "rule": "secret/public-env-name",
+      "file": "app/dashboard/billing/BillingButton.tsx",
+      "line": 5,
+      "level": "block",
+      "note": "The Stripe secret key has a NEXT_PUBLIC_ name; the publishable key was meant."
+    },
+    {
+      "rule": "data/rls-disabled",
+      "file": "supabase/migrations/20260901000000_init.sql",
+      "line": 15,
+      "level": "block",
+      "note": "The projects table has no row level security."
+    },
+    {
+      "rule": "web/open-redirect",
+      "file": "app/auth/callback/route.ts",
+      "line": 12,
+      "level": "warn",
+      "note": "The sign-in callback redirects to any URL in ?next=."
+    }
+  ]
+}

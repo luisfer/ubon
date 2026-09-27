@@ -1,0 +1,25 @@
+{
+  "findings": [
+    {
+      "rule": "llm/output-to-sink",
+      "file": "app/api/calculate/route.ts",
+      "line": 15,
+      "level": "block",
+      "note": "Model output is passed to eval()."
+    },
+    {
+      "rule": "llm/tool-dangerous-capability",
+      "file": "lib/tools/shell.ts",
+      "line": 13,
+      "level": "block",
+      "note": "The shell tool runs any command the model writes."
+    },
+    {
+      "rule": "llm/untrusted-system-prompt",
+      "file": "app/api/chat/route.ts",
+      "line": 10,
+      "level": "warn",
+      "note": "The persona from the request body goes into the system prompt."
+    }
+  ]
+}

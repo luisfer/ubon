@@ -1,0 +1,69 @@
+{
+  "findings": [
+    {
+      "rule": "agent/pipe-to-shell",
+      "file": ".claude/skills/deploy/scripts/setup.sh",
+      "line": 4,
+      "level": "block",
+      "note": "The deploy skill installs its CLI with curl | sh."
+    },
+    {
+      "rule": "ci/expression-injection",
+      "file": ".github/workflows/triage.yml",
+      "line": 21,
+      "level": "block",
+      "note": "The triage workflow pastes the issue title into a shell script."
+    },
+    {
+      "rule": "secret/provider-key",
+      "file": ".mcp.json",
+      "line": 6,
+      "level": "block",
+      "note": "The MCP config holds a literal GitHub token."
+    },
+    {
+      "rule": "agent/hidden-unicode",
+      "file": "AGENTS.md",
+      "line": 5,
+      "level": "block",
+      "note": "AGENTS.md hides an instruction in Unicode tag characters."
+    },
+    {
+      "rule": "agent/broad-permissions",
+      "file": ".claude/settings.json",
+      "line": 3,
+      "level": "warn",
+      "note": "The shared settings use bypassPermissions."
+    },
+    {
+      "rule": "agent/unknown-hook-event",
+      "file": ".claude/settings.json",
+      "line": 13,
+      "level": "warn",
+      "note": "PreToolUSe is misspelled, so the hook never runs."
+    },
+    {
+      "rule": "agent/unpinned-mcp-server",
+      "file": ".mcp.json",
+      "line": 9,
+      "level": "warn",
+      "note": "The docs MCP server runs through npx with no version."
+    },
+    {
+      "rule": "agent/autorun-config",
+      "file": ".vscode/tasks.json",
+      "line": 8,
+      "level": "warn",
+      "note": "The setup task runs when the folder is opened."
+    }
+  ],
+  "fixedWarnings": [
+    {
+      "rule": "agent/autorun-config",
+      "file": ".claude/settings.json",
+      "line": 16,
+      "level": "warn",
+      "note": "A local check script in a PreToolUse hook; a full check lists every command that runs by itself, for review."
+    }
+  ]
+}
