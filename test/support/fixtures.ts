@@ -1,5 +1,5 @@
 import { execFileSync } from 'node:child_process';
-import { cpSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { cpSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, utimesSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, relative } from 'node:path';
 
@@ -70,6 +70,10 @@ export function replaceTree(dir: string, source: string): void {
 
 export function copyTree(source: string, target: string): void {
   cpSync(source, target, { recursive: true, force: true });
+  // Windows keeps each file's modification time when it copies it, and git decides from size and
+  // time whether a file changed: a same-size edit copied over a committed file would look unchanged.
+  const now = new Date();
+  for (const file of listFilesRecursive(source)) utimesSync(join(target, file), now, now);
 }
 
 export function listFilesRecursive(dir: string): string[] {

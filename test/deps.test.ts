@@ -375,6 +375,9 @@ describe('package.json changes', () => {
   });
 });
 
+/** The code joins paths with the platform separator; the fake files below are keyed with '/'. */
+const slashes = (p: string) => p.replace(/\\/g, '/');
+
 describe('registry configuration', () => {
   it('reads registries from .npmrc without keeping tokens', () => {
     const s = parseNpmrc('registry=https://npm.acme.dev\n@acme:registry=https://npm.pkg.github.com/\n//npm.pkg.github.com/:_authToken=secret-token\n; comment\n', {});
@@ -391,7 +394,7 @@ describe('registry configuration', () => {
       '/p/.npmrc': '@acme:registry=https://npm.acme.dev/\n',
       '/home/u/.npmrc': 'registry=https://mirror.example/\n@acme:registry=https://wrong.example/\n',
     };
-    const config = readRegistryConfig('/p', { env: {}, home: '/home/u', read: (p) => files[p] ?? null });
+    const config = readRegistryConfig('/p', { env: {}, home: '/home/u', read: (p) => files[slashes(p)] ?? null });
     assert.equal(registryFor(config, '@acme/ui'), 'https://npm.acme.dev/');
     assert.equal(registryFor(config, 'lodash'), 'https://mirror.example/');
     assert.ok(config.hosts.has('registry.npmjs.org') && config.hosts.has('npm.acme.dev'));
@@ -471,7 +474,7 @@ describe('vetPackages', () => {
 
   it('looks up scoped packages on their own registry and never on the public one', async () => {
     const { fetch, calls } = fakeNetwork({ registries: { 'https://npm.acme.dev/': { '@acme/ui': { versions: { '1.0.0': ago(100 * DAY) }, created: ago(100 * DAY) } } } });
-    const registries = readRegistryConfig('/p', { env: {}, home: null, read: (p) => (p === '/p/.npmrc' ? '@acme:registry=https://npm.acme.dev/\n' : null) });
+    const registries = readRegistryConfig('/p', { env: {}, home: null, read: (p) => (slashes(p) === '/p/.npmrc' ? '@acme:registry=https://npm.acme.dev/\n' : null) });
     const verdicts = await vetWith(['@acme/ui'], OPTIONS, { fetch, cache: new MemoryCache(() => NOW), now: () => NOW, registries });
     assert.equal(verdicts[0]?.decision, 'allow');
     assert.ok(calls.length > 0 && calls.every((c) => c.includes('npm.acme.dev')), calls.join('\n'));
@@ -480,7 +483,7 @@ describe('vetPackages', () => {
 
   it('marks a private scope that cannot be reached as not checked', async () => {
     const { fetch, calls } = fakeNetwork({ down: ['npm.acme.dev'] });
-    const registries = readRegistryConfig('/p', { env: {}, home: null, read: (p) => (p === '/p/.npmrc' ? '@acme:registry=https://npm.acme.dev/\n' : null) });
+    const registries = readRegistryConfig('/p', { env: {}, home: null, read: (p) => (slashes(p) === '/p/.npmrc' ? '@acme:registry=https://npm.acme.dev/\n' : null) });
     const verdicts = await vetWith(['@acme/ui'], OPTIONS, { fetch, cache: new MemoryCache(() => NOW), now: () => NOW, registries });
     assert.equal(verdicts[0]?.checked, 'offline');
     assert.equal(verdicts[0]?.decision, 'allow');
@@ -490,7 +493,7 @@ describe('vetPackages', () => {
 
   it('reports an unscoped internal package that is unclaimed on npm (dependency confusion)', async () => {
     const { fetch } = fakeNetwork({ registries: { 'https://npm.acme.dev/': { 'acme-billing': { versions: { '2.0.0': ago(300 * DAY) }, created: ago(300 * DAY) } }, [PUBLIC]: {} } });
-    const registries = readRegistryConfig('/p', { env: {}, home: null, read: (p) => (p === '/p/.npmrc' ? 'registry=https://npm.acme.dev/\n' : null) });
+    const registries = readRegistryConfig('/p', { env: {}, home: null, read: (p) => (slashes(p) === '/p/.npmrc' ? 'registry=https://npm.acme.dev/\n' : null) });
     const verdicts = await vetWith(['acme-billing'], OPTIONS, { fetch, cache: new MemoryCache(() => NOW), now: () => NOW, registries });
     assert.equal(verdicts[0]?.decision, 'ask');
     assert.equal(verdicts[0]?.rule, 'deps/nonexistent-package');
