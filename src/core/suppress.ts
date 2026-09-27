@@ -4,7 +4,7 @@ import { commentStyleFor, findComments } from '../lang/comments.ts';
 /**
  * Inline suppressions:
  *
- *   // ubon-ignore web/ssrf: luisfer: URL is checked by isAllowedHost() in lib/net.ts
+ *   // ubon-ignore web/ssrf: dana: URL is checked by isAllowedHost() in lib/net.ts
  *
  * The comment goes at the end of the line or on its own line above. It names
  * one or more rule IDs and a reason in the form `<who decided>: <evidence>`.

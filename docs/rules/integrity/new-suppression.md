@@ -31,7 +31,7 @@ A suppression turns a finding off on the word of whoever wrote it. Listing each 
 `docs/setup.md` (warn):
 
 ```md
-<!-- ubon-ignore secret/provider-key: luisfer: the key below is the public Stripe example key -->
+<!-- ubon-ignore secret/provider-key: dana: the key below is the public Stripe example key -->
 ```
 
 `lib/payments.ts` (warn):
@@ -49,7 +49,7 @@ export const region = 'eu'; // ubon-ignore secret/db-url-password: agent: no pas
 `scripts/deploy.sh` (warn):
 
 ```sh
-# ubon-ignore secret/db-url-password: luisfer: local docker database only
+# ubon-ignore secret/db-url-password: dana: local docker database only
 ```
 
 `src/config.ts` (block):

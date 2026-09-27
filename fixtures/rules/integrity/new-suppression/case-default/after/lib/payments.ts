@@ -3,7 +3,7 @@ export function charge(amount: number): number {
 }
 
 // ok: this suppression existed at the base; it only moved below charge()
-// ubon-ignore secret/provider-key: luisfer: documented Stripe test key from the setup guide
+// ubon-ignore secret/provider-key: dana: documented Stripe test key from the setup guide
 export const testKey = 'pk_test_placeholder';
 
 // ubon-ignore hygiene/placeholder: agent: the user said the sandbox URL is fine for now // expect-warn: integrity/new-suppression

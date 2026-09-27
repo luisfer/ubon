@@ -66,14 +66,14 @@ Unknown keys are an error (exit code 2, with the key named), so a typo cannot sw
 Put a comment above the line, or at the end of it, in the file's comment syntax:
 
 ```ts
-// ubon-ignore web/ssrf: luisfer: URL is checked by isAllowedHost() in lib/net.ts
+// ubon-ignore web/ssrf: dana: URL is checked by isAllowedHost() in lib/net.ts
 ```
 
 ```sql
--- ubon-ignore data/permissive-policy: luisfer: public read-only catalog, reviewed 2026-09-01
+-- ubon-ignore data/permissive-policy: dana: public read-only catalog, reviewed 2026-09-01
 ```
 
-The reason is required and has two parts: who decided, and the evidence. A comment without a reason, or with an unknown rule ID, suppresses nothing and is reported by `integrity/invalid-suppression`. Markdown files use HTML comments: `<!-- ubon-ignore agent/instruction-injection: luisfer: quoted example -->`.
+The reason is required and has two parts: who decided, and the evidence. A comment without a reason, or with an unknown rule ID, suppresses nothing and is reported by `integrity/invalid-suppression`. Markdown files use HTML comments: `<!-- ubon-ignore agent/instruction-injection: dana: quoted example -->`.
 
 ## Baselines for existing projects
 
