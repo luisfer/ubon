@@ -1,0 +1,1 @@
+{ "name": "browser-key-vite", "private": true, "dependencies": { "react": "19.1.0", "openai": "5.20.0", "@google/generative-ai": "0.24.1", "axios": "1.12.0", "express": "5.1.0" }, "devDependencies": { "vite": "7.1.0" } }

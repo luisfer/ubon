@@ -1,0 +1,1 @@
+{ "name": "browser-key-cra", "private": true, "dependencies": { "react": "19.1.0", "react-scripts": "5.0.1", "openai": "5.20.0" } }

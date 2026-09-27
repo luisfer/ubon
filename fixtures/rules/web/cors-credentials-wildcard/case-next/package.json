@@ -1,0 +1,1 @@
+{ "name": "cors-next", "private": true, "dependencies": { "next": "15.5.0", "react": "19.1.0" } }

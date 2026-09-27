@@ -1,0 +1,4 @@
+{
+  "files": { "vercel.json": [{ "line": 7, "level": "block" }] },
+  "ok": ["vercel.json: a wildcard for static files without credentials"]
+}

@@ -1,0 +1,1 @@
+{ "name": "cors-hono", "private": true, "dependencies": { "hono": "4.9.0" } }

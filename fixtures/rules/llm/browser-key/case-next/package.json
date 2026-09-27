@@ -1,0 +1,1 @@
+{ "name": "browser-key-next", "private": true, "dependencies": { "next": "15.5.0", "react": "19.1.0", "openai": "5.20.0", "@anthropic-ai/sdk": "0.65.0", "ai": "5.0.0", "@ai-sdk/openai": "2.0.0" } }

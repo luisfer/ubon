@@ -1,0 +1,13 @@
+[build]
+  command = "npm run build"
+
+[[headers]]
+  for = "/api/*"
+  [headers.values]
+    Access-Control-Allow-Origin = "*" # expect-block: web/cors-credentials-wildcard
+    Access-Control-Allow-Credentials = "true"
+
+[[headers]]
+  for = "/fonts/*"
+  [headers.values]
+    Access-Control-Allow-Origin = "*" # ok: public fonts without credentials

@@ -1,0 +1,1 @@
+{ "name": "insecure-cookie-sveltekit", "private": true, "devDependencies": { "@sveltejs/kit": "2.27.0", "svelte": "5.38.0" } }
