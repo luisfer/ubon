@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 // Checks every Ubon command written in the docs, skills, and plugin commands:
 // the command must exist and each --option must appear in that command's
-// --help text. Pages about Ubon 3 (upgrade notes, history, changelog) are skipped,
+// --help text. Also checks that every rule ID the docs mention exists.
+// Pages about Ubon 3 (upgrade notes, history, changelog) are skipped,
 // because they name old commands on purpose.
 import { execFileSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
@@ -9,6 +10,9 @@ import { join } from 'node:path';
 
 const root = join(import.meta.dirname, '..');
 const { main, COMMAND_NAMES } = await import('../src/cli/main.ts');
+const { ruleIds } = await import('../src/rules/index.ts');
+const RULE_IDS = new Set(ruleIds());
+const RULE_MENTION = /(?<![\w/.@-])(secret|web|data|llm|deps|agent|ci|integrity|hygiene)\/([a-z0-9]+(?:-[a-z0-9]+)*)(?![\w/.-]*\.[a-z]{1,4}\b)(?![\w/-])/g;
 
 async function helpOf(args) {
   let out = '';
@@ -92,5 +96,19 @@ for (const file of files) {
     }
   }
 }
-console.log(`commands: ${checked} checked in ${files.length} files, ${problems} problems`);
+let mentions = 0;
+for (const file of files) {
+  readFileSync(join(root, file), 'utf8')
+    .split('\n')
+    .forEach((line, i) => {
+      for (const m of line.matchAll(RULE_MENTION)) {
+        mentions++;
+        if (!RULE_IDS.has(`${m[1]}/${m[2]}`)) {
+          console.log(`${file}:${i + 1}: no rule named ${m[1]}/${m[2]}`);
+          problems++;
+        }
+      }
+    });
+}
+console.log(`commands: ${checked} commands and ${mentions} rule IDs checked in ${files.length} files, ${problems} problems`);
 process.exit(problems ? 1 : 0);
