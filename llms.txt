@@ -40,11 +40,27 @@ Run `npx ubon check` to check the changes since the base branch. Exit code 1 mea
 - [data/permissive-policy](https://github.com/luisfer/ubon/blob/main/docs/rules/data/permissive-policy.md): Supabase policy that allows every row (block).
 - [data/service-role-in-client](https://github.com/luisfer/ubon/blob/main/docs/rules/data/service-role-in-client.md): Supabase service role key in browser code (block).
 - [data/firebase-open-rules](https://github.com/luisfer/ubon/blob/main/docs/rules/data/firebase-open-rules.md): Firebase rules open to everyone (block).
+- [deps/undeclared-import](https://github.com/luisfer/ubon/blob/main/docs/rules/deps/undeclared-import.md): Import of a package that package.json does not declare (warn).
+- [deps/nonexistent-package](https://github.com/luisfer/ubon/blob/main/docs/rules/deps/nonexistent-package.md): New dependency that does not exist on the registry (block).
+- [deps/young-package](https://github.com/luisfer/ubon/blob/main/docs/rules/deps/young-package.md): New dependency or version published too recently (block).
+- [deps/typosquat](https://github.com/luisfer/ubon/blob/main/docs/rules/deps/typosquat.md): New dependency named like a popular package (warn).
+- [deps/install-script](https://github.com/luisfer/ubon/blob/main/docs/rules/deps/install-script.md): New package with an install script (warn).
+- [deps/non-registry-source](https://github.com/luisfer/ubon/blob/main/docs/rules/deps/non-registry-source.md): New dependency from outside the registry (warn).
+- [deps/known-malicious](https://github.com/luisfer/ubon/blob/main/docs/rules/deps/known-malicious.md): New package with a malicious-package record (block).
 - [ci/expression-injection](https://github.com/luisfer/ubon/blob/main/docs/rules/ci/expression-injection.md): Untrusted input interpolated into a workflow script (block).
 - [ci/untrusted-checkout](https://github.com/luisfer/ubon/blob/main/docs/rules/ci/untrusted-checkout.md): Pull request code run in a privileged workflow (block).
 - [ci/publish-token](https://github.com/luisfer/ubon/blob/main/docs/rules/ci/publish-token.md): Package publishing that a stolen token or cache can hijack (warn).
 - [integrity/invalid-suppression](https://github.com/luisfer/ubon/blob/main/docs/rules/integrity/invalid-suppression.md): Suppression without a valid reason (warn).
 - [integrity/unused-suppression](https://github.com/luisfer/ubon/blob/main/docs/rules/integrity/unused-suppression.md): Suppression that no longer matches a finding (warn).
+- [integrity/test-skipped](https://github.com/luisfer/ubon/blob/main/docs/rules/integrity/test-skipped.md): Test skipped or focused in the change (block).
+- [integrity/test-deleted](https://github.com/luisfer/ubon/blob/main/docs/rules/integrity/test-deleted.md): Test deleted while its code remains (block).
+- [integrity/type-suppression](https://github.com/luisfer/ubon/blob/main/docs/rules/integrity/type-suppression.md): Type checking turned off in the change (block).
+- [integrity/lint-suppression](https://github.com/luisfer/ubon/blob/main/docs/rules/integrity/lint-suppression.md): Lint rules turned off in the change (block).
+- [integrity/checks-weakened](https://github.com/luisfer/ubon/blob/main/docs/rules/integrity/checks-weakened.md): Project checks weakened in the change (block).
+- [integrity/new-suppression](https://github.com/luisfer/ubon/blob/main/docs/rules/integrity/new-suppression.md): Suppression added in the change (warn).
+- [hygiene/elided-code](https://github.com/luisfer/ubon/blob/main/docs/rules/hygiene/elided-code.md): Placeholder comment where code was dropped (block).
+- [hygiene/placeholder](https://github.com/luisfer/ubon/blob/main/docs/rules/hygiene/placeholder.md): Placeholder left in runtime code (warn).
+- [hygiene/variant-file](https://github.com/luisfer/ubon/blob/main/docs/rules/hygiene/variant-file.md): New file named like a copy (warn).
 
 ## Optional
 

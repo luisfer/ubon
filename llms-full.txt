@@ -59,7 +59,7 @@ If Ubon itself fails, the hook lets the agent continue and prints a message. [do
 | `llm` | API keys in the browser, model output reaching `eval` or SQL, tools with unrestricted shell or file access |
 | `deps` | packages that do not exist, packages published hours ago, names close to popular packages, install scripts |
 | `agent` | hidden Unicode in instruction files, `curl \| sh` in hooks and skills, secrets and unpinned servers in MCP config, destructive commands |
-| `ci` | workflows that run untrusted code with secrets, unpinned actions, secrets in logs |
+| `ci` | issue titles and branch names expanded inside `run` steps, fork code checked out in privileged workflows, long-lived npm tokens in release jobs |
 | `integrity` | new `.skip` and `.only`, deleted tests, `@ts-nocheck`, lowered coverage thresholds, removed CI checks, suppressions without a reason |
 | `hygiene` | debug output of secrets, TLS verification turned off, placeholder auth checks |
 
@@ -596,7 +596,7 @@ Command checks catch mistakes and obvious attacks. They are not a sandbox: a det
 3. The publish job runs in the protected `release` environment with `id-token: write` only, and stages the release on npm through trusted publishing (no token) with provenance.
 4. The maintainer approves the staged release on npmjs.com with a 2FA challenge. An OIDC token cannot approve it, so a compromised workflow alone cannot publish.
 
-npm package settings: two-factor authentication required and tokens disallowed; the trusted publisher is `luisfer/ubon`, workflow `release.yml`, environment `release`.
+npm package settings: two-factor authentication required and tokens disallowed. The trusted publisher is `luisfer/ubon`, workflow `release.yml`, environment `release`, and it may only stage (the `--allow-stage-publish` permission of `npm trust`, without `--allow-publish`), so the workflow cannot publish without the approval.
 
 To verify a release: `npm view ubon@<version> dist.attestations` shows the provenance attestation, and `npm audit signatures` in a project that depends on it checks the registry signatures.
 
@@ -1025,7 +1025,7 @@ Exit codes: 0 no blocking findings, 1 blocking findings, 2 a usage or config err
 
 # Rules
 
-Ubon has 18 rules in 4 packs. A `block` finding stops an agent from finishing and fails `ubon check`; a `warn` finding is reported and does not. `ubon rules` prints this list with the levels set in your `ubon.json`.
+Ubon has 34 rules in 6 packs. A `block` finding stops an agent from finishing and fails `ubon check`; a `warn` finding is reported and does not. `ubon rules` prints this list with the levels set in your `ubon.json`.
 
 ## secret
 
@@ -1054,6 +1054,20 @@ Data access policies: Supabase row level security, Firebase rules, and service k
 | [data/service-role-in-client](data/service-role-in-client.md) | block | Supabase service role key in browser code |
 | [data/firebase-open-rules](data/firebase-open-rules.md) | block | Firebase rules open to everyone |
 
+## deps
+
+Packages an agent adds: whether they exist, their age, their names, and their install scripts.
+
+| Rule | Level | What it catches |
+| --- | --- | --- |
+| [deps/undeclared-import](deps/undeclared-import.md) | warn | Import of a package that package.json does not declare |
+| [deps/nonexistent-package](deps/nonexistent-package.md) | block | New dependency that does not exist on the registry |
+| [deps/young-package](deps/young-package.md) | block | New dependency or version published too recently |
+| [deps/typosquat](deps/typosquat.md) | warn | New dependency named like a popular package |
+| [deps/install-script](deps/install-script.md) | warn | New package with an install script |
+| [deps/non-registry-source](deps/non-registry-source.md) | warn | New dependency from outside the registry |
+| [deps/known-malicious](deps/known-malicious.md) | block | New package with a malicious-package record |
+
 ## ci
 
 CI workflows: untrusted input, permissions, pinning, and secrets.
@@ -1072,6 +1086,22 @@ Changes that weaken the checks: skipped or deleted tests, disabled type checks, 
 | --- | --- | --- |
 | [integrity/invalid-suppression](integrity/invalid-suppression.md) | warn | Suppression without a valid reason |
 | [integrity/unused-suppression](integrity/unused-suppression.md) | warn | Suppression that no longer matches a finding |
+| [integrity/test-skipped](integrity/test-skipped.md) | block | Test skipped or focused in the change |
+| [integrity/test-deleted](integrity/test-deleted.md) | block | Test deleted while its code remains |
+| [integrity/type-suppression](integrity/type-suppression.md) | block | Type checking turned off in the change |
+| [integrity/lint-suppression](integrity/lint-suppression.md) | block | Lint rules turned off in the change |
+| [integrity/checks-weakened](integrity/checks-weakened.md) | block | Project checks weakened in the change |
+| [integrity/new-suppression](integrity/new-suppression.md) | warn | Suppression added in the change |
+
+## hygiene
+
+Smaller mistakes that tend to reach production.
+
+| Rule | Level | What it catches |
+| --- | --- | --- |
+| [hygiene/elided-code](hygiene/elided-code.md) | block | Placeholder comment where code was dropped |
+| [hygiene/placeholder](hygiene/placeholder.md) | warn | Placeholder left in runtime code |
+| [hygiene/variant-file](hygiene/variant-file.md) | warn | New file named like a copy |
 
 <!-- docs/rules/secret/provider-key.md -->
 
@@ -1981,6 +2011,578 @@ Or turn the rule off for the project in `ubon.json`: `"rules": { "data/firebase-
 
 Fixtures: [fixtures/rules/data/firebase-open-rules](../../../fixtures/rules/data/firebase-open-rules).
 
+<!-- docs/rules/deps/undeclared-import.md -->
+
+# deps/undeclared-import
+
+Import of a package that package.json does not declare.
+
+A bare import (import, export from, require, or dynamic import) of a package that the nearest package.json, the root package.json, and the workspace packages do not declare.
+
+- Default level: `warn`.
+- Levels: block in diff mode when node_modules exists and the package is not in it, because the import cannot resolve; warn when the package is installed through another dependency, when there is no node_modules, for type-only imports, and in examples, docs, and Deno code. Example, template, and docs folders without their own package.json are skipped, and so are dependencies of other workspace members when npm, Yarn (node_modules), or Bun hoists them.
+- Looks at: the project as a whole, across files.
+- References: [CWE-1357](https://cwe.mitre.org/data/definitions/1357.html), OWASP A03:2025.
+
+## Why it matters
+
+An undeclared package works only by accident, because another dependency installed it, or not at all. Agents often import packages they never added, and installing such a name later without checking it is how invented package names get installed.
+
+## Flagged
+
+`src/app/page.tsx` (warn):
+
+```tsx
+import get from 'lodash/get';
+```
+
+`src/app/page.tsx` (warn):
+
+```tsx
+import dayjs from 'dayjs';
+```
+
+`src/app/page.tsx` (warn):
+
+```tsx
+import type { ZodSchema } from 'zod';
+```
+
+`src/app/page.tsx` (warn):
+
+```tsx
+export * from 'ramda';
+```
+
+`src/app/page.tsx` (warn):
+
+```tsx
+const ky = await import('ky');
+```
+
+`src/app/page.tsx` (warn):
+
+```tsx
+const chalk = require('chalk');
+```
+
+`supabase/functions/summarize/index.ts` (warn):
+
+```ts
+import { cors } from 'hono-cors-helper';
+```
+
+`tests/cart.test.ts` (warn):
+
+```ts
+import { setupServer } from 'msw/node';
+```
+
+## Not flagged
+
+- `import React from 'react';` in `src/app/page.tsx`: declared in package.json
+- `import Link from 'next/link';` in `src/app/page.tsx`: subpath of the declared next package
+- `import { createClient } from '@supabase/supabase-js/dist/main/index.js';` in `src/app/page.tsx`: deep import of a declared scoped package
+- `import fs from 'node:fs';` in `src/app/page.tsx`: Node built-in with node:
+- `import path from 'path';` in `src/app/page.tsx`: Node built-in without node:
+- `import { readFile } from 'fs/promises';` in `src/app/page.tsx`: Node built-in subpath
+- `import { Button } from '@/components/button';` in `src/app/page.tsx`: tsconfig path alias
+- `import { money } from '~lib/money';` in `src/app/page.tsx`: tsconfig path alias with a ~ prefix
+- `import Header from '@ui/header';` in `src/app/page.tsx`: bundler alias in vitest.config.ts
+- `import { commit } from 'build-info';` in `src/app/page.tsx`: declared with declare module in a .d.ts file
+
+## How to fix
+
+Add the package with your package manager after checking it with `ubon vet <name>`, or import something the project already depends on.
+
+## If the finding is wrong
+
+Add a comment on the line above, in the comment syntax of the file, that says who decided and why:
+
+```
+ubon-ignore deps/undeclared-import: <who decided>: <evidence>
+```
+
+Or turn the rule off for the project in `ubon.json`: `"rules": { "deps/undeclared-import": "off" }`. See [configuration](../../config.md).
+
+Fixtures: [fixtures/rules/deps/undeclared-import](../../../fixtures/rules/deps/undeclared-import).
+
+<!-- docs/rules/deps/nonexistent-package.md -->
+
+# deps/nonexistent-package
+
+New dependency that does not exist on the registry.
+
+A package added to package.json that does not exist on the registry it resolves to, looked up with --online, packages.online, or `ubon vet`, or whose name is not a valid npm package name (checked offline); also an unscoped name that exists on a private registry but not on npm.
+
+- Default level: `block`.
+- Levels: warn for an unscoped package that exists on the private registry in .npmrc but not on registry.npmjs.org (dependency confusion). Runs only when lookups are allowed; scoped packages that .npmrc maps to another registry are looked up there or skipped, never sent to the public registry.
+- Looks at: what the change did, comparing each file before and after.
+- References: [CWE-1357](https://cwe.mitre.org/data/definitions/1357.html), [CWE-829](https://cwe.mitre.org/data/definitions/829.html), OWASP A03:2025.
+
+## Why it matters
+
+Models invent plausible package names, and attackers register the names they invent (slopsquatting). A name nobody owns yet can be published by anyone before the next install.
+
+## Flagged
+
+`package.json` (block):
+
+```json
+"Bad Name": "^1.0.0",
+```
+
+`package.json` (block):
+
+```json
+"react-dom ": "^19.0.0",
+```
+
+`package.json` (block):
+
+```json
+"lodash/fp": "^4.17.21",
+```
+
+`package.json` (block):
+
+```json
+"@acme/": "^1.0.0",
+```
+
+`package.json` (block):
+
+```json
+".hidden-utils": "^1.0.0",
+```
+
+## Not flagged
+
+- Old Name: already at the base, not added in this change
+- JSONStream: uppercase letters are valid in names published before npm required lowercase
+- lodash.merge and @types/node: valid names
+- my-dom: an npm alias whose target, react-dom, is a valid name
+- notes-ui: a workspace package, not looked up on a registry
+- Git Helper: a git dependency, not installed from a registry by that name
+- react-markdown-pro-renderer and @vercel/ai-sdk-helpers: new names that may not exist, but lookups are off in this run, so the rule reports them under not checked instead of guessing
+- zod: a valid new name; existence needs a registry lookup
+- next: a version change, not a new package
+
+## How to fix
+
+Remove the dependency or correct its name, and check the package with `ubon vet <name>` before adding it.
+
+## If the finding is wrong
+
+Add a comment on the line above, in the comment syntax of the file, that says who decided and why:
+
+```
+ubon-ignore deps/nonexistent-package: <who decided>: <evidence>
+```
+
+Or turn the rule off for the project in `ubon.json`: `"rules": { "deps/nonexistent-package": "off" }`. See [configuration](../../config.md).
+
+Fixtures: [fixtures/rules/deps/nonexistent-package](../../../fixtures/rules/deps/nonexistent-package).
+
+<!-- docs/rules/deps/young-package.md -->
+
+# deps/young-package
+
+New dependency or version published too recently.
+
+A package added to package.json that was first published less than packages.minAgeDays ago (default 7), or a new dependency version published less than packages.minReleaseAgeHours ago (default 48). Looked up with --online, packages.online, or `ubon vet`.
+
+- Default level: `block`.
+- Levels: The package install check in hooks returns "ask" instead of blocking, so a person decides. Names and scopes on packages.allow are not checked.
+- Looks at: what the change did, comparing each file before and after.
+- References: [CWE-1357](https://cwe.mitre.org/data/definitions/1357.html), [CWE-829](https://cwe.mitre.org/data/definitions/829.html), OWASP A03:2025.
+
+## Why it matters
+
+Most malicious packages and hijacked versions are found and removed within hours or days of publication. A short cooldown keeps them out of the project while that happens.
+
+## Not flagged
+
+- next 15.1.2: a new version; its publish date needs a registry lookup, which is off in this run
+- typescript@next: a dist-tag that usually points at a nightly build; offline it is listed under not checked
+- brand-new-helper: a new package whose first publish date needs a lookup
+- react: unchanged
+- no finding is ever reported from a guess: without lookups the rule only says what it did not check
+
+## How to fix
+
+Pin a version published before the cooldown, or wait; a person can add the package to packages.allow in ubon.json.
+
+## If the finding is wrong
+
+Add a comment on the line above, in the comment syntax of the file, that says who decided and why:
+
+```
+ubon-ignore deps/young-package: <who decided>: <evidence>
+```
+
+Or turn the rule off for the project in `ubon.json`: `"rules": { "deps/young-package": "off" }`. See [configuration](../../config.md).
+
+Fixtures: [fixtures/rules/deps/young-package](../../../fixtures/rules/deps/young-package).
+
+<!-- docs/rules/deps/typosquat.md -->
+
+# deps/typosquat
+
+New dependency named like a popular package.
+
+A dependency added to package.json whose name is one edit away from a popular npm package or follows a known lookalike pattern of one: scope dropped, separators changed, a js prefix or suffix, a letter doubled or dropped, or lookalike characters such as rn for m.
+
+- Default level: `warn`.
+- Levels: The package install check in hooks returns "ask" for the same match, so a person confirms the name.
+- Looks at: what the change did, comparing each file before and after.
+- References: [CWE-1357](https://cwe.mitre.org/data/definitions/1357.html), OWASP A03:2025.
+
+## Why it matters
+
+Typosquatted packages copy a popular name with a small change and run malware when installed. Agents also misremember package names, and attackers register the misspellings they produce.
+
+## Flagged
+
+`package.json` (warn):
+
+```json
+"lodahs": "^4.17.21",
+```
+
+`package.json` (warn):
+
+```json
+"expresss": "^4.19.2",
+```
+
+`package.json` (warn):
+
+```json
+"react_dom": "^19.0.0",
+```
+
+`package.json` (warn):
+
+```json
+"rnongoose": "^8.0.0",
+```
+
+`package.json` (warn):
+
+```json
+"core-tracing": "^1.0.0",
+```
+
+`package.json` (warn):
+
+```json
+"axios-js": "^1.0.0",
+```
+
+`package.json` (warn):
+
+```json
+"supabase-js": "^2.45.0",
+```
+
+`package.json` (warn):
+
+```json
+"@bable/core": "^7.26.0"
+```
+
+## Not flagged
+
+- lodash, preact, zod, vitest, @types/lodash: popular packages never match
+- json-2-csv: a legitimate package that looks like json2csv, kept in the bundled lookalike list
+- my-lodash: an npm alias whose real package is lodash
+- zod: moved from devDependencies to dependencies, not new
+- loadsh: already at the base; only its version changed
+- chalkk: on packages.allow in ubon.json
+- shop-utils: a workspace package
+- reqeust: a git dependency, reported by deps/non-registry-source instead
+- eslint-plugin-yaml: yaml and yml are two spellings, both real plugins
+
+## How to fix
+
+Use the name of the package you meant; if this name is intended, add it to packages.allow in ubon.json.
+
+## If the finding is wrong
+
+Add a comment on the line above, in the comment syntax of the file, that says who decided and why:
+
+```
+ubon-ignore deps/typosquat: <who decided>: <evidence>
+```
+
+Or turn the rule off for the project in `ubon.json`: `"rules": { "deps/typosquat": "off" }`. See [configuration](../../config.md).
+
+Fixtures: [fixtures/rules/deps/typosquat](../../../fixtures/rules/deps/typosquat).
+
+<!-- docs/rules/deps/install-script.md -->
+
+# deps/install-script
+
+New package with an install script.
+
+A package that is new in the lockfile, directly or through another dependency, and runs a preinstall, install, or postinstall script (hasInstallScript in package-lock.json, requiresBuild in pnpm-lock.yaml).
+
+- Default level: `warn`.
+- Levels: Skipped when the project sets ignore-scripts=true in .npmrc, and for pnpm packages that onlyBuiltDependencies leaves out or neverBuiltDependencies and ignoredBuiltDependencies list.
+- Looks at: what the change did, comparing each file before and after.
+- References: [CWE-829](https://cwe.mitre.org/data/definitions/829.html), OWASP A03:2025.
+
+## Why it matters
+
+Install scripts run with your permissions when the package is installed, before any of its code is imported. The Shai-Hulud worms spread through install scripts in compromised packages.
+
+## Flagged
+
+`package-lock.json` (warn):
+
+```json
+"resolved": "https://registry.npmjs.org/@parcel/watcher/-/watcher-2.5.0.tgz",
+```
+
+`package-lock.json` (warn):
+
+```json
+"resolved": "https://registry.npmjs.org/fsevents/-/fsevents-1.2.13.tgz",
+```
+
+`package-lock.json` (warn):
+
+```json
+"resolved": "https://registry.npmjs.org/sharp/-/sharp-0.33.5.tgz",
+```
+
+`pnpm-lock.yaml` (warn):
+
+```yaml
+/@swc/core@1.9.3:
+```
+
+`pnpm-lock.yaml` (warn):
+
+```yaml
+/sharp@0.33.5:
+```
+
+`pnpm-lock.yaml` (warn):
+
+```yaml
+/esbuild@0.25.0:
+```
+
+## Not flagged
+
+- `ignore-scripts=true` in `.npmrc`: npm and pnpm run no install scripts in this project, so new packages with scripts are not reported
+- esbuild: a new version, but esbuild already ran its install script at the base
+- bcrypt: on packages.allow in ubon.json
+- left-pad, chokidar-cli, react: no install script
+- esbuild: a new version of a package that already built at the base
+- bufferutil: listed in pnpm.neverBuiltDependencies, so pnpm does not run its script
+- left-pad and ws: no requiresBuild
+- `onlyBuiltDependencies:` in `pnpm-workspace.yaml`: pnpm builds only esbuild; the script of sharp does not run, so sharp is not reported
+- left-pad: no requiresBuild
+
+## How to fix
+
+Check what the script does (npm view <name>@<version> scripts) before installing; if it is expected, add the package to packages.allow in ubon.json.
+
+## If the finding is wrong
+
+Add a comment on the line above, in the comment syntax of the file, that says who decided and why:
+
+```
+ubon-ignore deps/install-script: <who decided>: <evidence>
+```
+
+Or turn the rule off for the project in `ubon.json`: `"rules": { "deps/install-script": "off" }`. See [configuration](../../config.md).
+
+Fixtures: [fixtures/rules/deps/install-script](../../../fixtures/rules/deps/install-script).
+
+<!-- docs/rules/deps/non-registry-source.md -->
+
+# deps/non-registry-source
+
+New dependency from outside the registry.
+
+A dependency added in this change that comes from a git repository (git+, github:), a tarball URL, or a file: path outside the repository, or a new lockfile entry downloaded from a host that is not a configured registry.
+
+- Default level: `warn`.
+- Levels: workspace:, catalog:, link:, and file: paths inside the repository are fine. Hosts from .npmrc, .yarnrc.yml, and .yarnrc count as configured registries.
+- Looks at: what the change did, comparing each file before and after.
+- References: [CWE-829](https://cwe.mitre.org/data/definitions/829.html), [CWE-494](https://cwe.mitre.org/data/definitions/494.html), OWASP A03:2025.
+
+## Why it matters
+
+These sources skip the registry and its checks: there is no immutable version, no publish date, and no malicious-package record to look up, and a branch or URL can serve different code tomorrow. A changed resolved URL in a lockfile is also how lockfile injection works.
+
+## Flagged
+
+`package-lock.json` (warn):
+
+```json
+"resolved": "https://registry.example-mirror.net/fancy-log/-/fancy-log-2.0.0.tgz",
+```
+
+`package-lock.json` (warn):
+
+```json
+"resolved": "git+ssh://git@github.com/someone/color-support.git#3333333333333333333333333333333333333333",
+```
+
+`package-lock.json` (warn):
+
+```json
+"resolved": "https://downloads.example.com/tarball-dep-1.0.0.tgz",
+```
+
+`package.json` (warn):
+
+```json
+"left-pad": "git+https://github.com/someone/left-pad.git",
+```
+
+`package.json` (warn):
+
+```json
+"tiny-lib": "someone/tiny-lib#main",
+```
+
+`package.json` (warn):
+
+```json
+"vendored": "https://example.com/vendored-1.0.0.tgz",
+```
+
+`package.json` (warn):
+
+```json
+"shared-config": "file:../../shared-config",
+```
+
+`package.json` (warn):
+
+```json
+"gen": "exec:./scripts/build-gen.js"
+```
+
+## Not flagged
+
+- `@acme:registry=https://npm.pkg.github.com` in `.npmrc`: the @acme scope comes from GitHub Packages, so its tarball URLs there are fine
+- @acme/ui: downloaded from npm.pkg.github.com, the registry .npmrc sets for @acme
+- cli-helper: already a git dependency at the base; only the commit changed
+- chalk and react: registry.npmjs.org
+- mirror-pkg: registry.yarnpkg.com serves the public npm registry
+- internal-lib: already a git dependency at the base; only the ref changed
+- local-ui and @web/lib: file: paths inside the repository
+- design and zod: workspace: and catalog: protocols
+- linked: link: to a folder inside the repository
+- my-react: an npm alias, installed from the registry
+
+## How to fix
+
+Install the package from the registry, or pin it to a full commit hash or an integrity-checked tarball and review the code.
+
+## If the finding is wrong
+
+Add a comment on the line above, in the comment syntax of the file, that says who decided and why:
+
+```
+ubon-ignore deps/non-registry-source: <who decided>: <evidence>
+```
+
+Or turn the rule off for the project in `ubon.json`: `"rules": { "deps/non-registry-source": "off" }`. See [configuration](../../config.md).
+
+Fixtures: [fixtures/rules/deps/non-registry-source](../../../fixtures/rules/deps/non-registry-source).
+
+<!-- docs/rules/deps/known-malicious.md -->
+
+# deps/known-malicious
+
+New package with a malicious-package record.
+
+A package or version added in this change, directly or through the lockfile, that has an OpenSSF malicious-package record in OSV (IDs that start with MAL-, looked up with --online, packages.online, or `ubon vet`), or that npm replaced with its 0.0.1-security placeholder (checked offline too).
+
+- Default level: `block`.
+- Levels: OSV lookups run only when lookups are allowed, and only packages from the public npm registry are sent, by name and version.
+- Looks at: what the change did, comparing each file before and after.
+- References: [CWE-506](https://cwe.mitre.org/data/definitions/506.html), [CWE-829](https://cwe.mitre.org/data/definitions/829.html), OWASP A03:2025.
+
+## Why it matters
+
+These records are confirmed by people: the package or version ran malware, usually when installed. Installing it again, even to test, runs it again.
+
+## Flagged
+
+`bun.lock` (block):
+
+```text
+"commanderr": ["commanderr@0.0.1-security", "", {}, "sha512-commanderr"],
+```
+
+`package.json` (block):
+
+```json
+"discordi.js": "0.0.1-security",
+```
+
+`package.json` (block):
+
+```json
+"noblox.js-proxy": "0.0.1-security"
+```
+
+`package-lock.json` (block):
+
+```json
+"resolved": "https://registry.npmjs.org/ua-parserr/-/ua-parserr-0.0.1-security.tgz",
+```
+
+`pnpm-lock.yaml` (block):
+
+```yaml
+colorss@0.0.1-security:
+```
+
+`yarn.lock` (block):
+
+```text
+resolved "https://registry.yarnpkg.com/axioss/-/axioss-0.0.1-security.tgz#0123456789abcdef0123456789abcdef01234567"
+```
+
+## Not flagged
+
+- commander: already at the base
+- prompt-kit 3.0.0: an ordinary version
+- the project's own version field is 0.0.1-security; it is not a dependency
+- left-pad 0.0.1 and security-headers ^0.0.1: ordinary versions
+- old-helper: the placeholder was already in the lockfile at the base
+- discordi.js and noblox.js-proxy in package-lock.json: reported once, on their package.json lines
+- debug 4.4.2 and chalk 5.6.1: versions whose malicious-package records only OSV can confirm; offline they are listed under not checked
+- is-arrayish: a new package; offline there is nothing to look up
+- chalk and table-formatter: ordinary versions
+- the snapshots section repeats colorss; it is reported once, where the package is defined
+
+## How to fix
+
+Remove the package, and if it was installed, treat the machine and the credentials it holds as exposed.
+
+## If the finding is wrong
+
+Add a comment on the line above, in the comment syntax of the file, that says who decided and why:
+
+```
+ubon-ignore deps/known-malicious: <who decided>: <evidence>
+```
+
+Or turn the rule off for the project in `ubon.json`: `"rules": { "deps/known-malicious": "off" }`. See [configuration](../../config.md).
+
+Fixtures: [fixtures/rules/deps/known-malicious](../../../fixtures/rules/deps/known-malicious).
+
 <!-- docs/rules/ci/expression-injection.md -->
 
 # ci/expression-injection
@@ -2299,3 +2901,729 @@ ubon-ignore integrity/unused-suppression: <who decided>: <evidence>
 ```
 
 Or turn the rule off for the project in `ubon.json`: `"rules": { "integrity/unused-suppression": "off" }`. See [configuration](../../config.md).
+
+<!-- docs/rules/integrity/test-skipped.md -->
+
+# integrity/test-skipped
+
+Test skipped or focused in the change.
+
+A skip or focus added to a test file: `.skip`, `.only`, `xit`, `xdescribe`, `fit`, `test.todo`, Playwright `test.fixme` and `test.skip()`, a constant `skipIf`/`runIf`, `@pytest.mark.skip`, non-strict `xfail`, Go `t.Skip()`, Rust `#[ignore]`, JUnit `@Disabled`, RSpec `xit` and `skip`.
+
+- Default level: `block`.
+- Looks at: what the change did, comparing each file before and after.
+- References: <https://arxiv.org/abs/2510.20270>.
+
+## Why it matters
+
+Coding agents skip failing tests to make a run pass instead of fixing the code (ImpossibleBench, 2025). A focused test (`.only`) silently turns off every other test in the file or run.
+
+## Flagged
+
+`src/slug.test.js` (block):
+
+```js
+fit('lowercases', () => { // expect-block: integrity/test-skipped
+```
+
+`e2e/checkout.spec.ts` (block):
+
+```ts
+test.fixme();
+```
+
+`e2e/checkout.spec.ts` (block):
+
+```ts
+test.describe.skip('invoices', () => {
+```
+
+`src/cart.test.ts` (block):
+
+```ts
+it.skip('adds prices', () => {
+```
+
+`src/cart.test.ts` (block):
+
+```ts
+it.only('handles an empty cart', () => {
+```
+
+`src/cart.test.ts` (block):
+
+```ts
+test.skipIf(true)('applies a coupon', () => {
+```
+
+`src/cart.test.ts` (block):
+
+```ts
+it.todo('caps discounts at 100 percent');
+```
+
+`test/api.test.js` (block):
+
+```js
+test('parses json', { skip: 'flaky on CI' }, () => {
+```
+
+## Not flagged
+
+- `it.skip('keeps emoji', () => {` in `src/slug.test.js`: this skip existed at the base (the file is CRLF, the check compares lines without CR)
+- `test.skip(browserName === 'webkit', 'The payment iframe does not load in WebKit');` in `e2e/checkout.spec.ts`: a conditional skip on a fixture value is a deliberate browser check
+- `await context.clearCookies();` in `e2e/checkout.spec.ts`: context is the browser context fixture, not the Mocha alias
+- `it.skip('rounds to cents', () => {` in `src/cart.test.ts`: this skip existed at the base; only the assertion below it changed
+- `test.skipIf(process.platform === 'win32')('uses POSIX paths', () => {` in `src/cart.test.ts`: skipIf with a real condition is a deliberate platform check
+- `test.runIf(process.env.INTEGRATION === '1')('talks to the database', () => {` in `src/cart.test.ts`: runIf with a condition that can be true
+- `const skip = (n: number) => n + 1;` in `src/cart.test.ts`: a helper named skip is not a test modifier
+- `test('reads symlinks', { skip: process.platform === 'win32' }, () => {` in `test/api.test.js`: skip only on Windows, a condition that is false elsewhere
+- `t.skip('no sandbox configured');` in `test/api.test.js`: t.skip inside a condition skips only when the sandbox is missing
+- `it.skip('handles leap seconds', () => {` in `tests/utils/date.test.ts`: this skip moved with the file and existed at the base
+
+## How to fix
+
+Remove the skip and fix the test or the code it tests; if the test itself is wrong, tell the user instead of skipping it.
+
+## If the finding is wrong
+
+Add a comment on the line above, in the comment syntax of the file, that says who decided and why:
+
+```
+ubon-ignore integrity/test-skipped: <who decided>: <evidence>
+```
+
+Or turn the rule off for the project in `ubon.json`: `"rules": { "integrity/test-skipped": "off" }`. See [configuration](../../config.md).
+
+Fixtures: [fixtures/rules/integrity/test-skipped](../../../fixtures/rules/integrity/test-skipped).
+
+<!-- docs/rules/integrity/test-deleted.md -->
+
+# integrity/test-deleted
+
+Test deleted while its code remains.
+
+A test file deleted while the module it tests still exists, or test cases (matched by title) removed from a test file.
+
+- Default level: `block`.
+- Looks at: what the change did, comparing each file before and after.
+- References: <https://arxiv.org/abs/2510.20270>.
+
+## Why it matters
+
+Deleting a failing test makes a run pass without fixing anything, and coding agents do this under pressure to finish (ImpossibleBench, 2025). Tests removed together with the code they cover, moved to another file, or renamed are not reported.
+
+## Flagged
+
+`src/price.test.ts` (block):
+
+```ts
+import { expect, it } from 'vitest';
+```
+
+`pkg/calc_test.go` (block):
+
+```text
+package pkg
+```
+
+`tests/test_billing.py` (block):
+
+```python
+import pytest
+```
+
+`src/cart.test.ts` (block):
+
+```ts
+describe('cart', () => {
+```
+
+`tests/test_session.py` (block):
+
+```python
+class TestSession:
+```
+
+## Not flagged
+
+- `describe('formatName', () => {` in `test/util/format.test.ts`: moved here from src/util/__tests__/, not deleted
+- src/legacy.test.ts was deleted together with src/legacy.ts, the code it tested
+- src/util/__tests__/format.test.ts moved to test/util/format.test.ts
+- src/old.test.ts only held skipped tests
+- src/math.test.ts only tested square(), which was removed from src/math.ts in the same change
+- `it('returns the price of a single item', () => {` in `src/cart.test.ts`: "applies a discount" was removed together with applyDiscount()
+- `it('returns the price of a single item', () => {` in `src/cart.test.ts`: "works for one item" was renamed; the body is the same
+- `});` in `src/cart.test.ts`: "supports currencies" was already skipped at the base
+- `});` in `src/cart.test.ts`: "handles negative prices" moved to cart-edge.test.ts
+- `def test_sign_out(self):` in `tests/test_session.py`: test_logout was renamed to test_sign_out with the same body
+
+## How to fix
+
+Restore the test, or remove it together with the code it covers; if the test was wrong, tell the user instead of deleting it.
+
+## If the finding is wrong
+
+Add a comment on the line above, in the comment syntax of the file, that says who decided and why:
+
+```
+ubon-ignore integrity/test-deleted: <who decided>: <evidence>
+```
+
+Or turn the rule off for the project in `ubon.json`: `"rules": { "integrity/test-deleted": "off" }`. See [configuration](../../config.md).
+
+Fixtures: [fixtures/rules/integrity/test-deleted](../../../fixtures/rules/integrity/test-deleted).
+
+<!-- docs/rules/integrity/type-suppression.md -->
+
+# integrity/type-suppression
+
+Type checking turned off in the change.
+
+New `@ts-nocheck`, `@ts-ignore`, `@ts-expect-error` without a reason, `as any`, `as unknown as T`, or `: any` in a file that had none of that kind before.
+
+- Default level: `block`.
+- Levels: block for `@ts-nocheck`; warn for `@ts-ignore`, `@ts-expect-error` without a reason, `as any`, `as unknown as T`, and `: any`. In test files only `@ts-nocheck` is reported.
+- Looks at: what the change did, comparing each file before and after.
+- References: [CWE-704](https://cwe.mitre.org/data/definitions/704.html).
+
+## Why it matters
+
+Agents silence type errors instead of fixing them, and each escape hides the next real bug in that code. `@ts-nocheck` turns off checking for the whole file.
+
+## Flagged
+
+`src/api.test.ts` (block):
+
+```ts
+// @ts-nocheck
+```
+
+`src/user.ts` (warn):
+
+```ts
+export function parseUser(input: any): User {
+```
+
+`src/user.ts` (warn):
+
+```ts
+const user = input as unknown as User;
+```
+
+`src/user.ts` (warn):
+
+```ts
+return `${label}, ${(user as any).nickname}`;
+```
+
+`src/user.ts` (warn):
+
+```ts
+// @ts-expect-error
+```
+
+## Not flagged
+
+- `const input = { id: 1, name: 'Ada' } as any;` in `src/api.test.ts`: tests cast mocks with `as any`
+- `expect(() => parseUser()).toThrow();` in `src/api.test.ts`: tests pass invalid arguments on purpose
+- `declare const legacyWidget: any;` in `src/globals.d.ts`: declaration files are ignored
+- `const extra = JSON.parse(raw).extra as any;` in `src/legacy.ts`: this file already used `as any` at the base, so one more is not reported
+- `const label: string = translate('hello.${shout}');` in `src/user.ts`: @ts-expect-error with a reason documents an expected error
+- `return String(error);` in `src/user.ts`: catch (error: any) is how TypeScript types a catch clause by default
+- `export const docs = 'Add // @ts-nocheck at the top of the file to turn checking off.';` in `src/user.ts`: the directive inside a string is not a comment
+
+## How to fix
+
+Fix the type error instead of silencing it.
+
+## If the finding is wrong
+
+Add a comment on the line above, in the comment syntax of the file, that says who decided and why:
+
+```
+ubon-ignore integrity/type-suppression: <who decided>: <evidence>
+```
+
+Or turn the rule off for the project in `ubon.json`: `"rules": { "integrity/type-suppression": "off" }`. See [configuration](../../config.md).
+
+Fixtures: [fixtures/rules/integrity/type-suppression](../../../fixtures/rules/integrity/type-suppression).
+
+<!-- docs/rules/integrity/lint-suppression.md -->
+
+# integrity/lint-suppression
+
+Lint rules turned off in the change.
+
+New lint suppressions: file-wide ones without rule names (`/* eslint-disable */`, `// biome-ignore-all lint`, `// oxlint-disable`, `# ruff: noqa`, `# flake8: noqa`, `# pylint: skip-file`) and line-level disables.
+
+- Default level: `block`.
+- Levels: block for file-wide suppressions that name no rule; warn for suppressions that name rules, cover a range, or cover one line. In test files only the blocking kind is reported.
+- Looks at: what the change did, comparing each file before and after.
+
+## Why it matters
+
+Turning a linter off for a whole file hides every current and future problem in it, and agents do it to get a green run. Line-level disables are sometimes right, so they are listed for review rather than blocked.
+
+## Flagged
+
+`pkg/store.go` (warn):
+
+```text
+os.Remove(path + ".bak") //nolint:errcheck
+```
+
+`src/charts.js` (block):
+
+```js
+// oxlint-disable
+```
+
+`src/format.test.ts` (block):
+
+```ts
+/* eslint-disable */
+```
+
+`src/report.ts` (warn):
+
+```ts
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- legacy payload
+```
+
+`src/report.ts` (warn):
+
+```ts
+/* eslint-disable no-console */
+```
+
+`src/widgets.js` (block):
+
+```js
+// biome-ignore-all lint: the widget code is old
+```
+
+`tools/sync.py` (block):
+
+```python
+# ruff: noqa
+```
+
+`tools/sync.py` (warn):
+
+```python
+import sys  # noqa: F401
+```
+
+## Not flagged
+
+- `export const client = { version: 1 };` in `src/generated/client.ts`: generated code (under a generated/ folder) is ignored
+- `const write = console.log;` in `src/logger.ts`: this disable existed at the base; it only moved below the function
+- `console.log(report([1] as any));` in `src/report.test.ts`: line-level and rule-scoped disables in tests are not reported
+- `const hint = 'add /* eslint-disable */ at the top to silence everything';` in `src/report.ts`: the directive inside a string is not a comment
+- `const table = [1,   2,   3];` in `src/report.ts`: biome-ignore for formatting does not turn off a check
+
+## How to fix
+
+Remove the suppression and fix what the linter reports.
+
+## If the finding is wrong
+
+Add a comment on the line above, in the comment syntax of the file, that says who decided and why:
+
+```
+ubon-ignore integrity/lint-suppression: <who decided>: <evidence>
+```
+
+Or turn the rule off for the project in `ubon.json`: `"rules": { "integrity/lint-suppression": "off" }`. See [configuration](../../config.md).
+
+Fixtures: [fixtures/rules/integrity/lint-suppression](../../../fixtures/rules/integrity/lint-suppression).
+
+<!-- docs/rules/integrity/checks-weakened.md -->
+
+# integrity/checks-weakened
+
+Project checks weakened in the change.
+
+TypeScript strictness turned off, coverage thresholds lowered, test scripts changed to swallow failures, CI steps that run tests, linters, or type checks removed or allowed to fail, and lint rules moved from error to warn or off.
+
+- Default level: `block`.
+- Looks at: what the change did, comparing each file before and after.
+- References: <https://arxiv.org/abs/2510.20270>.
+
+## Why it matters
+
+An agent that cannot make a check pass can make the check weaker instead, and the run turns green without the problem being fixed. Changes like these deserve a person's review.
+
+## Flagged
+
+`.github/workflows/ci.yml` (block):
+
+```yaml
+test:
+```
+
+`.github/workflows/ci.yml` (block):
+
+```yaml
+continue-on-error: true
+```
+
+`.github/workflows/ci.yml` (block):
+
+```yaml
+if: false
+```
+
+`.github/workflows/ci.yml` (block):
+
+```yaml
+- run: pytest -q || true
+```
+
+`service/pyproject.toml` (block):
+
+```toml
+fail_under = 75
+```
+
+`vitest.config.ts` (block):
+
+```ts
+coverage: {
+```
+
+`vitest.config.ts` (block):
+
+```ts
+lines: 70,
+```
+
+`package.json` (block):
+
+```json
+"lines": 60,
+```
+
+## Not flagged
+
+- `- run: go vet ./...` in `.github/workflows/backend.yml`: go.yml was deleted, and its checks moved to this workflow
+- `- name: Unit tests` in `.github/workflows/ci.yml`: new flags on the same test command are not a removal
+- `- name: Bundle size report` in `.github/workflows/ci.yml`: a new optional job that is allowed to fail did not exist before
+- `functions: 90,` in `vitest.config.ts`: raising a threshold is never reported
+- `statements: 90,` in `vitest.config.ts`: statements unchanged
+- package.json: the global branches threshold was raised from 70 to 75
+- package.json: the per-folder threshold for ./src/payments/ is unchanged
+- packages/lib/.nycrc: adding a reporter does not weaken anything
+- `'no-unused-vars': 'off',` in `eslint.config.js`: a rule that was only a warning turned off is not a weakened check
+- `'no-debugger': 'error',` in `eslint.config.js`: a new rule at error raises strictness
+
+## How to fix
+
+Restore the check and fix what it reports; if the change is intended, ask the user to confirm it.
+
+## If the finding is wrong
+
+Add a comment on the line above, in the comment syntax of the file, that says who decided and why:
+
+```
+ubon-ignore integrity/checks-weakened: <who decided>: <evidence>
+```
+
+Or turn the rule off for the project in `ubon.json`: `"rules": { "integrity/checks-weakened": "off" }`. See [configuration](../../config.md).
+
+Fixtures: [fixtures/rules/integrity/checks-weakened](../../../fixtures/rules/integrity/checks-weakened).
+
+<!-- docs/rules/integrity/new-suppression.md -->
+
+# integrity/new-suppression
+
+Suppression added in the change.
+
+A new `ubon-ignore` comment or a new entry in `.ubon/baseline.json`. Every one is listed with the rule it suppresses and the reason given.
+
+- Default level: `warn`.
+- Levels: warn by default; block when ubon.json sets `"suppressions": { "agent": "human-only" }` and the check runs for an agent session.
+- Looks at: what the change did, comparing each file before and after.
+
+## Why it matters
+
+A suppression turns a finding off on the word of whoever wrote it. Listing each new one keeps a suppression written by an agent visible to the person who reviews the change.
+
+## Flagged
+
+`.ubon/baseline.json` (warn):
+
+```json
+{ "rule": "hygiene/placeholder", "file": "src/api.ts", "fingerprint": "7d1e2c3b4a596877" },
+```
+
+`.ubon/baseline.json` (warn):
+
+```json
+{ "rule": "secret/provider-key", "file": "src/stripe.ts", "fingerprint": "a1b2c3d4e5f60718" }
+```
+
+`docs/setup.md` (warn):
+
+```md
+<!-- ubon-ignore secret/provider-key: luisfer: the key below is the public Stripe example key -->
+```
+
+`lib/payments.ts` (warn):
+
+```ts
+// ubon-ignore hygiene/placeholder: agent: the user said the sandbox URL is fine for now
+```
+
+`lib/payments.ts` (warn):
+
+```ts
+export const region = 'eu'; // ubon-ignore secret/db-url-password: agent: no password in this value
+```
+
+`scripts/deploy.sh` (warn):
+
+```sh
+# ubon-ignore secret/db-url-password: luisfer: local docker database only
+```
+
+`src/config.ts` (block):
+
+```ts
+// ubon-ignore hygiene/placeholder: agent: the preview URL is only used in development
+```
+
+`src/config.ts` (block):
+
+```ts
+// ubon-ignore secret/provider-key, hygiene/placeholder: agent: user confirmed this is a sample value
+```
+
+## Not flagged
+
+- the secret/db-url-password entry existed at the base
+- suppressions.agent is human-only, but this check is not an agent session, so new entries warn instead of blocking
+- `export const testKey = 'pk_test_placeholder';` in `lib/payments.ts`: this suppression existed at the base; it only moved below charge()
+- `export const other = 'your-api-key-here';` in `lib/payments.ts`: an ubon-ignore without a reason suppresses nothing (integrity/invalid-suppression reports it)
+- `export const help = 'Write // ubon-ignore <rule>: <who>: <evidence> above the line.';` in `lib/payments.ts`: the syntax inside a string is not a suppression
+- `export const staging = 'https://staging.example.com';` in `src/config.ts`: this suppression was approved before the session started
+
+## How to fix
+
+Check that the reason is true and remove the suppression if the finding is real.
+
+## If the finding is wrong
+
+Add a comment on the line above, in the comment syntax of the file, that says who decided and why:
+
+```
+ubon-ignore integrity/new-suppression: <who decided>: <evidence>
+```
+
+Or turn the rule off for the project in `ubon.json`: `"rules": { "integrity/new-suppression": "off" }`. See [configuration](../../config.md).
+
+Fixtures: [fixtures/rules/integrity/new-suppression](../../../fixtures/rules/integrity/new-suppression).
+
+<!-- docs/rules/hygiene/elided-code.md -->
+
+# hygiene/elided-code
+
+Placeholder comment where code was dropped.
+
+A comment such as `// ... existing code ...`, `// rest of the implementation`, or `/* ... */` as the only content of a body, added in the change.
+
+- Default level: `block`.
+- Looks at: what the change did, comparing each file before and after.
+- References: [CWE-1164](https://cwe.mitre.org/data/definitions/1164.html).
+
+## Why it matters
+
+Models that rewrite a whole file sometimes write a placeholder comment instead of repeating code they did not change, and the code behind it is deleted. The file may still compile while a function body, a list of routes, or a component is gone.
+
+## Flagged
+
+`README.md` (block):
+
+```md
+<!-- ... rest of the file unchanged ... -->
+```
+
+`src/components/Profile.tsx` (block):
+
+```tsx
+{/* ... */}
+```
+
+`src/routes.ts` (block):
+
+```ts
+// ... existing routes ...
+```
+
+`src/routes.ts` (block):
+
+```ts
+// rest of the implementation
+```
+
+`app/worker.py` (block):
+
+```python
+# ... rest of the implementation
+```
+
+## Not flagged
+
+- `ok: comments in fenced code blocks are documentation, not elision.` in `README.md`: comments in fenced code blocks are documentation, not elision.
+- `export const routes = [` in `docs/snippets/router.ts`: code under docs/ is documentation, where placeholder comments are deliberate
+- `return fn().catch((error) => {` in `src/routes.ts`: prose that starts with an ellipsis is not elision
+- `export function sample() {` in `test/fixtures/rewritten.ts`: fixture files hold example input for tests
+- src/cart.ts: `/* ... */` next to other code in the same body is not the only content
+
+## How to fix
+
+Restore the code the comment replaced from the previous version of the file, and remove the comment.
+
+## If the finding is wrong
+
+Add a comment on the line above, in the comment syntax of the file, that says who decided and why:
+
+```
+ubon-ignore hygiene/elided-code: <who decided>: <evidence>
+```
+
+Or turn the rule off for the project in `ubon.json`: `"rules": { "hygiene/elided-code": "off" }`. See [configuration](../../config.md).
+
+Fixtures: [fixtures/rules/hygiene/elided-code](../../../fixtures/rules/hygiene/elided-code).
+
+<!-- docs/rules/hygiene/placeholder.md -->
+
+# hygiene/placeholder
+
+Placeholder left in runtime code.
+
+`throw new Error('Not implemented')` and its equivalents, `TODO: implement`, lorem ipsum, `your-api-key-here` values, or example.com endpoints added to runtime code.
+
+- Default level: `warn`.
+- Looks at: what the change did, comparing each file before and after.
+
+## Why it matters
+
+Agents stub out work they did not finish and report the task as done. The placeholder compiles, so it reaches users as a crash, a fake value, or a request to a domain nobody owns.
+
+## Flagged
+
+`app/sync.py` (warn):
+
+```python
+raise NotImplementedError("TODO")
+```
+
+`src/billing.ts` (warn):
+
+```ts
+const res = await fetch('https://api.example.com/invoices', {
+```
+
+`src/billing.ts` (warn):
+
+```ts
+headers: { Authorization: `Bearer ${process.env.BILLING_KEY ?? 'your-api-key-here'}` },
+```
+
+`src/billing.ts` (warn):
+
+```ts
+throw new Error('Not implemented');
+```
+
+`src/components/Hero.tsx` (warn):
+
+```tsx
+<p>Lorem ipsum dolor sit amet, consectetur adipiscing elit.</p>
+```
+
+`src/billing.ts` (warn):
+
+```ts
+// TODO: implement
+```
+
+## Not flagged
+
+- `raise NotImplementedError` in `app/sync.py`: a bare NotImplementedError is the usual way to mark an abstract method
+- `it('calls the API', () => {` in `src/billing.test.ts`: tests use example.com endpoints and placeholder keys on purpose
+- `export function refund(): void {` in `src/billing.ts`: a plain TODO about future work is fine
+- `export const path = new URL('/invoices?page=2', 'https://example.com').pathname;` in `src/billing.ts`: a relative URL parsed against a dummy base
+- `export const label = 'Your API key';` in `src/billing.ts`: UI copy that says "your API key" is a label, not a placeholder value
+- `charge(): void {` in `src/billing.ts`: abstract base classes throw to force an override
+- `<input type="email" placeholder="you@example.com" />` in `src/components/Hero.tsx`: an input placeholder showing an example address
+- `export const Default = { args: { title: 'Lorem ipsum dolor sit amet' } };` in `src/stories/Hero.stories.tsx`: stories show sample content
+
+## How to fix
+
+Replace the placeholder with the real implementation or value, or tell the user what is left to do.
+
+## If the finding is wrong
+
+Add a comment on the line above, in the comment syntax of the file, that says who decided and why:
+
+```
+ubon-ignore hygiene/placeholder: <who decided>: <evidence>
+```
+
+Or turn the rule off for the project in `ubon.json`: `"rules": { "hygiene/placeholder": "off" }`. See [configuration](../../config.md).
+
+Fixtures: [fixtures/rules/hygiene/placeholder](../../../fixtures/rules/hygiene/placeholder).
+
+<!-- docs/rules/hygiene/variant-file.md -->
+
+# hygiene/variant-file
+
+New file named like a copy.
+
+A file added in the change with a copy-like name (`-old`, `-new`, `_v2`, ` copy`, `.bak`, `.orig`, `-final`, a trailing `2`) next to an existing file with the base name.
+
+- Default level: `warn`.
+- Looks at: what the change did, comparing each file before and after.
+
+## Why it matters
+
+Agents often write a second version of a file instead of editing the first, or keep the old one as a backup. The copy drifts, gets imported by mistake, or ships dead code.
+
+## Flagged
+
+`src/components/Header-new.tsx` (warn):
+
+```tsx
+export function Header() {
+```
+
+`src/lib/pricing.ts.bak` (warn):
+
+```text
+export function price(n: number): number {
+```
+
+## Not flagged
+
+- `export const users = [{ name: 'ada' }];` in `src/api/v2/users.ts`: a versioned API folder is deliberate
+- `export function Footer() {` in `src/components/Footer-new.tsx`: there is no Footer.tsx next to it, so this is not a copy
+- `export const protocol = 'h2';` in `src/net/http2.ts`: http2 is a protocol name, not a copy of http.ts
+
+## How to fix
+
+Merge the changes into the original file and delete the copy, or give the new file a name that says what it does.
+
+## If the finding is wrong
+
+Add a comment on the line above, in the comment syntax of the file, that says who decided and why:
+
+```
+ubon-ignore hygiene/variant-file: <who decided>: <evidence>
+```
+
+Or turn the rule off for the project in `ubon.json`: `"rules": { "hygiene/variant-file": "off" }`. See [configuration](../../config.md).
+
+Fixtures: [fixtures/rules/hygiene/variant-file](../../../fixtures/rules/hygiene/variant-file).

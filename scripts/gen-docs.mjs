@@ -71,7 +71,10 @@ function collectExamples(rule) {
     const dir = isDiff ? join(c.dir, 'after') : c.dir;
     const { expected } = readExpectations(dir, rule);
     for (const e of expected) {
-      const lines = readFileSync(join(dir, e.file), 'utf8').split('\n');
+      // A finding on a deleted file points at its last version, in before/.
+      const source = existsSync(join(dir, e.file)) ? join(dir, e.file) : isDiff && existsSync(join(c.dir, 'before', e.file)) ? join(c.dir, 'before', e.file) : null;
+      if (!source) continue;
+      const lines = readFileSync(source, 'utf8').split('\n');
       const code = showFakes(stripMarkers(lines[e.line - 1] ?? '')).trim();
       if (code) flagged.push({ file: e.file, code, ...(e.level ? { level: e.level } : {}) });
     }

@@ -336,6 +336,145 @@ export const EXAMPLES: Record<string, { flagged: RuleExample[]; safe: RuleExampl
       }
     ]
   },
+  "deps/undeclared-import": {
+    "flagged": [
+      {
+        "file": "src/app/page.tsx",
+        "code": "import get from 'lodash/get';"
+      },
+      {
+        "file": "src/app/page.tsx",
+        "code": "import dayjs from 'dayjs';"
+      },
+      {
+        "file": "src/app/page.tsx",
+        "code": "import type { ZodSchema } from 'zod';"
+      }
+    ],
+    "safe": [
+      {
+        "file": "src/app/page.tsx",
+        "code": "import React from 'react';",
+        "note": "declared in package.json"
+      },
+      {
+        "file": "src/app/page.tsx",
+        "code": "import Link from 'next/link';",
+        "note": "subpath of the declared next package"
+      },
+      {
+        "file": "src/app/page.tsx",
+        "code": "import { createClient } from '@supabase/supabase-js/dist/main/index.js';",
+        "note": "deep import of a declared scoped package"
+      }
+    ]
+  },
+  "deps/nonexistent-package": {
+    "flagged": [
+      {
+        "file": "package.json",
+        "code": "\"Bad Name\": \"^1.0.0\","
+      },
+      {
+        "file": "package.json",
+        "code": "\"react-dom \": \"^19.0.0\","
+      },
+      {
+        "file": "package.json",
+        "code": "\"lodash/fp\": \"^4.17.21\","
+      }
+    ],
+    "safe": []
+  },
+  "deps/young-package": {
+    "flagged": [],
+    "safe": []
+  },
+  "deps/typosquat": {
+    "flagged": [
+      {
+        "file": "package.json",
+        "code": "\"lodahs\": \"^4.17.21\","
+      },
+      {
+        "file": "package.json",
+        "code": "\"expresss\": \"^4.19.2\","
+      },
+      {
+        "file": "package.json",
+        "code": "\"react_dom\": \"^19.0.0\","
+      }
+    ],
+    "safe": []
+  },
+  "deps/install-script": {
+    "flagged": [
+      {
+        "file": "package-lock.json",
+        "code": "\"resolved\": \"https://registry.npmjs.org/@parcel/watcher/-/watcher-2.5.0.tgz\","
+      },
+      {
+        "file": "package-lock.json",
+        "code": "\"resolved\": \"https://registry.npmjs.org/fsevents/-/fsevents-1.2.13.tgz\","
+      },
+      {
+        "file": "package-lock.json",
+        "code": "\"resolved\": \"https://registry.npmjs.org/sharp/-/sharp-0.33.5.tgz\","
+      }
+    ],
+    "safe": [
+      {
+        "file": ".npmrc",
+        "code": "ignore-scripts=true",
+        "note": "npm and pnpm run no install scripts in this project, so new packages with scripts are not reported"
+      },
+      {
+        "file": "pnpm-workspace.yaml",
+        "code": "onlyBuiltDependencies:",
+        "note": "pnpm builds only esbuild; the script of sharp does not run, so sharp is not reported"
+      }
+    ]
+  },
+  "deps/non-registry-source": {
+    "flagged": [
+      {
+        "file": "package-lock.json",
+        "code": "\"resolved\": \"https://registry.example-mirror.net/fancy-log/-/fancy-log-2.0.0.tgz\","
+      },
+      {
+        "file": "package-lock.json",
+        "code": "\"resolved\": \"git+ssh://git@github.com/someone/color-support.git#3333333333333333333333333333333333333333\","
+      },
+      {
+        "file": "package-lock.json",
+        "code": "\"resolved\": \"https://downloads.example.com/tarball-dep-1.0.0.tgz\","
+      }
+    ],
+    "safe": [
+      {
+        "file": ".npmrc",
+        "code": "@acme:registry=https://npm.pkg.github.com",
+        "note": "the @acme scope comes from GitHub Packages, so its tarball URLs there are fine"
+      }
+    ]
+  },
+  "deps/known-malicious": {
+    "flagged": [
+      {
+        "file": "bun.lock",
+        "code": "\"commanderr\": [\"commanderr@0.0.1-security\", \"\", {}, \"sha512-commanderr\"],"
+      },
+      {
+        "file": "package.json",
+        "code": "\"discordi.js\": \"0.0.1-security\","
+      },
+      {
+        "file": "package.json",
+        "code": "\"noblox.js-proxy\": \"0.0.1-security\""
+      }
+    ],
+    "safe": []
+  },
   "ci/expression-injection": {
     "flagged": [
       {
@@ -442,5 +581,298 @@ export const EXAMPLES: Record<string, { flagged: RuleExample[]; safe: RuleExampl
   "integrity/unused-suppression": {
     "flagged": [],
     "safe": []
+  },
+  "integrity/test-skipped": {
+    "flagged": [
+      {
+        "file": "src/slug.test.js",
+        "code": "fit('lowercases', () => { // expect-block: integrity/test-skipped"
+      },
+      {
+        "file": "e2e/checkout.spec.ts",
+        "code": "test.fixme();"
+      },
+      {
+        "file": "e2e/checkout.spec.ts",
+        "code": "test.describe.skip('invoices', () => {"
+      }
+    ],
+    "safe": [
+      {
+        "file": "src/slug.test.js",
+        "code": "it.skip('keeps emoji', () => {",
+        "note": "this skip existed at the base (the file is CRLF, the check compares lines without CR)"
+      },
+      {
+        "file": "e2e/checkout.spec.ts",
+        "code": "test.skip(browserName === 'webkit', 'The payment iframe does not load in WebKit');",
+        "note": "a conditional skip on a fixture value is a deliberate browser check"
+      },
+      {
+        "file": "e2e/checkout.spec.ts",
+        "code": "await context.clearCookies();",
+        "note": "context is the browser context fixture, not the Mocha alias"
+      }
+    ]
+  },
+  "integrity/test-deleted": {
+    "flagged": [
+      {
+        "file": "src/price.test.ts",
+        "code": "import { expect, it } from 'vitest';"
+      },
+      {
+        "file": "pkg/calc_test.go",
+        "code": "package pkg"
+      },
+      {
+        "file": "tests/test_billing.py",
+        "code": "import pytest"
+      }
+    ],
+    "safe": [
+      {
+        "file": "test/util/format.test.ts",
+        "code": "describe('formatName', () => {",
+        "note": "moved here from src/util/__tests__/, not deleted"
+      },
+      {
+        "file": "src/cart.test.ts",
+        "code": "it('returns the price of a single item', () => {",
+        "note": "\"applies a discount\" was removed together with applyDiscount()"
+      },
+      {
+        "file": "src/cart.test.ts",
+        "code": "it('returns the price of a single item', () => {",
+        "note": "\"works for one item\" was renamed; the body is the same"
+      }
+    ]
+  },
+  "integrity/type-suppression": {
+    "flagged": [
+      {
+        "file": "src/api.test.ts",
+        "code": "// @ts-nocheck"
+      },
+      {
+        "file": "src/user.ts",
+        "code": "export function parseUser(input: any): User {"
+      },
+      {
+        "file": "src/user.ts",
+        "code": "const user = input as unknown as User;"
+      }
+    ],
+    "safe": [
+      {
+        "file": "src/api.test.ts",
+        "code": "const input = { id: 1, name: 'Ada' } as any;",
+        "note": "tests cast mocks with `as any`"
+      },
+      {
+        "file": "src/api.test.ts",
+        "code": "expect(() => parseUser()).toThrow();",
+        "note": "tests pass invalid arguments on purpose"
+      },
+      {
+        "file": "src/globals.d.ts",
+        "code": "declare const legacyWidget: any;",
+        "note": "declaration files are ignored"
+      }
+    ]
+  },
+  "integrity/lint-suppression": {
+    "flagged": [
+      {
+        "file": "pkg/store.go",
+        "code": "os.Remove(path + \".bak\") //nolint:errcheck"
+      },
+      {
+        "file": "src/charts.js",
+        "code": "// oxlint-disable"
+      },
+      {
+        "file": "src/format.test.ts",
+        "code": "/* eslint-disable */"
+      }
+    ],
+    "safe": [
+      {
+        "file": "src/generated/client.ts",
+        "code": "export const client = { version: 1 };",
+        "note": "generated code (under a generated/ folder) is ignored"
+      },
+      {
+        "file": "src/logger.ts",
+        "code": "const write = console.log;",
+        "note": "this disable existed at the base; it only moved below the function"
+      },
+      {
+        "file": "src/report.test.ts",
+        "code": "console.log(report([1] as any));",
+        "note": "line-level and rule-scoped disables in tests are not reported"
+      }
+    ]
+  },
+  "integrity/checks-weakened": {
+    "flagged": [
+      {
+        "file": ".github/workflows/ci.yml",
+        "code": "test:"
+      },
+      {
+        "file": ".github/workflows/ci.yml",
+        "code": "continue-on-error: true"
+      },
+      {
+        "file": ".github/workflows/ci.yml",
+        "code": "if: false"
+      }
+    ],
+    "safe": [
+      {
+        "file": ".github/workflows/backend.yml",
+        "code": "- run: go vet ./...",
+        "note": "go.yml was deleted, and its checks moved to this workflow"
+      },
+      {
+        "file": ".github/workflows/ci.yml",
+        "code": "- name: Unit tests",
+        "note": "new flags on the same test command are not a removal"
+      },
+      {
+        "file": ".github/workflows/ci.yml",
+        "code": "- name: Bundle size report",
+        "note": "a new optional job that is allowed to fail did not exist before"
+      }
+    ]
+  },
+  "integrity/new-suppression": {
+    "flagged": [
+      {
+        "file": ".ubon/baseline.json",
+        "code": "{ \"rule\": \"hygiene/placeholder\", \"file\": \"src/api.ts\", \"fingerprint\": \"7d1e2c3b4a596877\" },"
+      },
+      {
+        "file": ".ubon/baseline.json",
+        "code": "{ \"rule\": \"secret/provider-key\", \"file\": \"src/stripe.ts\", \"fingerprint\": \"a1b2c3d4e5f60718\" }"
+      },
+      {
+        "file": "docs/setup.md",
+        "code": "<!-- ubon-ignore secret/provider-key: luisfer: the key below is the public Stripe example key -->"
+      }
+    ],
+    "safe": [
+      {
+        "file": "lib/payments.ts",
+        "code": "export const testKey = 'pk_test_placeholder';",
+        "note": "this suppression existed at the base; it only moved below charge()"
+      },
+      {
+        "file": "lib/payments.ts",
+        "code": "export const other = 'your-api-key-here';",
+        "note": "an ubon-ignore without a reason suppresses nothing (integrity/invalid-suppression reports it)"
+      },
+      {
+        "file": "lib/payments.ts",
+        "code": "export const help = 'Write // ubon-ignore <rule>: <who>: <evidence> above the line.';",
+        "note": "the syntax inside a string is not a suppression"
+      }
+    ]
+  },
+  "hygiene/elided-code": {
+    "flagged": [
+      {
+        "file": "README.md",
+        "code": "<!-- ... rest of the file unchanged ... -->"
+      },
+      {
+        "file": "src/components/Profile.tsx",
+        "code": "{/* ... */}"
+      },
+      {
+        "file": "src/routes.ts",
+        "code": "// ... existing routes ..."
+      }
+    ],
+    "safe": [
+      {
+        "file": "README.md",
+        "code": "ok: comments in fenced code blocks are documentation, not elision.",
+        "note": "comments in fenced code blocks are documentation, not elision."
+      },
+      {
+        "file": "docs/snippets/router.ts",
+        "code": "export const routes = [",
+        "note": "code under docs/ is documentation, where placeholder comments are deliberate"
+      },
+      {
+        "file": "src/routes.ts",
+        "code": "return fn().catch((error) => {",
+        "note": "prose that starts with an ellipsis is not elision"
+      }
+    ]
+  },
+  "hygiene/placeholder": {
+    "flagged": [
+      {
+        "file": "app/sync.py",
+        "code": "raise NotImplementedError(\"TODO\")"
+      },
+      {
+        "file": "src/billing.ts",
+        "code": "const res = await fetch('https://api.example.com/invoices', {"
+      },
+      {
+        "file": "src/billing.ts",
+        "code": "headers: { Authorization: `Bearer ${process.env.BILLING_KEY ?? 'your-api-key-here'}` },"
+      }
+    ],
+    "safe": [
+      {
+        "file": "app/sync.py",
+        "code": "raise NotImplementedError",
+        "note": "a bare NotImplementedError is the usual way to mark an abstract method"
+      },
+      {
+        "file": "src/billing.test.ts",
+        "code": "it('calls the API', () => {",
+        "note": "tests use example.com endpoints and placeholder keys on purpose"
+      },
+      {
+        "file": "src/billing.ts",
+        "code": "export function refund(): void {",
+        "note": "a plain TODO about future work is fine"
+      }
+    ]
+  },
+  "hygiene/variant-file": {
+    "flagged": [
+      {
+        "file": "src/components/Header-new.tsx",
+        "code": "export function Header() {"
+      },
+      {
+        "file": "src/lib/pricing.ts.bak",
+        "code": "export function price(n: number): number {"
+      }
+    ],
+    "safe": [
+      {
+        "file": "src/api/v2/users.ts",
+        "code": "export const users = [{ name: 'ada' }];",
+        "note": "a versioned API folder is deliberate"
+      },
+      {
+        "file": "src/components/Footer-new.tsx",
+        "code": "export function Footer() {",
+        "note": "there is no Footer.tsx next to it, so this is not a copy"
+      },
+      {
+        "file": "src/net/http2.ts",
+        "code": "export const protocol = 'h2';",
+        "note": "http2 is a protocol name, not a copy of http.ts"
+      }
+    ]
   }
 };

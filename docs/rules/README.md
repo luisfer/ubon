@@ -2,7 +2,7 @@
 
 # Rules
 
-Ubon has 18 rules in 4 packs. A `block` finding stops an agent from finishing and fails `ubon check`; a `warn` finding is reported and does not. `ubon rules` prints this list with the levels set in your `ubon.json`.
+Ubon has 34 rules in 6 packs. A `block` finding stops an agent from finishing and fails `ubon check`; a `warn` finding is reported and does not. `ubon rules` prints this list with the levels set in your `ubon.json`.
 
 ## secret
 
@@ -31,6 +31,20 @@ Data access policies: Supabase row level security, Firebase rules, and service k
 | [data/service-role-in-client](data/service-role-in-client.md) | block | Supabase service role key in browser code |
 | [data/firebase-open-rules](data/firebase-open-rules.md) | block | Firebase rules open to everyone |
 
+## deps
+
+Packages an agent adds: whether they exist, their age, their names, and their install scripts.
+
+| Rule | Level | What it catches |
+| --- | --- | --- |
+| [deps/undeclared-import](deps/undeclared-import.md) | warn | Import of a package that package.json does not declare |
+| [deps/nonexistent-package](deps/nonexistent-package.md) | block | New dependency that does not exist on the registry |
+| [deps/young-package](deps/young-package.md) | block | New dependency or version published too recently |
+| [deps/typosquat](deps/typosquat.md) | warn | New dependency named like a popular package |
+| [deps/install-script](deps/install-script.md) | warn | New package with an install script |
+| [deps/non-registry-source](deps/non-registry-source.md) | warn | New dependency from outside the registry |
+| [deps/known-malicious](deps/known-malicious.md) | block | New package with a malicious-package record |
+
 ## ci
 
 CI workflows: untrusted input, permissions, pinning, and secrets.
@@ -49,3 +63,19 @@ Changes that weaken the checks: skipped or deleted tests, disabled type checks, 
 | --- | --- | --- |
 | [integrity/invalid-suppression](integrity/invalid-suppression.md) | warn | Suppression without a valid reason |
 | [integrity/unused-suppression](integrity/unused-suppression.md) | warn | Suppression that no longer matches a finding |
+| [integrity/test-skipped](integrity/test-skipped.md) | block | Test skipped or focused in the change |
+| [integrity/test-deleted](integrity/test-deleted.md) | block | Test deleted while its code remains |
+| [integrity/type-suppression](integrity/type-suppression.md) | block | Type checking turned off in the change |
+| [integrity/lint-suppression](integrity/lint-suppression.md) | block | Lint rules turned off in the change |
+| [integrity/checks-weakened](integrity/checks-weakened.md) | block | Project checks weakened in the change |
+| [integrity/new-suppression](integrity/new-suppression.md) | warn | Suppression added in the change |
+
+## hygiene
+
+Smaller mistakes that tend to reach production.
+
+| Rule | Level | What it catches |
+| --- | --- | --- |
+| [hygiene/elided-code](hygiene/elided-code.md) | block | Placeholder comment where code was dropped |
+| [hygiene/placeholder](hygiene/placeholder.md) | warn | Placeholder left in runtime code |
+| [hygiene/variant-file](hygiene/variant-file.md) | warn | New file named like a copy |
