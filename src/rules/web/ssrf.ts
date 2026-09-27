@@ -60,7 +60,7 @@ export const ssrf: Rule = {
           message: schema
             ? `${sink.name} uses a URL from ${hit.taint.source} ${where(label, hit.taint)}, checked only by a schema whose constraints Ubon cannot read.`
             : joined
-              ? `${sink.name} uses a URL that appends ${hit.taint.source} ${where(label, hit.taint)} directly to a base Ubon cannot read, so the value can change the host unless the base ends with '/'.`
+              ? `${sink.name} uses a URL that appends ${hit.taint.source} ${where(label, hit.taint)} directly to a base Ubon cannot read; if the base is only a scheme and host, the value can change the host.`
               : `${sink.name} uses a URL from ${hit.taint.source} ${where(label, hit.taint)}.`,
           level: contextLevel(ctx.file, schema || joined ? 'warn' : 'block'),
           trace: traceOf(label, hit.taint, sink),

@@ -1,5 +1,5 @@
 import { relative } from 'node:path';
-import { ConfigError } from '../core/config.ts';
+import { ConfigError, loadConfig } from '../core/config.ts';
 import { runCheck } from '../core/engine.ts';
 import { toPosix } from '../core/files.ts';
 import { UsageError } from '../core/scope.ts';
@@ -7,7 +7,7 @@ import type { ScopeMode } from '../core/types.ts';
 import { EXAMPLES } from '../data/examples.ts';
 import { buildMap, formatMapText } from '../map/index.ts';
 import { formatAgent } from '../report/agent.ts';
-import { ruleById } from '../rules/index.ts';
+import { ruleById, ruleIds } from '../rules/index.ts';
 import { docsUrl } from '../rules/types.ts';
 import { ToolInputError } from './errors.ts';
 
@@ -193,8 +193,18 @@ async function mapTool(args: Record<string, unknown>, ctx: ToolContext): Promise
 }
 
 async function vetTool(args: Record<string, unknown>, ctx: ToolContext): Promise<ToolResult> {
-  const specs = Array.isArray(args.packages) ? args.packages.filter((p): p is string => typeof p === 'string').slice(0, 50) : [];
+  const specs = Array.isArray(args.packages) ? args.packages.filter((p): p is string => typeof p === 'string').map((p) => p.trim()).filter(Boolean).slice(0, 50) : [];
   if (specs.length === 0) return error('packages must be a non-empty array of package names.');
-  void ctx;
-  return error('Package vetting is not available in this build.');
+  const { config } = loadConfig(ctx.root, ruleIds());
+  const { vetPackages } = await import('../online/vet.ts');
+  const { formatVerdicts } = await import('../cli/vet.ts');
+  const verdicts = await vetPackages(specs, {
+    root: ctx.root,
+    online: true,
+    minAgeDays: config.packages.minAgeDays,
+    minReleaseAgeHours: config.packages.minReleaseAgeHours,
+    allow: config.packages.allow,
+    timeoutMs: 20_000,
+  });
+  return { content: [{ type: 'text', text: formatVerdicts(verdicts, true, config.packages.allow).trimEnd() }], structuredContent: { packages: verdicts } };
 }

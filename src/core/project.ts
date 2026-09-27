@@ -222,6 +222,13 @@ export class Project {
     return !SSR_FRAMEWORKS.some((f) => fw.has(f));
   }
 
+  /** src/api/ in a single-page app with no server framework holds fetch wrappers that run in the browser. */
+  isSpaBrowserApi(path: string): boolean {
+    if (!/(^|\/)src\/api\//.test(path) || !this.isSpa(path)) return false;
+    const fw = this.frameworksFor(path);
+    return !fw.has('express') && !fw.has('hono') && !fw.has('fastify');
+  }
+
   get tsPaths(): TsPaths[] {
     if (this.tsPathsCache) return this.tsPathsCache;
     const out: TsPaths[] = [];
@@ -372,7 +379,7 @@ export class Project {
     while (queue.length > 0) {
       const file = queue.pop() as string;
       for (const next of graph.imports.get(file) ?? []) {
-        if (seen.has(next) || SERVER_PATH.test(next)) continue;
+        if (seen.has(next) || (SERVER_PATH.test(next) && !this.isSpaBrowserApi(next))) continue;
         const text = this.read(next);
         if (text && hasDirective(text, 'use server')) continue; // Server Action modules stay on the server
         seen.add(next);
@@ -389,7 +396,7 @@ export class Project {
 
   /** Code that only runs on the server, by convention or directive. */
   isServer(path: string): boolean {
-    if (SERVER_PATH.test(path)) return true;
+    if (SERVER_PATH.test(path)) return !this.isSpaBrowserApi(path);
     const text = this.read(path);
     if (!text) return false;
     if (hasDirective(text, 'use server') || /^\s*import\s+['"]server-only['"]/m.test(text)) return true;
@@ -420,14 +427,14 @@ export class Project {
 }
 
 function isClientRoot(project: Project, file: string, lang: string): boolean {
-  if (SERVER_PATH.test(file)) return false;
+  if (SERVER_PATH.test(file) && !project.isSpaBrowserApi(file)) return false;
   const text = project.read(file);
   if (!text) return false;
   if (JS_LANGS.has(lang as never) && hasDirective(text, 'use client')) return true;
   // Vue and Svelte components run in the browser (and during SSR).
   if (lang === 'vue' || lang === 'svelte') return true;
   // Single-page apps: everything under src/ is bundled for the browser.
-  if (project.isSpa(file) && /(^|\/)src\//.test(file) && !/(^|\/)src\/(server|api)\//.test(file)) return true;
+  if (project.isSpa(file) && /(^|\/)src\//.test(file) && (!/(^|\/)src\/(server|api)\//.test(file) || project.isSpaBrowserApi(file))) return true;
   // Next.js Pages Router pages render in the browser too (data functions are stripped by Next).
   if (/(^|\/)(src\/)?pages\//.test(file) && !/(^|\/)(src\/)?pages\/api\//.test(file) && project.frameworksFor(file).has('next')) return true;
   return false;

@@ -77,6 +77,20 @@ for (const [label, mode] of [
       }
     });
 
+    test('vet denies an invalid package name without a network lookup', async () => {
+      const dir = workspace();
+      const client = await connect(dir, mode);
+      try {
+        const result = await client.callTool({ name: 'vet', arguments: { packages: ['Not A Valid Name'] } });
+        const structured = result.structuredContent as { packages: Array<{ spec: string; decision: string; rule?: string }> };
+        assert.equal(structured.packages[0]?.decision, 'deny');
+        assert.equal(structured.packages[0]?.rule, 'deps/nonexistent-package');
+        assert.match(JSON.stringify(result.content), /1 denied/);
+      } finally {
+        await client.close();
+      }
+    });
+
     test('explain returns rule metadata', async () => {
       const dir = workspace();
       const client = await connect(dir, mode);

@@ -306,7 +306,7 @@ class Run {
     const parsed = parseSource(text, info.lang);
     if (parsed.failed && !isBase) this.unparsable.push(info.path);
     const serverActionsModule = JS_LANGS.has(info.lang) && hasDirective(text, 'use server');
-    const routeFile = SERVER_PATH.test(info.path) || /(^|\/)(routes|pages\/api)\//.test(info.path);
+    const routeFile = (SERVER_PATH.test(info.path) && !this.project.isSpaBrowserApi(info.path)) || /(^|\/)(routes|pages\/api)\//.test(info.path);
     for (const block of parsed.blocks) {
       if (block.errors > 0 && !isBase && !this.unparsable.includes(info.path)) this.unparsable.push(`${info.path} (partial)`);
       const imports = new ImportMap(block.program);
