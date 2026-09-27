@@ -54,4 +54,5 @@ jobs:
         run: |
           dist_tag=latest
           case "$VERSION_TAG" in *-*) dist_tag=next ;; esac
-          npm stage publish --provenance --access public --tag "$dist_tag"
+          # npm 11.20 and 12 have `npm stage`; pin one instead of relying on the npm bundled with Node.
+          npx --yes npm@11.20.0 stage publish --provenance --access public --tag "$dist_tag"
