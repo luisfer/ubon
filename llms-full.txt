@@ -48,7 +48,7 @@ Version 4 is in alpha. Until 4.0.0 is published, use `ubon@next` in place of `ub
 
 ## What happens in an agent session
 
-- Before a command runs, Ubon checks it. `rm -rf` outside the project, `git push --force`, `git commit --no-verify`, and secrets piped to the network are denied or sent to you for approval. Package installs are checked for packages that do not exist or were published hours ago.
+- Before a command runs, Ubon checks it. `rm -rf` outside the project, `git push --force`, `git commit --no-verify`, and secrets piped to the network are denied or sent to you for approval. Package installs are checked against popular package names for typos; with `packages.online` in `ubon.json`, also for packages that do not exist or were published hours ago.
 - After each edit, Ubon checks the edited files and tells the agent what it found, with the rule, the line, and a fix.
 - When the agent tries to finish, Ubon checks everything it changed in the session. A `block` finding sends the agent back to fix it. Findings that were already in the code before the session are reported, not blocked.
 - Prompts that contain a provider key are stopped before they reach the model (in every agent above except GitHub Copilot, which ignores the answer of prompt hooks).
@@ -67,7 +67,7 @@ If Ubon itself fails, the hook lets the agent continue and prints a message. [do
 | `agent` | hidden Unicode in instruction files, `curl \| sh` in hooks and skills, secrets and unpinned servers in MCP config, destructive commands |
 | `ci` | issue titles and branch names expanded inside `run` steps, fork code checked out in privileged workflows, long-lived npm tokens in release jobs |
 | `integrity` | new `.skip` and `.only`, deleted tests, `@ts-nocheck`, lowered coverage thresholds, removed CI checks, suppressions without a reason |
-| `hygiene` | debug output of secrets, TLS verification turned off, placeholder auth checks |
+| `hygiene` | code left out with `// ... rest of the code`, placeholder values and stub functions, copies such as `page-v2.tsx` |
 
 Each rule has fixtures that show what it flags and what it leaves alone. [docs/rules](docs/rules/README.md) lists every rule with its examples, and `ubon explain <rule>` prints one.
 
@@ -208,7 +208,7 @@ Exit codes: 0 no blocking findings, 1 blocking findings, 2 usage or configuratio
 | Hook | What you see |
 | --- | --- |
 | Session start | One line saying Ubon is active. |
-| Before a shell command | Nothing, or a denial or a question to the user with the reason (for example `git commit --no-verify`, or installing a package that does not exist). |
+| Before a shell command | Nothing, or a denial or a question to the user with the reason (for example `git commit --no-verify`, or installing a package whose name imitates a popular one). |
 | Before a file read | A question to the user for `.env` files and private keys. |
 | Before a file write | A denial when the content contains a provider key or hidden Unicode in an agent file, with what to do instead. |
 | After a file edit | The findings for that file, while you still have the context to fix them. |
@@ -1031,7 +1031,7 @@ Exit codes: 0 no blocking findings, 1 blocking findings, 2 a usage or config err
 
 # Rules
 
-Ubon has 44 rules in 8 packs. A `block` finding stops an agent from finishing and fails `ubon check`; a `warn` finding is reported and does not. `ubon rules` prints this list with the levels set in your `ubon.json`.
+Ubon has 51 rules in 8 packs. A `block` finding stops an agent from finishing and fails `ubon check`; a `warn` finding is reported and does not. `ubon rules` prints this list with the levels set in your `ubon.json`.
 
 ## secret
 
@@ -1061,7 +1061,13 @@ Trust boundaries in web code: request data reaching SQL, shells, file paths, URL
 | [web/path-traversal](web/path-traversal.md) | block | Request data in a file path |
 | [web/code-eval](web/code-eval.md) | block | Request data evaluated as code |
 | [web/xss-html-sink](web/xss-html-sink.md) | warn | Value rendered as HTML without sanitizing |
+| [web/webhook-unverified](web/webhook-unverified.md) | block | Webhook handler without signature verification |
+| [web/weak-token-randomness](web/weak-token-randomness.md) | block | Credential generated with Math.random() |
+| [web/cors-credentials-wildcard](web/cors-credentials-wildcard.md) | block | CORS allows any origin with credentials |
+| [web/jwt-unverified](web/jwt-unverified.md) | block | JWT claims used without verifying the signature |
 | [web/open-redirect](web/open-redirect.md) | warn | Redirect to a URL from the request |
+| [web/insecure-cookie](web/insecure-cookie.md) | warn | Session cookie without httpOnly or secure |
+| [web/token-in-web-storage](web/token-in-web-storage.md) | warn | Auth token in localStorage or sessionStorage |
 
 ## data
 
@@ -1080,6 +1086,7 @@ Features built on language models: keys in the browser, model output reaching co
 
 | Rule | Level | What it catches |
 | --- | --- | --- |
+| [llm/browser-key](llm/browser-key.md) | block | LLM API key in browser code |
 | [llm/output-to-sink](llm/output-to-sink.md) | block | Model output used as code, SQL, a command, or HTML |
 | [llm/tool-dangerous-capability](llm/tool-dangerous-capability.md) | block | Tool passes model-chosen arguments to commands, code, SQL, files, or fetch |
 | [llm/untrusted-system-prompt](llm/untrusted-system-prompt.md) | warn | Request or fetched text in a system prompt |
@@ -2188,6 +2195,387 @@ Or turn the rule off for the project in `ubon.json`: `"rules": { "web/xss-html-s
 
 Fixtures: [fixtures/rules/web/xss-html-sink](../../../fixtures/rules/web/xss-html-sink).
 
+<!-- docs/rules/web/webhook-unverified.md -->
+
+# web/webhook-unverified
+
+Webhook handler without signature verification.
+
+A webhook handler that reads the request body and acts on it without verifying the provider signature (Stripe constructEvent, Svix or Standard Webhooks verify, @octokit/webhooks, an HMAC compared with timingSafeEqual).
+
+- Default level: `block`.
+- Levels: block when the handler writes state (database, ORM, Supabase, SQL, or a mutating fetch); warn when it only logs or calls helpers whose effect is unknown; warn in example, sample, and demo folders.
+- Looks at: each file in scope, on its own.
+- References: [CWE-345](https://cwe.mitre.org/data/definitions/345.html), [CWE-347](https://cwe.mitre.org/data/definitions/347.html), OWASP A07:2025, OWASP A08:2025.
+
+## Why it matters
+
+Webhook URLs are public. Without a signature check anyone can post a fake "payment succeeded" or "user created" event and the handler will grant plans, credits, or accounts as if the provider sent it.
+
+## Flagged
+
+`app/api/stripe/route.ts` (block):
+
+```ts
+const body = await req.json();
+```
+
+`app/api/webhooks/resend/route.ts` (warn):
+
+```ts
+const event = await request.json();
+```
+
+`app/api/webhooks/stripe/route.ts` (block):
+
+```ts
+const body = await req.text();
+```
+
+`functions/src/index.ts` (block):
+
+```ts
+const event = req.body;
+```
+
+`server/index.js` (block):
+
+```js
+const { repository } = req.body;
+```
+
+`src/routes/webhooks.ts` (block):
+
+```ts
+const body = await c.req.json();
+```
+
+`supabase/functions/clerk-webhook/index.ts` (block):
+
+```ts
+const payload = await req.json();
+```
+
+`supabase/functions/stripe-webhook/index.ts` (block):
+
+```ts
+const event = await req.json();
+```
+
+## Not flagged
+
+- `const body = await req.text();` in `app/api/billing/webhook/route.ts`: verified with constructEvent below
+- `const { priceId } = await req.json();` in `app/api/checkout/route.ts`: a signed-in checkout route, not a receiver
+- `const rawBody = await req.text();` in `app/api/hubspot/webhook/route.ts`: the signature is compared with a hash of the client secret and the body
+- `const payload = await req.text();` in `app/api/webhooks/clerk/route.ts`: verified with svix below
+- `const input = await req.json();` in `app/api/webhooks/configs/route.ts`: wrapped in an auth wrapper, a CRUD API for webhook settings
+- `const job = await request.json();` in `app/api/webhooks/cron/route.ts`: shared secret checked above
+- `const raw = await request.text();` in `app/api/webhooks/lemonsqueezy/route.ts`: HMAC compared with timingSafeEqual below
+- `const body = await req.json();` in `app/api/webhooks/qstash/route.ts`: QStash signature verified by the wrapper
+- `return Response.json({ ok: true });` in `app/api/webhooks/resend/route.ts`: true });
+- `const body = await req.json();` in `app/api/webhooks/settings/route.ts`: authenticated settings endpoint
+
+## How to fix
+
+Verify the provider's signature on the raw body before acting on the event.
+
+## If the finding is wrong
+
+Add a comment on the line above, in the comment syntax of the file, that says who decided and why:
+
+```
+ubon-ignore web/webhook-unverified: <who decided>: <evidence>
+```
+
+Or turn the rule off for the project in `ubon.json`: `"rules": { "web/webhook-unverified": "off" }`. See [configuration](../../config.md).
+
+Fixtures: [fixtures/rules/web/webhook-unverified](../../../fixtures/rules/web/webhook-unverified).
+
+<!-- docs/rules/web/weak-token-randomness.md -->
+
+# web/weak-token-randomness
+
+Credential generated with Math.random().
+
+Math.random() used to produce a token, session ID, password, one-time code, invite code, API key, nonce, salt, or secret.
+
+- Default level: `block`.
+- Levels: block; warn for a bare token, session ID, or nonce outside server code, request handlers, and auth files or functions (markers, CLI session names, chat IDs, temp file names), and in example, sample, and demo folders.
+- Looks at: each file in scope, on its own.
+- References: [CWE-330](https://cwe.mitre.org/data/definitions/330.html), [CWE-338](https://cwe.mitre.org/data/definitions/338.html), OWASP A04:2025.
+
+## Why it matters
+
+Math.random() is not a cryptographic generator: its output can be predicted from earlier values, so tokens built from it can be guessed. Password reset tokens, session IDs, and one-time codes built this way let an attacker take over accounts.
+
+## Flagged
+
+`app/api/otp/route.ts`:
+
+```ts
+const otp = Math.floor(100000 + Math.random() * 900000).toString();
+```
+
+`app/api/otp/route.ts`:
+
+```ts
+const code = Math.floor(1000 + Math.random() * 9000);
+```
+
+`examples/magic-link/server.ts` (warn):
+
+```ts
+const token = Math.random().toString(36).slice(2);
+```
+
+`lib/accounts.ts`:
+
+```ts
+return db.user.create({ data: { email, password: makeRandomString(12) } });
+```
+
+`lib/auth/tokens.ts`:
+
+```ts
+const resetToken = Math.random().toString(36).substring(2, 15);
+```
+
+`lib/auth/tokens.ts`:
+
+```ts
+result += chars.charAt(Math.floor(Math.random() * chars.length));
+```
+
+`lib/auth/tokens.ts`:
+
+```ts
+const inviteCode = randomString(8).toUpperCase();
+```
+
+`lib/cli-session.ts` (warn):
+
+```ts
+const rand = Math.random().toString(36).slice(2, 6);
+```
+
+## Not flagged
+
+- `if (Math.random() < 0.1) console.info('sampled request');` in `app/api/otp/route.ts`: sampling
+- `return Response.json({ ok: true });` in `app/api/otp/route.ts`: true });
+- `const [width] = useState(() => '${Math.floor(Math.random() * 40) + 50}%');` in `components/ChatList.tsx`: skeleton width for the UI
+- `const color = COLORS[Math.floor(Math.random() * COLORS.length)];` in `components/ChatList.tsx`: picking an item from a list
+- `const maxTokens = Math.floor(Math.random() * 500) + 100;` in `components/ChatList.tsx`: a token count, not a credential
+- `const showPasswordHint = Math.random() > 0.5;` in `components/ChatList.tsx`: a comparison is sampling, not generation
+- `const messages = items.map((text) => ({ id: generateUUID(), text }));` in `components/ChatList.tsx`: message IDs are not credentials
+- `<li key={Math.random()}>{m.text}</li>` in `components/ChatList.tsx`: list keys are not credentials */}</li>
+- `password: makeRandomString(5),` in `lib/accounts.ts`: sample users built by a function named as fake data
+- `const token = sampleTokens[Math.floor(Math.random() * sampleTokens.length)];` in `lib/ai/simulate-stream.ts`: picks a word for a simulated model stream
+
+## How to fix
+
+Generate the value with crypto.randomBytes() or crypto.randomUUID() in Node, or crypto.getRandomValues() in the browser.
+
+## If the finding is wrong
+
+Add a comment on the line above, in the comment syntax of the file, that says who decided and why:
+
+```
+ubon-ignore web/weak-token-randomness: <who decided>: <evidence>
+```
+
+Or turn the rule off for the project in `ubon.json`: `"rules": { "web/weak-token-randomness": "off" }`. See [configuration](../../config.md).
+
+Fixtures: [fixtures/rules/web/weak-token-randomness](../../../fixtures/rules/web/weak-token-randomness).
+
+<!-- docs/rules/web/cors-credentials-wildcard.md -->
+
+# web/cors-credentials-wildcard
+
+CORS allows any origin with credentials.
+
+Access-Control-Allow-Origin set to * or to the request's own Origin while Access-Control-Allow-Credentials is true, in header objects, header calls, the cors package, Hono, Fastify, Koa, NestJS, Next.js headers(), vercel.json, or netlify.toml.
+
+- Default level: `block`.
+- Levels: block for an origin copied from the request, origin: true, or an origin callback that accepts every origin, with credentials (and for * in @koa/cors, which echoes the Origin header); warn for a literal * with credentials, which browsers refuse, and in example, sample, and demo folders.
+- Looks at: each file in scope, on its own.
+- References: [CWE-942](https://cwe.mitre.org/data/definitions/942.html), [CWE-346](https://cwe.mitre.org/data/definitions/346.html), OWASP A01:2025, OWASP A02:2025.
+
+## Why it matters
+
+With credentials allowed, a reflected origin lets any website make requests with the user's cookies and read the responses, which exposes account data to every page the user visits. Browsers refuse a literal * with credentials, so that setting breaks credentialed requests instead of exposing data, and the usual workaround of echoing the Origin header opens the hole.
+
+## Flagged
+
+`server.js` (block):
+
+```js
+app.use('/v1', cors({ origin: true, credentials: true }));
+```
+
+`server.js` (warn):
+
+```js
+app.use('/v2', cors({ origin: '*', credentials: true }));
+```
+
+`server.js` (warn):
+
+```js
+app.use('/v3', cors({ credentials: true }));
+```
+
+`server.js` (block):
+
+```js
+app.use('/v4', cors({ origin: (origin, callback) => callback(null, true), credentials: true }));
+```
+
+`server.js` (block):
+
+```js
+res.setHeader('Access-Control-Allow-Origin', req.headers.origin);
+```
+
+`server.js` (block):
+
+```js
+res.setHeader('Access-Control-Allow-Origin', req.headers.origin || '*');
+```
+
+`server.js` (warn):
+
+```js
+res.setHeader('Access-Control-Allow-Origin', '*');
+```
+
+`src/index.ts` (block):
+
+```ts
+app.use('/api/*', cors({ origin: (origin) => origin, credentials: true }));
+```
+
+## Not flagged
+
+- `app.use('/v5', cors({ origin: ALLOWED_ORIGINS, credentials: true }));` in `server.js`: fixed list of origins
+- `app.use('/v6', cors({ origin: (origin, cb) => cb(null, ALLOWED_ORIGINS.includes(origin)), credentials: true }));` in `server.js`: the callback checks a list
+- `app.use('/public', cors());` in `server.js`: public API without credentials
+- `app.use('/assets', cors({ origin: '*' }));` in `server.js`: wildcard without credentials
+- `app.use('/config', cors({ origin: process.env.CORS_ORIGIN, credentials: true }));` in `server.js`: origin from configuration
+- `res.setHeader('Access-Control-Allow-Origin', origin);` in `server.js`: checked against a list before echoing
+- `res.header('Access-Control-Allow-Origin', '*');` in `server.js`: no credentials header
+- `module.exports = cors({ origin: true, credentials: true });` in `tests/cors.test.js`: test code
+- `app.use('/public/*', cors());` in `src/index.ts`: public routes without credentials
+- `app.use('/app/*', cors({ origin: (origin) => (origin.endsWith('.example.com') ? origin : null), credentials: true }));` in `src/index.ts`: the callback checks the domain
+
+## How to fix
+
+Allow only a fixed list of trusted origins when credentials are enabled.
+
+## If the finding is wrong
+
+Add a comment on the line above, in the comment syntax of the file, that says who decided and why:
+
+```
+ubon-ignore web/cors-credentials-wildcard: <who decided>: <evidence>
+```
+
+Or turn the rule off for the project in `ubon.json`: `"rules": { "web/cors-credentials-wildcard": "off" }`. See [configuration](../../config.md).
+
+Fixtures: [fixtures/rules/web/cors-credentials-wildcard](../../../fixtures/rules/web/cors-credentials-wildcard).
+
+<!-- docs/rules/web/jwt-unverified.md -->
+
+# web/jwt-unverified
+
+JWT claims used without verifying the signature.
+
+Access decisions based on jwt.decode(), decodeJwt(), or jwtDecode() output with no verify call on the same token, JWT options that accept the none algorithm, and ignoreExpiration: true.
+
+- Default level: `block`.
+- Levels: block when a claim decides access (a branch, a database lookup, the request user, or the return value of an auth helper); warn for display-only decodes, checks of time claims alone, tokens from a network response, and code in example, sample, and demo folders.
+- Looks at: each file in scope, on its own.
+- References: [CWE-347](https://cwe.mitre.org/data/definitions/347.html), [CWE-345](https://cwe.mitre.org/data/definitions/345.html), OWASP A07:2025, OWASP A04:2025.
+
+## Why it matters
+
+Decoding a JWT only base64-decodes it; anyone can write a token with any user ID or role. Without a signature check, the server trusts whatever the client sends, and accepting alg none or expired tokens has the same effect.
+
+## Flagged
+
+`app/api/me/route.ts` (block):
+
+```ts
+const { payload } = decode(token);
+```
+
+`app/api/oauth/callback/route.ts` (warn):
+
+```ts
+const profile = jwt.decode(tokens.id_token) as { email: string };
+```
+
+`app/api/profile/route.ts` (block):
+
+```ts
+const decoded = jwt.decode(token) as { userId: string } | null;
+```
+
+`app/api/profile/route.ts` (warn):
+
+```ts
+const claims = jwt.decode(token);
+```
+
+`lib/auth.ts` (block):
+
+```ts
+const { sub, email } = jwt.decode(token) as JwtPayload;
+```
+
+`lib/auth.ts` (warn):
+
+```ts
+const { exp } = jwt.decode(token) as JwtPayload;
+```
+
+`middleware.ts` (block):
+
+```ts
+const payload = decodeJwt(token);
+```
+
+`server/app.js` (block):
+
+```js
+req.user = jwt.decode(token);
+```
+
+## Not flagged
+
+- `const decoded = jwt.decode(token) as { sub: string };` in `__tests__/auth.test.ts`: tests inspect tokens directly
+- `const { name, role } = jwtDecode<{ name: string; role: string }>(token);` in `components/UserBadge.tsx`: browser code; the server verifies the token
+- `const header = jwt.decode(token, { complete: true })?.header;` in `lib/auth.ts`: reads the key ID, then verifies below
+- `return jwt.verify(token, key, { algorithms: ['RS256'] });` in `lib/auth.ts`: fixed algorithms list
+- `const { exp } = jwt.decode(token) as JwtPayload;` in `lib/auth.ts`: our own token, signed on the line above
+- `const decoded = jwt.decode(token) as { id?: string } | null;` in `lib/auth.ts`: called from verifyToken, which verifies with the owner's key
+- `{ secretOrKey: process.env.JWT_SECRET, algorithms: ['HS256'], ignoreExpiration: false },` in `server/app.js`: fixed algorithm and expiry enforced
+
+## How to fix
+
+Verify the token with jwt.verify() or jwtVerify() (with a fixed algorithms list) before trusting any claim.
+
+## If the finding is wrong
+
+Add a comment on the line above, in the comment syntax of the file, that says who decided and why:
+
+```
+ubon-ignore web/jwt-unverified: <who decided>: <evidence>
+```
+
+Or turn the rule off for the project in `ubon.json`: `"rules": { "web/jwt-unverified": "off" }`. See [configuration](../../config.md).
+
+Fixtures: [fixtures/rules/web/jwt-unverified](../../../fixtures/rules/web/jwt-unverified).
+
 <!-- docs/rules/web/open-redirect.md -->
 
 # web/open-redirect
@@ -2269,6 +2657,184 @@ ubon-ignore web/open-redirect: <who decided>: <evidence>
 Or turn the rule off for the project in `ubon.json`: `"rules": { "web/open-redirect": "off" }`. See [configuration](../../config.md).
 
 Fixtures: [fixtures/rules/web/open-redirect](../../../fixtures/rules/web/open-redirect).
+
+<!-- docs/rules/web/insecure-cookie.md -->
+
+# web/insecure-cookie
+
+Session cookie without httpOnly or secure.
+
+A cookie named like a session or token (session, sid, token, auth, jwt, access_token, refresh_token, remember) set without httpOnly or without secure, or set from browser JavaScript.
+
+- Default level: `warn`.
+- Looks at: each file in scope, on its own.
+- References: [CWE-1004](https://cwe.mitre.org/data/definitions/1004.html), [CWE-614](https://cwe.mitre.org/data/definitions/614.html), OWASP A07:2025.
+
+## Why it matters
+
+Without httpOnly, any script on the page (an XSS bug, a compromised dependency) can read the session cookie and use it elsewhere. Without secure, the browser also sends it over plain HTTP, where it can be intercepted.
+
+## Flagged
+
+`server.js`:
+
+```js
+res.cookie('token', token);
+```
+
+`server.js`:
+
+```js
+res.cookie('remember_me', '1', { maxAge: 30 * 24 * 3600 * 1000, httpOnly: true });
+```
+
+`server.js`:
+
+```js
+res.setHeader('Set-Cookie', `session=${token}; Path=/; SameSite=Lax`);
+```
+
+`server.js`:
+
+```js
+res.cookie(SESSION_COOKIE_NAME, sign(req.body), { httpOnly: true });
+```
+
+`src/index.ts`:
+
+```ts
+setCookie(c, 'auth', token, { path: '/' });
+```
+
+`app/api/login/route.ts`:
+
+```ts
+cookieStore.set('session', token);
+```
+
+`app/api/login/route.ts`:
+
+```ts
+(await cookies()).set({ name: 'refresh_token', value: token, httpOnly: true });
+```
+
+`app/api/login/route.ts`:
+
+```ts
+res.cookies.set('access_token', token, { secure: true });
+```
+
+## Not flagged
+
+- `res.cookie('connect.sid', token, { httpOnly: true, secure: true });` in `server.js`: both flags
+- `res.cookie('XSRF-TOKEN', req.csrfToken());` in `server.js`: CSRF cookies must be readable by scripts
+- `res.cookie('locale', 'en');` in `server.js`: not an auth cookie
+- `res.setHeader('Set-Cookie', ['session=${token}; Path=/; HttpOnly; Secure']);` in `server.js`: both flags in the string
+- `res.setHeader('Set-Cookie', 'jwt=${token}; Path=/; HttpOnly${process.env.NODE_ENV === 'production' ? '; Secure' : ''}');` in `server.js`: Secure is added in production
+- `res.json({ ok: true });` in `server.js`: true });
+- `res.cookie(THEME_COOKIE_NAME, 'dark');` in `server.js`: a constant named after a non-auth cookie
+- `setCookie(c, 'auth', token, { path: '/', httpOnly: true, secure: true });` in `src/index.ts`: both flags
+- `setCookie(c, 'auth', token, { httpOnly: true, prefix: 'secure' });` in `src/index.ts`: the __Secure- prefix makes it secure
+- `setCookie(c, 'color_mode', 'dark');` in `src/index.ts`: not an auth cookie
+
+## How to fix
+
+Set the cookie with httpOnly: true and secure: true (secure may depend on NODE_ENV for local development).
+
+## If the finding is wrong
+
+Add a comment on the line above, in the comment syntax of the file, that says who decided and why:
+
+```
+ubon-ignore web/insecure-cookie: <who decided>: <evidence>
+```
+
+Or turn the rule off for the project in `ubon.json`: `"rules": { "web/insecure-cookie": "off" }`. See [configuration](../../config.md).
+
+Fixtures: [fixtures/rules/web/insecure-cookie](../../../fixtures/rules/web/insecure-cookie).
+
+<!-- docs/rules/web/token-in-web-storage.md -->
+
+# web/token-in-web-storage
+
+Auth token in localStorage or sessionStorage.
+
+localStorage or sessionStorage used to store a value named like an auth credential (token, accessToken, refreshToken, jwt, session, apiKey, password).
+
+- Default level: `warn`.
+- Looks at: each file in scope, on its own.
+- References: [CWE-922](https://cwe.mitre.org/data/definitions/922.html), OWASP A07:2025.
+
+## Why it matters
+
+Every script on the page can read web storage, so one XSS bug or compromised dependency is enough to steal the token and use it elsewhere. An httpOnly cookie keeps the token out of reach of scripts.
+
+## Flagged
+
+`src/components/Settings.tsx`:
+
+```tsx
+const [apiKey, setApiKey] = useLocalStorage('openai-api-key', '');
+```
+
+`src/lib/auth.ts`:
+
+```ts
+localStorage.setItem('token', data.token);
+```
+
+`src/lib/auth.ts`:
+
+```ts
+localStorage.setItem('accessToken', data.access_token);
+```
+
+`src/lib/auth.ts`:
+
+```ts
+sessionStorage.setItem(TOKEN_KEY, data.token);
+```
+
+`src/lib/auth.ts`:
+
+```ts
+localStorage.setItem('user', JSON.stringify({ ...data.user, jwt: data.jwt }));
+```
+
+`src/lib/auth.ts`:
+
+```ts
+window.localStorage.refresh_token = tokens.refresh_token;
+```
+
+## Not flagged
+
+- `localStorage.setItem('token', 'test-token');` in `src/__tests__/auth.test.ts`: tests set up storage directly
+- `const [draft, setDraft] = useLocalStorage('chat-input', '');` in `src/components/Settings.tsx`: a draft message
+- `localStorage.setItem('theme', theme);` in `src/components/Settings.tsx`: theme preference
+- `localStorage.setItem('locale', locale);` in `src/components/Settings.tsx`: language preference
+- `localStorage.setItem('sidebar:state', String(open));` in `src/components/Settings.tsx`: UI state
+- `localStorage.setItem('chat-session', JSON.stringify(messages));` in `src/components/Settings.tsx`: a chat transcript, not an auth session
+- `localStorage.setItem('maxTokens', String(maxTokens));` in `src/components/Settings.tsx`: a model token limit
+- `sessionStorage.setItem('hasSeenOnboarding', 'true');` in `src/components/Settings.tsx`: a flag
+- `localStorage.setItem('tokenExpiresAt', String(data.expiresAt));` in `src/lib/auth.ts`: an expiry time, not the token
+- `localStorage.removeItem('token');` in `src/lib/auth.ts`: removing is what logout should do
+
+## How to fix
+
+Keep the session in an httpOnly, secure cookie set by the server, or hold the token in memory only.
+
+## If the finding is wrong
+
+Add a comment on the line above, in the comment syntax of the file, that says who decided and why:
+
+```
+ubon-ignore web/token-in-web-storage: <who decided>: <evidence>
+```
+
+Or turn the rule off for the project in `ubon.json`: `"rules": { "web/token-in-web-storage": "off" }`. See [configuration](../../config.md).
+
+Fixtures: [fixtures/rules/web/token-in-web-storage](../../../fixtures/rules/web/token-in-web-storage).
 
 <!-- docs/rules/data/rls-disabled.md -->
 
@@ -2641,6 +3207,101 @@ ubon-ignore data/firebase-open-rules: <who decided>: <evidence>
 Or turn the rule off for the project in `ubon.json`: `"rules": { "data/firebase-open-rules": "off" }`. See [configuration](../../config.md).
 
 Fixtures: [fixtures/rules/data/firebase-open-rules](../../../fixtures/rules/data/firebase-open-rules).
+
+<!-- docs/rules/llm/browser-key.md -->
+
+# llm/browser-key
+
+LLM API key in browser code.
+
+An LLM SDK or a direct request to an LLM API in code that runs in the browser, with a key from a public env var (VITE_, NEXT_PUBLIC_, ...) or a literal, including SDKs created with dangerouslyAllowBrowser: true.
+
+- Default level: `block`.
+- Levels: block for a key from a public env var or a literal in browser code; warn for dangerouslyAllowBrowser: true in server code (it has no effect there) and in browser code whose key is missing or undefined in the browser; warn in example, sample, and demo folders.
+- Looks at: the project as a whole, across files.
+- References: [CWE-200](https://cwe.mitre.org/data/definitions/200.html), [CWE-522](https://cwe.mitre.org/data/definitions/522.html), [CWE-798](https://cwe.mitre.org/data/definitions/798.html), OWASP LLM02:2025, OWASP LLM10:2025, OWASP A04:2025.
+
+## Why it matters
+
+Everything in the browser bundle is public: anyone who opens the site can copy the key from the JavaScript and run up usage on your account. This is the most common leak in AI-built apps that call OpenAI or Gemini straight from the browser.
+
+## Flagged
+
+`src/api.js` (block):
+
+```js
+apiKey: process.env.REACT_APP_OPENAI_API_KEY,
+```
+
+`app/components/Assistant.tsx` (warn):
+
+```tsx
+const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY, dangerouslyAllowBrowser: true });
+```
+
+`app/components/Chat.tsx` (block):
+
+```tsx
+const openai = new OpenAI({ apiKey: process.env.NEXT_PUBLIC_OPENAI_API_KEY, dangerouslyAllowBrowser: true });
+```
+
+`lib/ai.ts` (block):
+
+```ts
+const provider = createOpenAI({ apiKey: process.env.NEXT_PUBLIC_OPENAI_KEY });
+```
+
+`examples/browser-demo/main.ts` (warn):
+
+```ts
+const client = new OpenAI({ apiKey: import.meta.env.VITE_OPENAI_API_KEY, dangerouslyAllowBrowser: true });
+```
+
+`server/index.ts` (warn):
+
+```ts
+const legacy = new OpenAI({ apiKey: process.env.OPENAI_API_KEY, dangerouslyAllowBrowser: true });
+```
+
+`src/api/assistant.ts` (block):
+
+```ts
+export const client = new OpenAI({ apiKey: OPENAI_API_KEY });
+```
+
+`src/api/assistant.ts` (block):
+
+```ts
+const ai = new GoogleGenAI({ apiKey: ensureGeminiKey() });
+```
+
+## Not flagged
+
+- `const openai = new OpenAI();` in `app/api/chat/route.ts`: route handlers run on the server
+- `const provider = createOpenAI({ apiKey: process.env.OPENAI_API_KEY });` in `app/api/chat/route.ts`: server-only key in a route handler
+- `headers: { Authorization: 'Bearer ${process.env.OPENAI_API_KEY}' },` in `app/api/chat/route.ts`: server code
+- `const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });` in `server/index.ts`: server code with a server-only key
+- `return new OpenAI({ apiKey: userKey, dangerouslyAllowBrowser: true });` in `src/lib/openai.ts`: the user's own key
+- `export const viaProxy = new OpenAI({ baseURL: '/api/openai', apiKey: 'unused', dangerouslyAllowBrowser: true });` in `src/lib/openai.ts`: the app's own proxy holds the key
+- `export const local = new OpenAI({ baseURL: 'http://localhost:11434/v1', apiKey: 'ollama', dangerouslyAllowBrowser: true });` in `src/lib/openai.ts`: a local model server
+- `const res = await fetch('/api/chat', { method: 'POST', headers: { Authorization: 'Bearer ${token}' }, body: JSON.stringify({ prompt }) });` in `src/services/chat.ts`: the app's own API
+- `const res = await fetch('https://api.openweathermap.org/data/2.5/weather?q=${city}&appid=${import.meta.env.VITE_WEATHER_KEY}');` in `src/services/chat.ts`: not an LLM API
+
+## How to fix
+
+Move the model call to a server route or Server Action that reads the key from a server-only env var, and have the browser call that route.
+
+## If the finding is wrong
+
+Add a comment on the line above, in the comment syntax of the file, that says who decided and why:
+
+```
+ubon-ignore llm/browser-key: <who decided>: <evidence>
+```
+
+Or turn the rule off for the project in `ubon.json`: `"rules": { "llm/browser-key": "off" }`. See [configuration](../../config.md).
+
+Fixtures: [fixtures/rules/llm/browser-key](../../../fixtures/rules/llm/browser-key).
 
 <!-- docs/rules/llm/output-to-sink.md -->
 

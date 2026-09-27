@@ -28,8 +28,8 @@ export async function GET(request: Request) {
 }
 
 export async function POST() {
-  const res = NextResponse.json({ ok: true });
-  res.headers.set('Access-Control-Allow-Origin', '*'); // expect-block: web/cors-credentials-wildcard
+  const res = NextResponse.json({ saved: true });
+  res.headers.set('Access-Control-Allow-Origin', '*'); // expect-warn: web/cors-credentials-wildcard
   res.headers.set('Access-Control-Allow-Credentials', 'true');
   return res;
 }

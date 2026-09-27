@@ -5,8 +5,8 @@ const ALLOWED_ORIGINS = ['https://app.example.com', 'https://admin.example.com']
 const app = express();
 
 app.use('/v1', cors({ origin: true, credentials: true })); // expect-block: web/cors-credentials-wildcard
-app.use('/v2', cors({ origin: '*', credentials: true })); // expect-block: web/cors-credentials-wildcard
-app.use('/v3', cors({ credentials: true })); // expect-block: web/cors-credentials-wildcard
+app.use('/v2', cors({ origin: '*', credentials: true })); // expect-warn: web/cors-credentials-wildcard
+app.use('/v3', cors({ credentials: true })); // expect-warn: web/cors-credentials-wildcard
 app.use('/v4', cors({ origin: (origin, callback) => callback(null, true), credentials: true })); // expect-block: web/cors-credentials-wildcard
 app.use('/v5', cors({ origin: ALLOWED_ORIGINS, credentials: true })); // ok: fixed list of origins
 app.use('/v6', cors({ origin: (origin, cb) => cb(null, ALLOWED_ORIGINS.includes(origin)), credentials: true })); // ok: the callback checks a list
@@ -16,6 +16,19 @@ app.use('/config', cors({ origin: process.env.CORS_ORIGIN, credentials: true }))
 
 app.use((req, res, next) => {
   res.setHeader('Access-Control-Allow-Origin', req.headers.origin); // expect-block: web/cors-credentials-wildcard
+  res.setHeader('Access-Control-Allow-Credentials', 'true');
+  next();
+});
+
+// The usual workaround for the * that browsers refuse: echo the Origin header, with * as a fallback.
+app.use('/legacy', (req, res, next) => {
+  res.setHeader('Access-Control-Allow-Origin', req.headers.origin || '*'); // expect-block: web/cors-credentials-wildcard
+  res.setHeader('Access-Control-Allow-Credentials', 'true');
+  next();
+});
+
+app.use('/widgets', (req, res, next) => {
+  res.setHeader('Access-Control-Allow-Origin', '*'); // expect-warn: web/cors-credentials-wildcard
   res.setHeader('Access-Control-Allow-Credentials', 'true');
   next();
 });

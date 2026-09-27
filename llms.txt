@@ -42,11 +42,18 @@ Run `npx ubon check` to check the changes since the base branch. Exit code 1 mea
 - [web/path-traversal](https://github.com/luisfer/ubon/blob/main/docs/rules/web/path-traversal.md): Request data in a file path (block).
 - [web/code-eval](https://github.com/luisfer/ubon/blob/main/docs/rules/web/code-eval.md): Request data evaluated as code (block).
 - [web/xss-html-sink](https://github.com/luisfer/ubon/blob/main/docs/rules/web/xss-html-sink.md): Value rendered as HTML without sanitizing (warn).
+- [web/webhook-unverified](https://github.com/luisfer/ubon/blob/main/docs/rules/web/webhook-unverified.md): Webhook handler without signature verification (block).
+- [web/weak-token-randomness](https://github.com/luisfer/ubon/blob/main/docs/rules/web/weak-token-randomness.md): Credential generated with Math.random() (block).
+- [web/cors-credentials-wildcard](https://github.com/luisfer/ubon/blob/main/docs/rules/web/cors-credentials-wildcard.md): CORS allows any origin with credentials (block).
+- [web/jwt-unverified](https://github.com/luisfer/ubon/blob/main/docs/rules/web/jwt-unverified.md): JWT claims used without verifying the signature (block).
 - [web/open-redirect](https://github.com/luisfer/ubon/blob/main/docs/rules/web/open-redirect.md): Redirect to a URL from the request (warn).
+- [web/insecure-cookie](https://github.com/luisfer/ubon/blob/main/docs/rules/web/insecure-cookie.md): Session cookie without httpOnly or secure (warn).
+- [web/token-in-web-storage](https://github.com/luisfer/ubon/blob/main/docs/rules/web/token-in-web-storage.md): Auth token in localStorage or sessionStorage (warn).
 - [data/rls-disabled](https://github.com/luisfer/ubon/blob/main/docs/rules/data/rls-disabled.md): Supabase table without row level security (block).
 - [data/permissive-policy](https://github.com/luisfer/ubon/blob/main/docs/rules/data/permissive-policy.md): Supabase policy that allows every row (block).
 - [data/service-role-in-client](https://github.com/luisfer/ubon/blob/main/docs/rules/data/service-role-in-client.md): Supabase service role key in browser code (block).
 - [data/firebase-open-rules](https://github.com/luisfer/ubon/blob/main/docs/rules/data/firebase-open-rules.md): Firebase rules open to everyone (block).
+- [llm/browser-key](https://github.com/luisfer/ubon/blob/main/docs/rules/llm/browser-key.md): LLM API key in browser code (block).
 - [llm/output-to-sink](https://github.com/luisfer/ubon/blob/main/docs/rules/llm/output-to-sink.md): Model output used as code, SQL, a command, or HTML (block).
 - [llm/tool-dangerous-capability](https://github.com/luisfer/ubon/blob/main/docs/rules/llm/tool-dangerous-capability.md): Tool passes model-chosen arguments to commands, code, SQL, files, or fetch (block).
 - [llm/untrusted-system-prompt](https://github.com/luisfer/ubon/blob/main/docs/rules/llm/untrusted-system-prompt.md): Request or fetched text in a system prompt (warn).

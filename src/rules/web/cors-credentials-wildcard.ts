@@ -16,6 +16,12 @@ import { Bindings, exampleLevel, isCall, lastSegment } from './pattern-ast.ts';
  * Next.js `headers()` config, vercel.json, netlify.toml, and `_headers`
  * files. A wildcard without credentials is valid for public APIs and is not
  * reported.
+ *
+ * Levels: a reflected origin, `origin: true`, or an origin callback that
+ * accepts every origin is block. A literal * with credentials is warn:
+ * browsers refuse those responses, so the setting breaks credentialed
+ * requests instead of exposing data. @koa/cors is the exception, because it
+ * sends the request's Origin in place of * when credentials are on.
  */
 
 type OriginKind = 'wildcard' | 'reflected' | 'other';
@@ -129,12 +135,22 @@ function originKind(value: Node | null | undefined, ctx: JsContext, b: Bindings,
   return 'other';
 }
 
-/** cors({ origin }) option: '*', true, or a function that allows every origin, with a short description for the message. */
-function corsOriginOption(value: Node | null, b: Bindings, parents: readonly Node[], defaultKind: OriginKind): { kind: OriginKind; detail: string } {
-  if (!value) return { kind: defaultKind, detail: defaultKind === 'wildcard' ? 'no origin option, which defaults to *' : 'no origin option, which echoes the Origin header by default' };
+/**
+ * cors({ origin }) option: '*', true, or a function that allows every origin, with a short description for the message.
+ * No origin option means '*' in every package here. `starEchoes` is set for @koa/cors, which sends the request's
+ * Origin header in place of * when credentials are on, so its * is a reflected origin.
+ */
+function corsOriginOption(value: Node | null, b: Bindings, parents: readonly Node[], starEchoes: boolean): { kind: OriginKind; detail: string } {
+  if (!value) {
+    return starEchoes
+      ? { kind: 'reflected', detail: 'no origin option, so @koa/cors echoes the Origin header' }
+      : { kind: 'wildcard', detail: 'the default without an origin option' };
+  }
   const v = b.follow(value, parents);
   if (!v) return { kind: 'other', detail: '' };
-  if (stringValue(v) === '*') return { kind: 'wildcard', detail: "origin: '*'" };
+  if (stringValue(v) === '*') {
+    return starEchoes ? { kind: 'reflected', detail: "origin: '*', which @koa/cors turns into the request's Origin header" } : { kind: 'wildcard', detail: "origin: '*'" };
+  }
   if (boolValue(v) === true) return { kind: 'reflected', detail: 'origin: true echoes the Origin header' };
   const kind = originFunctionKind(v);
   return { kind, detail: kind === 'reflected' ? 'the origin callback accepts every origin' : '' };
@@ -166,20 +182,30 @@ function originFunctionKind(v: Node): OriginKind {
   return 'other';
 }
 
+/** Why a literal * with credentials is warn: the browser refuses the response, so nothing is exposed. */
+const REFUSED = 'which browsers refuse, so credentialed cross-origin requests fail instead of exposing data';
+
 /** Message for headers set directly: `subject` sets the header, `credLine` is where credentials are allowed (when on another line). */
 function headerMessage(kind: OriginKind, subject: string, credLine?: number): string {
   const cred = credLine ? ` while Access-Control-Allow-Credentials is true (line ${credLine})` : ' together with Access-Control-Allow-Credentials: true';
   return kind === 'wildcard'
-    ? `${subject} sets Access-Control-Allow-Origin to *${cred}.`
+    ? `${subject} sets Access-Control-Allow-Origin to *${cred}, ${REFUSED}.`
     : `${subject} copies the request's Origin header into Access-Control-Allow-Origin${cred}, and nothing checks it against an allowlist.`;
 }
 
 /** Message for cors middleware options. */
 function corsMessage(kind: OriginKind, subject: string, detail: string): string {
-  return kind === 'wildcard' ? `${subject} allows every origin (${detail}) with credentials: true.` : `${subject} accepts any request origin (${detail}) with credentials: true.`;
+  return kind === 'wildcard'
+    ? `${subject} sends Access-Control-Allow-Origin: * (${detail}) with credentials: true, ${REFUSED}.`
+    : `${subject} accepts any request origin (${detail}) with credentials: true.`;
 }
 
-const FIX_WILDCARD = 'Allow a fixed list of trusted origins, or drop Access-Control-Allow-Credentials if the API does not use cookies or auth headers.';
+/** A literal * with credentials is warn (see REFUSED); a reflected or accept-everything origin is block. */
+function levelFor(kind: OriginKind, file: { contexts: ReadonlySet<string> }): 'block' | 'warn' {
+  return kind === 'wildcard' ? 'warn' : exampleLevel(file);
+}
+
+const FIX_WILDCARD = 'Allow a fixed list of trusted origins instead of echoing the Origin header, or drop Access-Control-Allow-Credentials if the API does not use cookies or auth headers.';
 const FIX_REFLECTED = 'Check the Origin header against a fixed list of trusted origins before echoing it back.';
 
 interface HeaderSet {
@@ -195,11 +221,11 @@ export const corsCredentialsWildcard: Rule = {
     scope: 'file',
     title: 'CORS allows any origin with credentials',
     summary: 'Access-Control-Allow-Origin set to * or to the request\'s own Origin while Access-Control-Allow-Credentials is true, in header objects, header calls, the cors package, Hono, Fastify, Koa, NestJS, Next.js headers(), vercel.json, or netlify.toml.',
-    why: 'With credentials allowed, a reflected origin lets any website make requests with the user\'s cookies and read the responses, which exposes account data to every page the user visits. A literal * with credentials is rejected by browsers, and the usual follow-up of echoing the Origin header opens that hole.',
+    why: 'With credentials allowed, a reflected origin lets any website make requests with the user\'s cookies and read the responses, which exposes account data to every page the user visits. Browsers refuse a literal * with credentials, so that setting breaks credentialed requests instead of exposing data, and the usual workaround of echoing the Origin header opens the hole.',
     fix: 'Allow only a fixed list of trusted origins when credentials are enabled.',
     cwe: ['CWE-942', 'CWE-346'],
     owasp: ['A01:2025', 'A02:2025'],
-    levels: 'block, except in example, sample, and demo folders, where it is warn.',
+    levels: 'block for an origin copied from the request, origin: true, or an origin callback that accepts every origin, with credentials (and for * in @koa/cors, which echoes the Origin header); warn for a literal * with credentials, which browsers refuse, and in example, sample, and demo folders.',
   },
   appliesTo: (file) => !file.generated && !file.contexts.has('test'),
   text(ctx) {
@@ -219,7 +245,7 @@ export const corsCredentialsWildcard: Rule = {
         const oh = list[o] as Record<string, unknown>;
         const ch = list[c] as Record<string, unknown>;
         if (String(oh.value).trim() !== '*' || String(ch.value).trim().toLowerCase() !== 'true') return;
-        ctx.report({ line: s.lineOf(['headers', i, 'headers', o]) ?? 1, message: headerMessage('wildcard', `vercel.json (headers for ${String(rule.source ?? 'a route')})`), fix: FIX_WILDCARD, level: exampleLevel(ctx.file) });
+        ctx.report({ line: s.lineOf(['headers', i, 'headers', o]) ?? 1, message: headerMessage('wildcard', `vercel.json (headers for ${String(rule.source ?? 'a route')})`), fix: FIX_WILDCARD, level: levelFor('wildcard', ctx.file) });
       });
       return;
     }
@@ -237,7 +263,7 @@ export const corsCredentialsWildcard: Rule = {
           if (/origin/i.test(m[2] as string) && m[3] === '*') originLine = i + 1;
           if (/credentials/i.test(m[2] as string) && (m[3] as string).toLowerCase() === 'true') credentials = true;
         }
-        if (originLine > 0 && credentials) ctx.report({ line: originLine, message: headerMessage('wildcard', base), fix: FIX_WILDCARD, level: exampleLevel(ctx.file) });
+        if (originLine > 0 && credentials) ctx.report({ line: originLine, message: headerMessage('wildcard', base), fix: FIX_WILDCARD, level: levelFor('wildcard', ctx.file) });
       });
     }
   },
@@ -255,11 +281,11 @@ export const corsCredentialsWildcard: Rule = {
     };
     const reportKind = (node: Node, kind: OriginKind, text: string) => {
       if (kind === 'other') return;
-      ctx.report(node, { message: text, fix: kind === 'wildcard' ? FIX_WILDCARD : FIX_REFLECTED, key: kind, level: exampleLevel(ctx.file) });
+      ctx.report(node, { message: text, fix: kind === 'wildcard' ? FIX_WILDCARD : FIX_REFLECTED, key: kind, level: levelFor(kind, ctx.file) });
     };
 
-    /** cors packages: returns the origin kind implied by the options, or null when credentials are off. */
-    const checkCorsOptions = (node: Node, options: Node | null, where: string, defaultKind: OriginKind) => {
+    /** cors packages: reports the origin the options allow when credentials are on. `starEchoes`: see corsOriginOption. */
+    const checkCorsOptions = (node: Node, options: Node | null, where: string, starEchoes = false) => {
       const o = b().follow(options, ctx.parents);
       if (!o || o.type !== 'ObjectExpression') return;
       const credProp = o.properties.find((p) => p.type === 'ObjectProperty' && keyName(p) === 'credentials');
@@ -267,7 +293,7 @@ export const corsCredentialsWildcard: Rule = {
       const originProp = o.properties.find((p) => (p.type === 'ObjectProperty' || p.type === 'ObjectMethod') && keyName(p) === 'origin');
       const originValue = originProp ? (originProp.type === 'ObjectProperty' ? (originProp.value as Node) : originProp) : null;
       if (o.properties.some((p) => p.type === 'SpreadElement') && !originProp) return;
-      const { kind, detail } = corsOriginOption(originValue, b(), ctx.parents, defaultKind);
+      const { kind, detail } = corsOriginOption(originValue, b(), ctx.parents, starEchoes);
       reportKind(originProp ?? credProp ?? node, kind, corsMessage(kind, where, detail));
     };
 
@@ -312,34 +338,30 @@ export const corsCredentialsWildcard: Rule = {
         const args = node.arguments as Node[];
         const canonical = ctx.imports.canonical(callee) ?? '';
 
-        // cors(options) from the cors package (Express, Connect), Hono, and Koa.
-        if (/^cors#(default|\*)$/.test(canonical)) {
-          checkCorsOptions(node, args[0] ?? null, 'cors()', 'wildcard');
-          return;
-        }
-        if (canonical === 'hono/cors#cors') {
-          checkCorsOptions(node, args[0] ?? null, 'cors()', 'wildcard');
+        // cors(options) from the cors package (Express, Connect), Hono, and Koa. All default to *.
+        if (/^cors#(default|\*)$/.test(canonical) || canonical === 'hono/cors#cors') {
+          checkCorsOptions(node, args[0] ?? null, 'cors()');
           return;
         }
         if (/^@koa\/cors#(default|\*)$/.test(canonical)) {
-          checkCorsOptions(node, args[0] ?? null, 'cors()', 'reflected');
+          checkCorsOptions(node, args[0] ?? null, 'cors()', true);
           return;
         }
         const method = callee.type === 'MemberExpression' || callee.type === 'OptionalMemberExpression' ? propertyName(callee) : null;
         // fastify.register(cors, options)
         if (method === 'register' && /^(@fastify\/cors|fastify-cors)#(default|\*)$/.test(ctx.imports.canonical(args[0]) ?? '')) {
-          checkCorsOptions(node, args[1] ?? null, 'register(cors)', 'wildcard');
+          checkCorsOptions(node, args[1] ?? null, 'register(cors)');
           return;
         }
-        // NestJS: app.enableCors(options), NestFactory.create(AppModule, { cors: options })
+        // NestJS: app.enableCors(options), NestFactory.create(AppModule, { cors: options }); both use the cors package or @fastify/cors.
         if (method === 'enableCors') {
-          checkCorsOptions(node, args[0] ?? null, 'enableCors()', 'wildcard');
+          checkCorsOptions(node, args[0] ?? null, 'enableCors()');
           return;
         }
         if (canonical === '@nestjs/core#NestFactory.create') {
           const opts = b().follow(args[1] ?? null, ctx.parents);
           const cors = opts?.type === 'ObjectExpression' ? opts.properties.find((p) => p.type === 'ObjectProperty' && keyName(p) === 'cors') : undefined;
-          if (cors && cors.type === 'ObjectProperty') checkCorsOptions(node, cors.value as Node, 'NestFactory.create({ cors })', 'wildcard');
+          if (cors && cors.type === 'ObjectProperty') checkCorsOptions(node, cors.value as Node, 'NestFactory.create({ cors })');
           return;
         }
 

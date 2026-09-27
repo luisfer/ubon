@@ -4,7 +4,7 @@
 [[headers]]
   for = "/api/*"
   [headers.values]
-    Access-Control-Allow-Origin = "*" # expect-block: web/cors-credentials-wildcard
+    Access-Control-Allow-Origin = "*" # expect-warn: web/cors-credentials-wildcard
     Access-Control-Allow-Credentials = "true"
 
 [[headers]]

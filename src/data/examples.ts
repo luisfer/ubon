@@ -402,6 +402,138 @@ export const EXAMPLES: Record<string, { flagged: RuleExample[]; safe: RuleExampl
       }
     ]
   },
+  "web/webhook-unverified": {
+    "flagged": [
+      {
+        "file": "app/api/stripe/route.ts",
+        "code": "const body = await req.json();"
+      },
+      {
+        "file": "app/api/webhooks/resend/route.ts",
+        "code": "const event = await request.json();"
+      },
+      {
+        "file": "app/api/webhooks/stripe/route.ts",
+        "code": "const body = await req.text();"
+      }
+    ],
+    "safe": [
+      {
+        "file": "app/api/billing/webhook/route.ts",
+        "code": "const body = await req.text();",
+        "note": "verified with constructEvent below"
+      },
+      {
+        "file": "app/api/checkout/route.ts",
+        "code": "const { priceId } = await req.json();",
+        "note": "a signed-in checkout route, not a receiver"
+      },
+      {
+        "file": "app/api/hubspot/webhook/route.ts",
+        "code": "const rawBody = await req.text();",
+        "note": "the signature is compared with a hash of the client secret and the body"
+      }
+    ]
+  },
+  "web/weak-token-randomness": {
+    "flagged": [
+      {
+        "file": "app/api/otp/route.ts",
+        "code": "const otp = Math.floor(100000 + Math.random() * 900000).toString();"
+      },
+      {
+        "file": "app/api/otp/route.ts",
+        "code": "const code = Math.floor(1000 + Math.random() * 9000);"
+      },
+      {
+        "file": "examples/magic-link/server.ts",
+        "code": "const token = Math.random().toString(36).slice(2);"
+      }
+    ],
+    "safe": [
+      {
+        "file": "app/api/otp/route.ts",
+        "code": "if (Math.random() < 0.1) console.info('sampled request');",
+        "note": "sampling"
+      },
+      {
+        "file": "app/api/otp/route.ts",
+        "code": "return Response.json({ ok: true });",
+        "note": "true });"
+      },
+      {
+        "file": "components/ChatList.tsx",
+        "code": "const [width] = useState(() => `${Math.floor(Math.random() * 40) + 50}%`);",
+        "note": "skeleton width for the UI"
+      }
+    ]
+  },
+  "web/cors-credentials-wildcard": {
+    "flagged": [
+      {
+        "file": "server.js",
+        "code": "app.use('/v1', cors({ origin: true, credentials: true }));"
+      },
+      {
+        "file": "server.js",
+        "code": "app.use('/v2', cors({ origin: '*', credentials: true }));"
+      },
+      {
+        "file": "server.js",
+        "code": "app.use('/v3', cors({ credentials: true }));"
+      }
+    ],
+    "safe": [
+      {
+        "file": "server.js",
+        "code": "app.use('/v5', cors({ origin: ALLOWED_ORIGINS, credentials: true }));",
+        "note": "fixed list of origins"
+      },
+      {
+        "file": "server.js",
+        "code": "app.use('/v6', cors({ origin: (origin, cb) => cb(null, ALLOWED_ORIGINS.includes(origin)), credentials: true }));",
+        "note": "the callback checks a list"
+      },
+      {
+        "file": "server.js",
+        "code": "app.use('/public', cors());",
+        "note": "public API without credentials"
+      }
+    ]
+  },
+  "web/jwt-unverified": {
+    "flagged": [
+      {
+        "file": "app/api/me/route.ts",
+        "code": "const { payload } = decode(token);"
+      },
+      {
+        "file": "app/api/oauth/callback/route.ts",
+        "code": "const profile = jwt.decode(tokens.id_token) as { email: string };"
+      },
+      {
+        "file": "app/api/profile/route.ts",
+        "code": "const decoded = jwt.decode(token) as { userId: string } | null;"
+      }
+    ],
+    "safe": [
+      {
+        "file": "__tests__/auth.test.ts",
+        "code": "const decoded = jwt.decode(token) as { sub: string };",
+        "note": "tests inspect tokens directly"
+      },
+      {
+        "file": "components/UserBadge.tsx",
+        "code": "const { name, role } = jwtDecode<{ name: string; role: string }>(token);",
+        "note": "browser code; the server verifies the token"
+      },
+      {
+        "file": "lib/auth.ts",
+        "code": "const header = jwt.decode(token, { complete: true })?.header;",
+        "note": "reads the key ID, then verifies below"
+      }
+    ]
+  },
   "web/open-redirect": {
     "flagged": [
       {
@@ -432,6 +564,72 @@ export const EXAMPLES: Record<string, { flagged: RuleExample[]; safe: RuleExampl
         "file": "app/api/auth/callback/route.ts",
         "code": "return NextResponse.redirect(url);",
         "note": "origin compared with the request's origin"
+      }
+    ]
+  },
+  "web/insecure-cookie": {
+    "flagged": [
+      {
+        "file": "server.js",
+        "code": "res.cookie('token', token);"
+      },
+      {
+        "file": "server.js",
+        "code": "res.cookie('remember_me', '1', { maxAge: 30 * 24 * 3600 * 1000, httpOnly: true });"
+      },
+      {
+        "file": "server.js",
+        "code": "res.setHeader('Set-Cookie', `session=${token}; Path=/; SameSite=Lax`);"
+      }
+    ],
+    "safe": [
+      {
+        "file": "server.js",
+        "code": "res.cookie('connect.sid', token, { httpOnly: true, secure: true });",
+        "note": "both flags"
+      },
+      {
+        "file": "server.js",
+        "code": "res.cookie('XSRF-TOKEN', req.csrfToken());",
+        "note": "CSRF cookies must be readable by scripts"
+      },
+      {
+        "file": "server.js",
+        "code": "res.cookie('locale', 'en');",
+        "note": "not an auth cookie"
+      }
+    ]
+  },
+  "web/token-in-web-storage": {
+    "flagged": [
+      {
+        "file": "src/components/Settings.tsx",
+        "code": "const [apiKey, setApiKey] = useLocalStorage('openai-api-key', '');"
+      },
+      {
+        "file": "src/lib/auth.ts",
+        "code": "localStorage.setItem('token', data.token);"
+      },
+      {
+        "file": "src/lib/auth.ts",
+        "code": "localStorage.setItem('accessToken', data.access_token);"
+      }
+    ],
+    "safe": [
+      {
+        "file": "src/__tests__/auth.test.ts",
+        "code": "localStorage.setItem('token', 'test-token');",
+        "note": "tests set up storage directly"
+      },
+      {
+        "file": "src/components/Settings.tsx",
+        "code": "const [draft, setDraft] = useLocalStorage('chat-input', '');",
+        "note": "a draft message"
+      },
+      {
+        "file": "src/components/Settings.tsx",
+        "code": "localStorage.setItem('theme', theme);",
+        "note": "theme preference"
       }
     ]
   },
@@ -564,6 +762,39 @@ export const EXAMPLES: Record<string, { flagged: RuleExample[]; safe: RuleExampl
         "file": "apps/site/firestore.rules",
         "code": "allow update: if request.auth.uid != null;",
         "note": "signed-in writes on one path are not reported"
+      }
+    ]
+  },
+  "llm/browser-key": {
+    "flagged": [
+      {
+        "file": "src/api.js",
+        "code": "apiKey: process.env.REACT_APP_OPENAI_API_KEY,"
+      },
+      {
+        "file": "app/components/Assistant.tsx",
+        "code": "const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY, dangerouslyAllowBrowser: true });"
+      },
+      {
+        "file": "app/components/Chat.tsx",
+        "code": "const openai = new OpenAI({ apiKey: process.env.NEXT_PUBLIC_OPENAI_API_KEY, dangerouslyAllowBrowser: true });"
+      }
+    ],
+    "safe": [
+      {
+        "file": "app/api/chat/route.ts",
+        "code": "const openai = new OpenAI();",
+        "note": "route handlers run on the server"
+      },
+      {
+        "file": "app/api/chat/route.ts",
+        "code": "const provider = createOpenAI({ apiKey: process.env.OPENAI_API_KEY });",
+        "note": "server-only key in a route handler"
+      },
+      {
+        "file": "app/api/chat/route.ts",
+        "code": "headers: { Authorization: `Bearer ${process.env.OPENAI_API_KEY}` },",
+        "note": "server code"
       }
     ]
   },

@@ -2,7 +2,7 @@
 
 # Rules
 
-Ubon has 44 rules in 8 packs. A `block` finding stops an agent from finishing and fails `ubon check`; a `warn` finding is reported and does not. `ubon rules` prints this list with the levels set in your `ubon.json`.
+Ubon has 51 rules in 8 packs. A `block` finding stops an agent from finishing and fails `ubon check`; a `warn` finding is reported and does not. `ubon rules` prints this list with the levels set in your `ubon.json`.
 
 ## secret
 
@@ -32,7 +32,13 @@ Trust boundaries in web code: request data reaching SQL, shells, file paths, URL
 | [web/path-traversal](web/path-traversal.md) | block | Request data in a file path |
 | [web/code-eval](web/code-eval.md) | block | Request data evaluated as code |
 | [web/xss-html-sink](web/xss-html-sink.md) | warn | Value rendered as HTML without sanitizing |
+| [web/webhook-unverified](web/webhook-unverified.md) | block | Webhook handler without signature verification |
+| [web/weak-token-randomness](web/weak-token-randomness.md) | block | Credential generated with Math.random() |
+| [web/cors-credentials-wildcard](web/cors-credentials-wildcard.md) | block | CORS allows any origin with credentials |
+| [web/jwt-unverified](web/jwt-unverified.md) | block | JWT claims used without verifying the signature |
 | [web/open-redirect](web/open-redirect.md) | warn | Redirect to a URL from the request |
+| [web/insecure-cookie](web/insecure-cookie.md) | warn | Session cookie without httpOnly or secure |
+| [web/token-in-web-storage](web/token-in-web-storage.md) | warn | Auth token in localStorage or sessionStorage |
 
 ## data
 
@@ -51,6 +57,7 @@ Features built on language models: keys in the browser, model output reaching co
 
 | Rule | Level | What it catches |
 | --- | --- | --- |
+| [llm/browser-key](llm/browser-key.md) | block | LLM API key in browser code |
 | [llm/output-to-sink](llm/output-to-sink.md) | block | Model output used as code, SQL, a command, or HTML |
 | [llm/tool-dangerous-capability](llm/tool-dangerous-capability.md) | block | Tool passes model-chosen arguments to commands, code, SQL, files, or fetch |
 | [llm/untrusted-system-prompt](llm/untrusted-system-prompt.md) | warn | Request or fetched text in a system prompt |
