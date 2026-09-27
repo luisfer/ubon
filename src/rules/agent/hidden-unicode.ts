@@ -22,8 +22,8 @@ export interface HiddenUnicode {
   level: 'block' | 'warn';
   /** Short description for messages, for example "a right-to-left override (U+202E)". */
   what: string;
-  /** Set when the run is part of an emoji: a joiner between two emoji, or the tags of a subdivision flag. */
-  emoji?: 'joiner' | 'flag';
+  /** Set when the run is the tags of a subdivision flag emoji. */
+  emoji?: 'flag';
 }
 
 export interface HiddenUnicodeOptions {
@@ -149,7 +149,7 @@ function mainKind(run: number[]): HiddenKind {
 
 interface RunLevel {
   level: 'block' | 'warn' | null;
-  emoji?: 'joiner' | 'flag';
+  emoji?: 'flag';
 }
 
 function runLevel(run: number[], cps: number[], start: number, end: number, rtlLine: boolean, options: HiddenUnicodeOptions): RunLevel {
@@ -172,8 +172,8 @@ function runLevel(run: number[], cps: number[], start: number, end: number, rtlL
   // Only marks and zero-width characters from here on.
   const onlyJoiners = run.every((cp) => cp === 0x200d || cp === 0x200c);
   if (onlyJoiners && run.length === 1) {
-    // Emoji ZWJ sequences (family, profession, and flag emoji).
-    if (run[0] === 0x200d && PICTO.test(beforeChar) && PICTO.test(afterChar)) return options.agentFile ? { level: 'warn', emoji: 'joiner' } : level(null);
+    // Emoji ZWJ sequences (family, profession, and flag emoji). One joiner between two emoji cannot carry hidden text.
+    if (run[0] === 0x200d && PICTO.test(beforeChar) && PICTO.test(afterChar)) return level(null);
     // Persian, Arabic, and Indic text use joiners between letters.
     if (JOINING_SCRIPT.test(beforeChar) || JOINING_SCRIPT.test(afterChar)) return level(null);
   }
@@ -206,7 +206,7 @@ export const hiddenUnicode: Rule = {
     owasp: ['ASI01', 'ASI06'],
     references: ['https://trojansource.codes/', 'https://nvd.nist.gov/vuln/detail/CVE-2021-42574'],
     levels:
-      'block for tag characters, variation selector runs, and zero-width characters in agent files, and for bidi controls in any file; warn for bidi controls on lines with right-to-left text, zero-width joiners inside emoji sequences in agent files, subdivision flag emoji, and hidden characters in tests and docs.',
+      'block for tag characters, variation selector runs, and zero-width characters in agent files, and for bidi controls in any file; warn for bidi controls on lines with right-to-left text, subdivision flag emoji, and hidden characters in tests and docs. One zero-width joiner between two emoji, which is how family and profession emoji are written, is not reported.',
   },
   appliesTo: (file) => !file.generated,
   text(ctx) {
@@ -222,15 +222,13 @@ export const hiddenUnicode: Rule = {
       const level = lowStakes ? 'warn' : h.level;
       const where = agentFile ? 'This line of an agent file has' : 'This line has';
       const effect =
-        h.emoji === 'joiner'
-          ? 'inside an emoji sequence, which is how combined emoji are written but is also invisible in review'
-          : h.emoji === 'flag'
-            ? 'in a subdivision flag emoji, which is how regional flags are written but is also invisible in review'
-            : h.kind === 'bidi'
-              ? 'which changes the order in which the text is displayed'
-              : h.kind === 'mark'
-                ? 'which is invisible when the file is displayed'
-                : 'which people cannot see when they review the file but models read';
+        h.emoji === 'flag'
+          ? 'in a subdivision flag emoji, which is how regional flags are written but is also invisible in review'
+          : h.kind === 'bidi'
+            ? 'which changes the order in which the text is displayed'
+            : h.kind === 'mark'
+              ? 'which is invisible when the file is displayed'
+              : 'which people cannot see when they review the file but models read';
       ctx.report({
         line: h.line,
         column: h.column,

@@ -7,7 +7,7 @@ Hidden Unicode in agent files or code.
 Invisible characters (zero-width characters, Unicode tag characters) in agent instruction and config files, and bidi control characters in any file.
 
 - Default level: `block`.
-- Levels: block for tag characters, variation selector runs, and zero-width characters in agent files, and for bidi controls in any file; warn for bidi controls on lines with right-to-left text, zero-width joiners inside emoji sequences in agent files, subdivision flag emoji, and hidden characters in tests and docs.
+- Levels: block for tag characters, variation selector runs, and zero-width characters in agent files, and for bidi controls in any file; warn for bidi controls on lines with right-to-left text, subdivision flag emoji, and hidden characters in tests and docs. One zero-width joiner between two emoji, which is how family and profession emoji are written, is not reported.
 - Looks at: each file in scope, on its own.
 - References: [CWE-1007](https://cwe.mitre.org/data/definitions/1007.html), [CWE-451](https://cwe.mitre.org/data/definitions/451.html), OWASP ASI01, OWASP ASI06, <https://trojansource.codes/>, <https://nvd.nist.gov/vuln/detail/CVE-2021-42574>.
 
@@ -38,12 +38,6 @@ Name files clearly: ‮dm.txt‬
 `AGENTS.md` (warn):
 
 ```md
-The team: 👨‍👩‍👧
-```
-
-`AGENTS.md` (warn):
-
-```md
 Office: 🏴󠁧󠁢󠁳󠁣󠁴󠁿 Edinburgh
 ```
 
@@ -68,6 +62,7 @@ export const sample = '‮abc‬';
 ## Not flagged
 
 - `Use sentence case in headings.` in `.cursor/rules/style.mdc`: a byte order mark at the start of the file is not hidden text
+- `The team: 👨‍👩‍👧` in `AGENTS.md`: one zero width joiner between two emoji is how combined emoji are written
 - `Persian note: می‌خواهم` in `AGENTS.md`: a zero width non-joiner between Persian letters is normal writing
 - `Japanese note: 葛󠄀` in `AGENTS.md`: one variation selector after a kanji is an ideographic variation sequence
 - `export const greeting = 'שלום‏ world';` in `src/access.ts`: a right-to-left mark next to Hebrew text is normal in source code
