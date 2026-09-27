@@ -1,5 +1,5 @@
-import { closeSync, lstatSync, openSync, readdirSync, readSync, readFileSync } from 'node:fs';
-import { join, sep } from 'node:path';
+import { closeSync, lstatSync, openSync, readdirSync, readSync, readFileSync, realpathSync } from 'node:fs';
+import { basename, dirname, join, sep } from 'node:path';
 
 export type Lang =
   | 'js'
@@ -90,6 +90,28 @@ export const DEFAULT_SKIP_DIRS = [
 
 export function toPosix(path: string): string {
   return sep === '/' ? path : path.split(sep).join('/');
+}
+
+/**
+ * An absolute path with its symbolic links resolved, also for a file that
+ * does not exist yet: the nearest existing ancestor is resolved and the rest
+ * appended. macOS links /var and /tmp to /private/..., and git reports the
+ * resolved path while agents often report the path through the link.
+ */
+export function physicalPath(path: string): string {
+  const rest: string[] = [];
+  let current = path;
+  for (let depth = 0; depth < 256; depth++) {
+    try {
+      return join(realpathSync.native(current), ...rest);
+    } catch {
+      const parent = dirname(current);
+      if (parent === current) return path;
+      rest.unshift(basename(current));
+      current = parent;
+    }
+  }
+  return path;
 }
 
 /**

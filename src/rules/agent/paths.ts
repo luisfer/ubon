@@ -1,6 +1,7 @@
 import { closeSync, openSync, readSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { isAbsolute, posix, resolve, win32 } from 'node:path';
+import { physicalPath } from '../../core/files.ts';
 import { matchesAny } from '../../core/glob.ts';
 import { isEnvFileName } from '../secret/names.ts';
 import type { ActionVerdict, CommandContext } from './command-types.ts';
@@ -33,6 +34,11 @@ function toSlash(p: string): string {
   return p.replace(/\\/g, '/');
 }
 
+/** `abs` relative to `root` ('' for the root itself), or null when outside it. Both use forward slashes. */
+function under(root: string, abs: string): string | null {
+  return abs === root ? '' : abs.startsWith(`${root}/`) ? abs.slice(root.length + 1) : null;
+}
+
 export function resolveUserPath(input: string, ctx: PathCheckContext): ResolvedPath {
   const home = toSlash(ctx.home ?? homedir());
   let p = toSlash(input.trim());
@@ -45,7 +51,8 @@ export function resolveUserPath(input: string, ctx: PathCheckContext): ResolvedP
   else if (isAbsolute(p) || p.startsWith('/')) abs = posix.normalize(p);
   else abs = toSlash(resolve(toSlash(ctx.cwd), p));
   const root = toSlash(ctx.root).replace(/\/+$/, '');
-  const rel = abs === root ? '' : abs.startsWith(`${root}/`) ? abs.slice(root.length + 1) : null;
+  // Through a symlink (/var and /private/var on macOS), compare the resolved paths.
+  const rel = under(root, abs) ?? (windows ? null : under(toSlash(physicalPath(root)), toSlash(physicalPath(abs))));
   const homeRel = abs === home ? '' : abs.startsWith(`${home}/`) ? abs.slice(home.length + 1) : null;
   const base = abs.slice(abs.lastIndexOf('/') + 1);
   return { abs, rel, homeRel, base, shown: input.trim() };

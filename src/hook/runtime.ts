@@ -1,11 +1,11 @@
 import { existsSync } from 'node:fs';
-import { isAbsolute, relative, resolve } from 'node:path';
+import { dirname, isAbsolute, relative, resolve } from 'node:path';
 import { ConfigError, type UbonConfig, applyEnvDefaults, defaultConfig, loadConfig } from '../core/config.ts';
 import { git, isIgnored, repoRoot } from '../core/git.ts';
 import { maskValue, safeText } from '../core/mask.ts';
 import { type SessionEvent, appendEvent, findingsHash, loadSession, readEvents, sanitizeSessionId, startSession } from '../core/session.ts';
 import type { Finding } from '../core/types.ts';
-import { toPosix } from '../core/files.ts';
+import { physicalPath, toPosix } from '../core/files.ts';
 import { AGENT_INSTRUCTIONS, formatFindingLine } from '../report/agent.ts';
 import type { ActionVerdict, CommandContext } from '../rules/agent/command-types.ts';
 import type { PackageVetter } from '../rules/deps/verdict.ts';
@@ -61,7 +61,7 @@ export async function runHookEvent(input: RunHookInput): Promise<RunHookResult> 
   const cwd = parsed.ctx.cwd && existsSync(parsed.ctx.cwd) ? parsed.ctx.cwd : input.cwd;
   const ctx: HookContext = { ...parsed.ctx, cwd, agent: input.agent, event: input.event, sessionId: sanitizeSessionId(parsed.ctx.sessionId || 'default') };
   const event = parsed.event;
-  const root = repoRoot(cwd) ?? cwd;
+  const root = alignedRoot(repoRoot(cwd) ?? cwd, cwd);
 
   let config: UbonConfig;
   let configNotice: string | undefined;
@@ -288,9 +288,7 @@ class HookRuntime {
 
   private relative(path: string): string | null {
     const abs = isAbsolute(path) ? path : resolve(this.ctx.cwd, path);
-    const rel = toPosix(relative(this.root, abs));
-    if (!rel || rel.startsWith('..') || isAbsolute(rel)) return null;
-    return rel;
+    return inside(this.root, abs) ?? inside(physicalPath(this.root), physicalPath(abs));
   }
 
   private async postTool(action: ToolAction, output: string): Promise<HookDecision> {
@@ -352,6 +350,31 @@ class HookRuntime {
     void subagent;
     return { type: 'continue', reason: findingsMessage(`Ubon found ${blocking.length} blocking problem${blocking.length === 1 ? '' : 's'} in this session's changes. Fix ${blocking.length === 1 ? 'it' : 'them'} before you finish:`, blocking, [], report.notChecked) };
   }
+}
+
+/** The path relative to the root, or null when it is the root itself or outside it. */
+function inside(root: string, abs: string): string | null {
+  const rel = toPosix(relative(root, abs));
+  return !rel || rel.startsWith('..') || isAbsolute(rel) ? null : rel;
+}
+
+/**
+ * The project root, written the way the agent writes paths. git reports the
+ * resolved path (/private/var/... on macOS) while the agent's directory can go
+ * through a symlink (/var/...); compared as they are, every file the agent
+ * names would be outside the project.
+ */
+function alignedRoot(root: string, cwd: string): string {
+  const rel = relative(root, cwd);
+  if (!rel.startsWith('..') && !isAbsolute(rel)) return root;
+  const target = physicalPath(root);
+  for (let dir = cwd, depth = 0; depth < 256; depth++) {
+    if (physicalPath(dir) === target) return dir;
+    const parent = dirname(dir);
+    if (parent === dir) break;
+    dir = parent;
+  }
+  return root;
 }
 
 function findingsMessage(header: string, blocking: Finding[], warnings: Finding[], notChecked: string[] = []): string {

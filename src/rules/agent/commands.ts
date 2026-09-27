@@ -1,6 +1,7 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { homedir, tmpdir } from 'node:os';
 import { dirname, join, posix, resolve } from 'node:path';
+import { physicalPath } from '../../core/files.ts';
 import { maskSecrets } from '../../core/mask.ts';
 import { isInside, isUpstream, parseArgs, parseShell, stripVersion, type ShellCommand, type ShellDialect, type ShellParse, type ShellWord } from '../../lang/shell.ts';
 import type { PackageVerdict } from '../deps/verdict.ts';
@@ -18,6 +19,23 @@ import { CURL_VALUE_FLAGS, describeRemoteExec, effectiveArgv, effectiveName, fin
  * `env` do not hide a command, and a pattern inside a quoted argument (a commit
  * message that mentions `rm -rf /`) is not mistaken for a command.
  */
+
+/** A path in a form that compares: forward slashes, no trailing slash, and on Windows one letter case. */
+function comparable(p: string): string {
+  const slashed = p.replace(/\\/g, '/').replace(/(?<=.)\/+$/, '');
+  return process.platform === 'win32' ? slashed.toLowerCase() : slashed;
+}
+
+/** The same file or directory, also when one path goes through a symlink (/var and /private/var on macOS). */
+function samePath(a: string, b: string): boolean {
+  return comparable(a) === comparable(b) || comparable(physicalPath(a)) === comparable(physicalPath(b));
+}
+
+/** `outer` contains `inner`, also through a symlink. */
+function containsPath(outer: string, inner: string): boolean {
+  if (comparable(inner).startsWith(`${comparable(outer)}/`)) return true;
+  return comparable(physicalPath(inner)).startsWith(`${comparable(physicalPath(outer))}/`);
+}
 
 export interface CommandCheckOptions {
   /** Shell the command runs in. Default: detected (PowerShell cmdlets and syntax), else POSIX sh. */
@@ -419,7 +437,8 @@ class CommandRun {
       return null;
     }
     if (lead?.kind === 'command') return null;
-    if (word.expansions.length > 0 && !value.startsWith('~') && !value.startsWith('/')) return null;
+    // An expanded value is known only when it is absolute: /..., ~/..., or a Windows drive path.
+    if (word.expansions.length > 0 && !value.startsWith('~') && !value.startsWith('/') && !/^[A-Za-z]:[\\/]/.test(value)) return null;
     const quotedTilde = /^['"]~/.test(word.raw);
     if (!quotedTilde && /^~\/?(\*|\.\*)?$/.test(value)) return 'your home directory';
     if (c.dialect === 'powershell') {
@@ -435,8 +454,8 @@ class CommandRun {
       const home = this.home.replace(/\\/g, '/');
       if (norm === home) return 'your home directory';
       const root = this.ctx.root.replace(/\\/g, '/');
-      if (norm === root) return 'the whole project';
-      if (root.startsWith(`${norm}/`)) return `${norm}, which contains the project`;
+      if (samePath(norm, root)) return 'the whole project';
+      if (containsPath(norm, root)) return `${norm}, which contains the project`;
       return null;
     }
     if (/^(\.\.\/?)+(\*|\.\*)?$/.test(value)) return `${value}, which contains the project directory`;
@@ -447,12 +466,14 @@ class CommandRun {
     const abs = everything ? base : resolveUserPath(stripped || '.', { ...this.pathCtx, cwd: base }).abs;
     const root = resolve(this.ctx.root);
     if (everything || /\/(\*|\.\*)$/.test(value)) {
-      if (abs === root) return 'every file in the project';
-      if (root.startsWith(`${abs}/`)) return `every file in ${abs}, which contains the project`;
-      if (abs === this.home) return 'everything in your home directory';
+      if (samePath(abs, root)) return 'every file in the project';
+      if (containsPath(abs, root)) return `every file in ${abs}, which contains the project`;
+      if (samePath(abs, this.home)) return 'everything in your home directory';
     }
-    if (abs === join(root, '.git')) return "the project's .git directory and its history";
-    if (abs === root) return 'the whole project';
+    if (samePath(abs, join(root, '.git'))) return "the project's .git directory and its history";
+    if (samePath(abs, root)) return 'the whole project';
+    // A Windows path does not start with '/', so the home directory is compared here too.
+    if (samePath(abs, this.home)) return 'your home directory';
     return null;
   }
 

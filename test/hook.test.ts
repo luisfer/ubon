@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { writeFileSync } from 'node:fs';
+import { symlinkSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, test } from 'node:test';
 import { pathToFileURL } from 'node:url';
@@ -229,5 +229,39 @@ describe('hook start-up cost', () => {
     const run = spawnSync(process.execPath, ['--import', `data:text/javascript,${encodeURIComponent(register)}`, '--input-type=module', '-e', `const { main } = await import(${JSON.stringify(main)}); process.exitCode = await main(['hook', 'claude', 'PreToolUse']);`], { cwd: dir, input: payload, encoding: 'utf8' });
     assert.equal(run.status, 0, run.stderr);
     assert.doesNotMatch(run.stderr, /LOADED/);
+  });
+});
+
+describe('a project reached through a symlink', () => {
+  // macOS links /var and /tmp to /private/...: an agent reports paths through the link, and git reports the resolved root.
+  test('edits are checked, and rm -rf of the project still needs a person', async (t) => {
+    const real = repo();
+    const link = join(tempDir(), 'project');
+    try {
+      symlinkSync(real, link, 'dir');
+    } catch {
+      t.skip('this system does not allow symlinks');
+      return;
+    }
+    const base = { session_id: 'sess-link', cwd: link };
+    await hook(link, 'claude', 'SessionStart', { ...base, hook_event_name: 'SessionStart', source: 'startup' });
+
+    writeFileSync(join(link, 'lib/openai.ts'), `export const key = '${KEY()}';\n`);
+    const post = await hook(link, 'claude', 'PostToolUse', {
+      ...base,
+      hook_event_name: 'PostToolUse',
+      tool_name: 'Write',
+      tool_use_id: 'toolu_link_1',
+      tool_input: { file_path: join(link, 'lib/openai.ts'), content: 'x' },
+      tool_response: { filePath: join(link, 'lib/openai.ts'), success: true },
+    });
+    assert.equal(post.json?.decision, 'block', post.out || post.err);
+    assert.match(post.json?.reason, /secret\/provider-key lib\/openai\.ts:1/);
+
+    for (const command of ['rm -rf .', `rm -rf ${link}`, `rm -rf ${real}`]) {
+      const pre = await hook(link, 'claude', 'PreToolUse', { ...base, hook_event_name: 'PreToolUse', tool_name: 'Bash', tool_use_id: `toolu_${command}`, tool_input: { command } });
+      assert.equal(pre.json?.hookSpecificOutput?.permissionDecision, 'ask', `${command}: ${pre.out}`);
+      assert.match(pre.json?.hookSpecificOutput?.permissionDecisionReason, /agent\/destructive-command: .*(every file in the project|the whole project)/);
+    }
   });
 });
