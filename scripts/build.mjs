@@ -24,6 +24,8 @@ await build({
   outExtension: { '.js': '.mjs' },
   minify: true,
   legalComments: 'none',
+  // Bundled CommonJS code (yaml's Node build) calls require() for built-in modules, which ESM output lacks.
+  banner: { js: "import { createRequire as __ubonRequire } from 'node:module'; const require = __ubonRequire(import.meta.url);" },
   sourcemap: false,
   logLevel: 'warning',
   metafile: false,

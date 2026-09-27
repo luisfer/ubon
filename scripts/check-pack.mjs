@@ -2,8 +2,8 @@
 // Checks the npm package: the file list (no sources, tests, or fixtures), the
 // unpacked size (under 1 MB), and that the tarball installs with scripts
 // disabled and runs: --version, check, and a hook with a recorded payload.
-import { execFileSync } from 'node:child_process';
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { execFileSync, spawnSync } from 'node:child_process';
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -37,7 +37,14 @@ try {
   const expected = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8')).version;
   if (version !== expected) problems.push(`installed --version printed ${version}, expected ${expected}`);
   run('git', ['init', '-q'], { cwd: work });
-  run(process.execPath, [bin, 'check', '--all', '--format', 'json'], { cwd: work });
+  // A workflow and a TypeScript file load the bundled YAML and JavaScript parsers.
+  mkdirSync(join(work, '.github', 'workflows'), { recursive: true });
+  writeFileSync(join(work, '.github', 'workflows', 'triage.yml'), 'on:\n  issues:\n    types: [opened]\njobs:\n  t:\n    runs-on: ubuntu-latest\n    steps:\n      - run: |\n          echo "${{ github.event.issue.title }}"\n');
+  writeFileSync(join(work, 'app.ts'), "import { exec } from 'node:child_process';\nexport const run = (cmd: string) => exec(cmd);\n");
+  const checked = spawnSync(process.execPath, [bin, 'check', '--all', '--format', 'json'], { cwd: work, encoding: 'utf8' });
+  if (checked.status !== 1) problems.push(`the installed CLI exited with ${checked.status} on a project with a blocking finding: ${checked.stderr.trim()}`);
+  const rules = checked.status === 1 ? JSON.parse(checked.stdout).findings.map((f) => f.rule) : [];
+  if (!rules.includes('ci/expression-injection')) problems.push(`the installed CLI did not report ci/expression-injection (got: ${rules.join(', ') || 'nothing'})`);
   const payload = JSON.stringify({ session_id: 'pack', cwd: work, hook_event_name: 'PreToolUse', tool_name: 'Bash', tool_input: { command: 'ls' } });
   const hook = execFileSync(process.execPath, [bin, 'hook', 'claude', 'PreToolUse'], { cwd: work, input: payload, encoding: 'utf8' });
   if (hook.trim() !== '') problems.push(`hook for an allowed command printed output: ${hook.trim()}`);
