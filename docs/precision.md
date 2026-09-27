@@ -9,14 +9,14 @@ A rule may report `block` only if at least 95 percent of its block findings on t
 | Repository | Kind | Block | Warn |
 | --- | --- | --- | --- |
 | [vercel/ai-chatbot](https://github.com/vercel/ai-chatbot/tree/c2f8235e1f3ea903ad8b7f61447c4f74164b5c58) | reference app | 0 | 0 |
-| [documenso/documenso](https://github.com/documenso/documenso/tree/a1d4bec1430a937395db9a4aae28979cd71c2831) | product | 0 | 7 |
+| [documenso/documenso](https://github.com/documenso/documenso/tree/a1d4bec1430a937395db9a4aae28979cd71c2831) | product | 0 | 9 |
 | [dubinc/dub](https://github.com/dubinc/dub/tree/ac13d86c09664909db8aa88e9c601070660aede0) | product | 0 | 8 |
-| [formbricks/formbricks](https://github.com/formbricks/formbricks/tree/bfe7933cb2882c99f2196aa6a46edd104cd7fbb8) | product | 0 | 7 |
+| [formbricks/formbricks](https://github.com/formbricks/formbricks/tree/bfe7933cb2882c99f2196aa6a46edd104cd7fbb8) | product | 0 | 10 |
 | [t3-oss/create-t3-app](https://github.com/t3-oss/create-t3-app/tree/4709861f7e67a15564c0460c13e7b4b6cfcae40d) | template | 2 | 1 |
 | [vercel/nextjs-subscription-payments](https://github.com/vercel/nextjs-subscription-payments/tree/bdd0813206e47e6b218d42f15a7976c8a0d3c3eb) | template | 0 | 3 |
 | [mckaywrigley/chatbot-ui](https://github.com/mckaywrigley/chatbot-ui/tree/81328b61d2a4ab597a7a057be70e785cf756d9f8) | AI app | 0 | 3 |
 | [usebasejump/basejump](https://github.com/usebasejump/basejump/tree/7a1f95ccef74eb2e638d5e4233b66b6cbbe175e6) | Supabase schema | 0 | 0 |
-| [juice-shop/juice-shop](https://github.com/juice-shop/juice-shop/tree/1618a611b173b4bf114028e6e02549950606e29d) | intentionally vulnerable | 17 | 38 |
+| [juice-shop/juice-shop](https://github.com/juice-shop/juice-shop/tree/1618a611b173b4bf114028e6e02549950606e29d) | intentionally vulnerable | 15 | 42 |
 | [vitejs/vite](https://github.com/vitejs/vite/tree/bc598a6a8a6b7d6e157e9f19c16911cff8d2360c) | workflows | 0 | 0 |
 | [withastro/astro](https://github.com/withastro/astro/tree/4ce2fca6edac7ac56c410b8d853a3968cc34b046) | workflows | 0 | 1 |
 | [TanStack/router](https://github.com/TanStack/router/tree/1e113034bdeccf696e6658d0b886439deb023bfd) | workflows | 0 | 0 |
@@ -34,7 +34,7 @@ Precision counts `block` findings only, because the gate applies to them; warnin
 | [secret/key-file-committed](rules/secret/key-file-committed.md) | block | 0 | n/a | 1 | 1 of 1 | 0 |
 | [web/sql-injection](rules/web/sql-injection.md) | block | 6 | 100% | 0 | 0 of 0 | 0 |
 | [web/ssrf](rules/web/ssrf.md) | block | 1 | 100% | 1 | 0 of 1 | 0 |
-| [web/path-traversal](rules/web/path-traversal.md) | block | 2 | 0% | 0 | 0 of 0 | 0 |
+| [web/path-traversal](rules/web/path-traversal.md) | block | 0 | n/a | 2 | 2 of 2 | 0 |
 | [web/code-eval](rules/web/code-eval.md) | block | 0 | n/a | 2 | 2 of 2 | 0 |
 | [web/xss-html-sink](rules/web/xss-html-sink.md) | warn | 5 | 100% | 22 | 22 of 22 | 0 |
 | [web/weak-token-randomness](rules/web/weak-token-randomness.md) | block | 1 | 100% | 0 | 0 of 0 | 0 |
@@ -46,14 +46,14 @@ Precision counts `block` findings only, because the gate applies to them; warnin
 | [data/permissive-policy](rules/data/permissive-policy.md) | block | 0 | n/a | 3 | 3 of 3 | 0 |
 | [llm/untrusted-system-prompt](rules/llm/untrusted-system-prompt.md) | warn | 0 | n/a | 1 | 1 of 1 | 0 |
 | [deps/undeclared-import](rules/deps/undeclared-import.md) | warn | 0 | n/a | 23 | 23 of 23 | 0 |
+| [agent/pipe-to-shell](rules/agent/pipe-to-shell.md) | block | 0 | n/a | 2 | 2 of 2 | 0 |
+| [agent/autorun-config](rules/agent/autorun-config.md) | block | 0 | n/a | 5 | 5 of 5 | 0 |
 | [ci/publish-token](rules/ci/publish-token.md) | warn | 0 | n/a | 1 | 1 of 1 | 0 |
 
-Rules with no findings on the corpus: `secret/db-url-password`, `secret/env-file-committed`, `secret/server-env-in-client`, `web/command-injection`, `web/webhook-unverified`, `data/rls-disabled`, `data/service-role-in-client`, `data/firebase-open-rules`, `llm/browser-key`, `llm/output-to-sink`, `llm/tool-dangerous-capability`, `deps/nonexistent-package`, `deps/young-package`, `deps/typosquat`, `deps/install-script`, `deps/non-registry-source`, `deps/known-malicious`, `ci/expression-injection`, `ci/untrusted-checkout`, `integrity/invalid-suppression`, `integrity/unused-suppression`, `integrity/test-skipped`, `integrity/test-deleted`, `integrity/type-suppression`, `integrity/lint-suppression`, `integrity/checks-weakened`, `integrity/new-suppression`, `hygiene/elided-code`, `hygiene/placeholder`, `hygiene/variant-file`.
+Rules with no findings on the corpus: `secret/db-url-password`, `secret/env-file-committed`, `secret/server-env-in-client`, `web/command-injection`, `web/webhook-unverified`, `data/rls-disabled`, `data/service-role-in-client`, `data/firebase-open-rules`, `llm/browser-key`, `llm/output-to-sink`, `llm/tool-dangerous-capability`, `deps/nonexistent-package`, `deps/young-package`, `deps/typosquat`, `deps/install-script`, `deps/non-registry-source`, `deps/known-malicious`, `agent/hidden-unicode`, `agent/secret-in-config`, `agent/broad-permissions`, `agent/unpinned-mcp-server`, `agent/unknown-hook-event`, `agent/unsafe-hook-script`, `agent/instruction-injection`, `agent/transcript-committed`, `agent/guardrail-removed`, `ci/expression-injection`, `ci/untrusted-checkout`, `integrity/invalid-suppression`, `integrity/unused-suppression`, `integrity/test-skipped`, `integrity/test-deleted`, `integrity/type-suppression`, `integrity/lint-suppression`, `integrity/checks-weakened`, `integrity/new-suppression`, `hygiene/elided-code`, `hygiene/placeholder`, `hygiene/variant-file`.
 
 ## False positives
 
 Each one is a known limit of the rule.
 
 - `web/ssrf` in dubinc/dub, `apps/web/app/api/misc/check-favicon/route.ts:18`: the base, imported from another package, is https://www.google.com/s2/favicons?...&domain_url=, so the value only fills a query parameter; Ubon cannot read constants from other packages
-- `web/path-traversal` in juice-shop/juice-shop, `routes/vulnCodeFixes.ts:81`: key is passed to a lookup that returns early for unknown challenge keys before the file is read; Ubon does not follow validation into helpers
-- `web/path-traversal` in juice-shop/juice-shop, `routes/vulnCodeSnippet.ts:90`: key is passed to a lookup that returns early for unknown challenge keys before the file is read; Ubon does not follow validation into helpers

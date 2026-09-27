@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Measures precision on real code. Runs Ubon on the repositories pinned in
 // corpus/repos.json and compares the findings with corpus/triage.jsonl, where
-// a person marked each finding as a true or a false positive.
+// each finding is marked as a true or a false positive.
 //
 //   node scripts/corpus.mjs fetch            clone the pinned commits into the cache
 //   node scripts/corpus.mjs run [--strict]   check every repository and list untriaged findings
