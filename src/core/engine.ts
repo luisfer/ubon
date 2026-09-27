@@ -312,7 +312,7 @@ class Run {
       const imports = new ImportMap(block.program);
       const taint = new TaintTracker(imports, { serverActionsModule, routeFile });
       let parents: readonly Node[] = [];
-      const handlers = new Map<string, Array<{ id: string; fn: (node: any) => void }>>();
+      const handlers = new Map<string, Array<{ id: string; fn: (node: Node) => void }>>();
       const disabled = new Set<string>();
       for (const s of rules) {
         const report = makeReport(s);
@@ -354,7 +354,8 @@ class Run {
         for (const [type, fn] of Object.entries(visitors)) {
           if (!fn) continue;
           const list = handlers.get(type) ?? [];
-          list.push({ id: s.rule.meta.id, fn });
+          // Dispatch is by node.type, so each handler only ever receives the node type it is keyed by.
+          list.push({ id: s.rule.meta.id, fn: fn as (node: Node) => void });
           handlers.set(type, list);
         }
       }
@@ -397,7 +398,7 @@ class Run {
     const scopeSet = new Set(this.scope.files.map((f) => f.path));
     let tracked: ReadonlySet<string> | null | undefined;
     const root = this.root;
-    const self = this;
+    const scope = this.scope;
     return {
       config: this.config,
       project: this.project,
@@ -406,7 +407,7 @@ class Run {
       scopeFiles: this.scope.files,
       inScope: (path) => scopeSet.has(path),
       get tracked() {
-        if (tracked === undefined) tracked = self.scope.git ? listTracked(root) : null;
+        if (tracked === undefined) tracked = scope.git ? listTracked(root) : null;
         return tracked;
       },
       info: (path) => this.info(path),

@@ -216,7 +216,8 @@ export function buildHistory(read: (path: string) => string | null, dir: Supabas
   const moveRelation = (rel: RelationState, schema: string, name: string) => {
     const oldKey = key(rel.schema, rel.name);
     live.delete(oldKey);
-    for (const [k, p] of [...policies]) {
+    // A copy, because the loop changes the map.
+    for (const [k, p] of Array.from(policies)) {
       if (p.schema !== rel.schema || p.table !== rel.name) continue;
       policies.delete(k);
       p.schema = schema;
@@ -229,7 +230,7 @@ export function buildHistory(read: (path: string) => string | null, dir: Supabas
   };
   const dropRelation = (schema: string, name: string) => {
     live.delete(key(schema, name));
-    for (const [k, p] of [...policies]) if (p.schema === schema && p.table === name) policies.delete(k);
+    for (const [k, p] of Array.from(policies)) if (p.schema === schema && p.table === name) policies.delete(k);
   };
 
   for (const file of [...dir.migrations, ...dir.schemas]) {
@@ -354,12 +355,13 @@ export function buildHistory(read: (path: string) => string | null, dir: Supabas
             }
             case 'drop-schema': {
               if (inFunction) break;
-              for (const rel of [...live.values()]) if (cmd.names.includes(rel.schema)) dropRelation(rel.schema, rel.name);
+              // Copies, because dropRelation and moveRelation change the map.
+              for (const rel of Array.from(live.values())) if (cmd.names.includes(rel.schema)) dropRelation(rel.schema, rel.name);
               break;
             }
             case 'rename-schema': {
               if (inFunction) break;
-              for (const rel of [...live.values()]) if (rel.schema === cmd.from) moveRelation(rel, cmd.to, rel.name);
+              for (const rel of Array.from(live.values())) if (rel.schema === cmd.from) moveRelation(rel, cmd.to, rel.name);
               break;
             }
             case 'grant':

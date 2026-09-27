@@ -227,9 +227,9 @@ function isOptional(parents: readonly Node[], node: Node): boolean {
   return false;
 }
 
-function allTypeSpecifiers(node: { specifiers?: Array<{ importKind?: string | null; exportKind?: string | null }> }, key: 'importKind' | 'exportKind'): boolean {
-  const specs = node.specifiers ?? [];
-  return specs.length > 0 && specs.every((s) => s[key] === 'type');
+/** `import { type A, type B } from 'x'`: every specifier is type-only (default and namespace specifiers cannot be). */
+function allTypeSpecifiers(specifiers: ReadonlyArray<{ type: string; importKind?: string | null; exportKind?: string | null }>, key: 'importKind' | 'exportKind'): boolean {
+  return specifiers.length > 0 && specifiers.every((s) => (s.type === 'ImportSpecifier' || s.type === 'ExportSpecifier') && s[key] === 'type');
 }
 
 export const undeclaredImport: Rule = {
@@ -317,22 +317,22 @@ export const undeclaredImport: Rule = {
     };
 
     return {
-      ImportDeclaration(node: any) {
-        check(node, node.source, node.importKind === 'type' || allTypeSpecifiers(node, 'importKind'));
+      ImportDeclaration(node) {
+        check(node, node.source, node.importKind === 'type' || allTypeSpecifiers(node.specifiers, 'importKind'));
       },
-      ExportNamedDeclaration(node: any) {
-        if (node.source) check(node, node.source, node.exportKind === 'type' || allTypeSpecifiers(node, 'exportKind'));
+      ExportNamedDeclaration(node) {
+        if (node.source) check(node, node.source, node.exportKind === 'type' || allTypeSpecifiers(node.specifiers, 'exportKind'));
       },
-      ExportAllDeclaration(node: any) {
+      ExportAllDeclaration(node) {
         check(node, node.source, node.exportKind === 'type');
       },
-      TSImportEqualsDeclaration(node: any) {
+      TSImportEqualsDeclaration(node) {
         if (node.moduleReference?.type === 'TSExternalModuleReference') check(node, node.moduleReference.expression, node.importKind === 'type');
       },
-      ImportExpression(node: any) {
+      ImportExpression(node) {
         check(node, node.source, false);
       },
-      CallExpression(node: any) {
+      CallExpression(node) {
         const callee = node.callee;
         if (callee?.type === 'Import') check(node, node.arguments?.[0], false);
         else if (callee?.type === 'Identifier' && callee.name === 'require' && node.arguments?.length === 1) check(node, node.arguments[0], false);

@@ -135,7 +135,7 @@ export function statusReason(host: string, status: number): string {
 
 /** Run tasks with at most `limit` in flight. */
 export async function mapLimit<T, R>(items: readonly T[], limit: number, fn: (item: T, index: number) => Promise<R>): Promise<R[]> {
-  const out = new Array<R>(items.length);
+  const out = Array.from<R>({ length: items.length });
   let next = 0;
   const workers = Array.from({ length: Math.min(limit, items.length) }, async () => {
     while (next < items.length) {

@@ -3,6 +3,7 @@ import type {
   Expression,
   File as BabelFile,
   Function as FunctionNode,
+  Identifier,
   LVal,
   MemberExpression,
   NewExpression,
@@ -706,17 +707,18 @@ function dropSchema(t: Taint): Taint {
   return rest;
 }
 
-function syntheticMember(object: Node, key: string): Node {
+function syntheticMember(object: Node, key: string): MemberExpression {
+  const property: Identifier = { type: 'Identifier', name: key };
   return {
     type: 'MemberExpression',
-    object,
-    property: { type: 'Identifier', name: key },
+    object: object as Expression,
+    property,
     computed: false,
     optional: false,
     loc: object.loc,
     start: object.start,
     end: object.end,
-  } as unknown as Node;
+  };
 }
 
 function dedupe(taints: Taint[]): Taint[] {

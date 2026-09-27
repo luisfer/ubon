@@ -33,6 +33,7 @@
   "scripts": {
     "build": "node scripts/build.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit",
+    "lint": "oxlint --deny-warnings src scripts test",
     "test": "node --test --test-reporter=dot \"test/**/*.test.ts\"",
     "test:verbose": "node --test \"test/**/*.test.ts\"",
     "lint:prose": "node scripts/lint-prose.mjs",
@@ -41,7 +42,7 @@
     "gen": "node scripts/gen-integrations.mjs && node scripts/gen-docs.mjs",
     "check:gen": "node scripts/gen-integrations.mjs --check && node scripts/gen-docs.mjs --check",
     "check:pack": "node scripts/check-pack.mjs",
-    "verify": "npm run typecheck && npm test && npm run build && npm run check:gen && npm run lint:prose && npm run check:links && npm run check:commands && npm run check:pack",
+    "verify": "npm run typecheck && npm run lint && npm test && npm run build && npm run check:gen && npm run lint:prose && npm run check:links && npm run check:commands && npm run check:pack",
     "corpus": "node scripts/corpus.mjs",
     "demo": "node scripts/demo.mjs"
   },
@@ -80,9 +81,11 @@
   },
   "devDependencies": {
     "@babel/parser": "7.29.9",
+    "@babel/types": "7.29.8",
     "@modelcontextprotocol/client": "2.1.0",
     "@types/node": "22.20.4",
     "esbuild": "0.28.2",
+    "oxlint": "1.83.0",
     "typescript": "7.0.2",
     "yaml": "2.9.1"
   }

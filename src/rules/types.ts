@@ -104,9 +104,12 @@ export interface JsContext extends BaseContext {
   lineText(line: number): string;
 }
 
-export type JsVisitor = (node: any) => void;
-/** Keys are Babel node types, optionally with ':exit', plus 'Program:exit' for end-of-file work. */
-export type JsVisitors = Record<string, JsVisitor | undefined>;
+type NodeOfType<K extends Node['type']> = Extract<Node, { type: K }>;
+/**
+ * Keys are Babel node types, optionally with ':exit' ('Program:exit' runs at
+ * the end of the file); each handler receives that type of node.
+ */
+export type JsVisitors = { [K in Node['type']]?: (node: NodeOfType<K>) => void } & { [K in Node['type'] as `${K}:exit`]?: (node: NodeOfType<K>) => void };
 
 export interface ScopeFileView {
   path: string;

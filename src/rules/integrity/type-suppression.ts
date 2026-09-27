@@ -33,9 +33,8 @@ function visitAll(node: Node, parents: Node[], fn: (node: Node, parents: readonl
   if (parents.length > 1500) return;
   fn(node, parents);
   parents.push(node);
-  for (const key of Object.keys(node)) {
+  for (const [key, value] of Object.entries(node) as Array<[string, unknown]>) {
     if (SKIP_KEYS.has(key)) continue;
-    const value = (node as unknown as Record<string, unknown>)[key];
     if (Array.isArray(value)) {
       for (const item of value) if (isNode(item)) visitAll(item, parents, fn);
     } else if (isNode(value)) {
@@ -92,7 +91,7 @@ function findEscapes(text: string, lang: Lang, testFile: boolean): Escape[] | nu
   if (parsed.blocks.length === 0 && (parsed.failed || lang === 'js' || lang === 'jsx' || lang === 'ts' || lang === 'tsx')) return null;
   const out: Escape[] = [];
   for (const block of parsed.blocks) {
-    const comments = ((block.program as unknown as { comments?: Array<{ type: string; value: string; loc?: { start: { line: number; column: number } } }> }).comments ?? []);
+    const comments = block.program.comments ?? [];
     for (const c of comments) {
       const line = c.loc?.start.line ?? 1;
       const column = (c.loc?.start.column ?? 0) + 1;
@@ -109,7 +108,7 @@ function findEscapes(text: string, lang: Lang, testFile: boolean): Escape[] | nu
       }
       const expect = /^[\s*/]*@ts-expect-error\b(.*)$/.exec(value);
       if (expect) {
-        const reason = (expect[1] ?? '').replace(/\*\/\s*$/, '').replace(/^[\s:\-]+/, '').trim();
+        const reason = (expect[1] ?? '').replace(/\*\/\s*$/, '').replace(/^[\s:-]+/, '').trim();
         if (!/[A-Za-z]{2,}/.test(reason)) {
           out.push({ kind: 'ts-expect-error', line, column, message: '`@ts-expect-error` has no reason, so a reader cannot tell which error it expects.', fix: 'Add a short reason after `@ts-expect-error`, or fix the type error.' });
         }

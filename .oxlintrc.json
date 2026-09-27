@@ -1,0 +1,9 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "categories": { "correctness": "error" },
+  "rules": {
+    "unicorn/prefer-string-starts-ends-with": "off",
+    "no-control-regex": "off"
+  },
+  "ignorePatterns": ["fixtures/**", "dist/**", "corpus/**", "types/**"]
+}

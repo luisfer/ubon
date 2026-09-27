@@ -18,7 +18,7 @@ interface Hit extends Occurrence {
 
 const NOT_IMPLEMENTED = /^\s*(?:todo\b.*|fixme\b.*|not\s+(?:yet\s+)?implemented\b.*|(?:method|function|feature|endpoint|handler)\s+(?:is\s+)?not\s+(?:yet\s+)?implemented\.?|unimplemented\.?|implement\s+(?:me|this)\b.*)\s*$/i;
 const TODO_IMPLEMENT =
-  /^\s*(?:TODO|FIXME|XXX)\b\s*(?:\([^)]*\))?\s*[:\-]?\s*(?:implement(?:ation)?(?:\s+(?:this|me|it|here|this\s+(?:function|method)|the\s+(?:actual\s+|real\s+)?(?:logic|implementation|function|method|handler|endpoint|body)))?|(?:add|write)\s+(?:the\s+)?(?:actual|real)\s+(?:implementation|logic|code)|replace\s+(?:this\s+)?with\s+(?:the\s+|a\s+)?(?:actual|real)\s+(?:implementation|logic|code|api\s+call|data))\s*[.!]?\s*$/i;
+  /^\s*(?:TODO|FIXME|XXX)\b\s*(?:\([^)]*\))?\s*[:-]?\s*(?:implement(?:ation)?(?:\s+(?:this|me|it|here|this\s+(?:function|method)|the\s+(?:actual\s+|real\s+)?(?:logic|implementation|function|method|handler|endpoint|body)))?|(?:add|write)\s+(?:the\s+)?(?:actual|real)\s+(?:implementation|logic|code)|replace\s+(?:this\s+)?with\s+(?:the\s+|a\s+)?(?:actual|real)\s+(?:implementation|logic|code|api\s+call|data))\s*[.!]?\s*$/i;
 const YOUR_CODE_HERE = /^\s*(?:(?:add|put|write|insert)\s+)?your\s+(?:code|logic|implementation)\s+(?:goes\s+)?here\.?\s*$/i;
 /**
  * your-api-key-here, YOUR_API_KEY, <your api key>, insert-your-token-here,

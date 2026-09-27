@@ -10,6 +10,7 @@ Node.js 22.18 or newer. Dependencies are for development only; the published pac
 npm ci
 npm test          # node:test, runs TypeScript directly
 npm run typecheck # tsc, no emit
+npm run lint      # oxlint, correctness rules
 npm run build     # esbuild bundle into dist/
 npm run verify    # everything CI runs
 ```

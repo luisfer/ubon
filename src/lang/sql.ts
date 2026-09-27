@@ -887,7 +887,7 @@ function parseDefaultPrivileges(c: Cursor): SqlCommand {
 }
 
 function parseSet(c: Cursor): SqlCommand {
-  c.eat('session') || c.eat('local');
+  if (!c.eat('session')) c.eat('local');
   if (!c.eat('search_path')) return { kind: 'other' };
   if (!c.eat('to') && !c.eatOp('=')) return { kind: 'other' };
   const schemas: string[] = [];

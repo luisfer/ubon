@@ -423,9 +423,8 @@ export function eslintFlatRules(text: string, lang: Lang): Map<string, RuleSetti
         }
       }
     }
-    for (const key of Object.keys(node)) {
+    for (const [key, value] of Object.entries(node) as Array<[string, unknown]>) {
       if (key === 'loc' || key === 'start' || key === 'end' || key === 'extra' || key === 'comments' || key === 'leadingComments' || key === 'trailingComments') continue;
-      const value = (node as unknown as Record<string, unknown>)[key];
       if (Array.isArray(value)) for (const item of value) if (item && typeof item === 'object' && typeof (item as Node).type === 'string') visit(item as Node, depth + 1);
       if (value && typeof value === 'object' && typeof (value as Node).type === 'string') visit(value as Node, depth + 1);
     }

@@ -346,7 +346,7 @@ export const xssHtmlSink: Rule = {
           continue;
         }
         // Model output and tool arguments are reported by the llm pack.
-        if (live.length > 0 && live.some((l) => l.taint.kind === 'model' || l.taint.kind === 'tool')) continue;
+        if (live.some((l) => l.taint.kind === 'model' || l.taint.kind === 'tool')) continue;
         if (anyTaint(ctx, sink) && live.length === 0) continue;
         if (sink.values.every((v) => isConstantValue(ctx, v))) continue;
         const label = valueLabel(ctx, value);

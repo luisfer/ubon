@@ -29,6 +29,7 @@ jobs:
           TAG: ${{ github.ref_name }}
         run: test "v$(node -p 'require("./package.json").version')" = "$TAG"
 
+  # ubon-ignore integrity/checks-weakened: agent (Ubon 4 rewrite, for maintainer review): verify:release became npm run verify in the verify job above, and publish needs it
   publish:
     needs: verify
     runs-on: ubuntu-latest

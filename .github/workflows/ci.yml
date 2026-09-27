@@ -48,6 +48,8 @@ jobs:
         with:
           node-version: 24
       - run: npm ci
+      - name: Lint
+        run: npm run lint
       - name: Generated files are up to date
         run: npm run check:gen
       - name: Prose lint

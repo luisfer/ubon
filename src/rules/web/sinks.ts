@@ -1,4 +1,4 @@
-import type { AssignmentExpression, JSXAttribute, Node, ObjectProperty } from '@babel/types';
+import type { ArrayExpression, AssignmentExpression, JSXAttribute, Node, ObjectProperty } from '@babel/types';
 import {
   boolValue,
   calleeName,
@@ -204,7 +204,8 @@ function commandCall(node: Node, canonical: string, args: Node[]): Sink | null {
     const cmd = first?.type === 'ObjectExpression' ? objectProp(first, 'cmd') : first;
     const items = arrayItems(cmd as Node | undefined);
     if (!items || items.length === 0) return cmd ? { category: 'command', name: `${canonical}()`, node, values: [cmd as Node], detail: 'program' } : null;
-    return spawnSink(node, `${canonical}()`, items[0], { type: 'ArrayExpression', elements: items.slice(1) } as unknown as Node, undefined);
+    const rest: ArrayExpression = { type: 'ArrayExpression', elements: items.slice(1) as ArrayExpression['elements'] };
+    return spawnSink(node, `${canonical}()`, items[0], rest, undefined);
   }
   return null;
 }
@@ -231,7 +232,7 @@ const STRONG_METHODS = new Set(['query', 'execute', 'exec', 'prepare', 'many', '
 const DB_RECEIVER =
   /(^|\.)(db|database|pool|client|conn|connection|knex|sequelize|pg|mysql|sqlite|sqlite3|sql|tx|trx|transaction|queryRunner|manager|entityManager|em|dataSource|d1|DB|turso|libsql|postgres|mssql|pgp)$|(Db|DB|Pool|Client|Connection|Database|Sql|SQL|Tx|Trx)$/;
 const SQL_START = /^\s*\(?\s*(select|insert|update|delete|with|replace|merge|create|drop|alter|truncate|call|exec|execute|pragma|show|describe|explain|upsert|grant|revoke|copy)\b/i;
-const SQL_ANY = /\bselect\b[\s\S]*\bfrom\b|\binsert\s+into\b|\bupdate\s+\S+\s+set\b|\bdelete\s+from\b|\bwhere\s+[\w."`\[\]]+\s*(=|<>|!=|<|>|\blike\b|\bilike\b|\bin\b)|\border\s+by\b|\bgroup\s+by\b/i;
+const SQL_ANY = /\bselect\b[\s\S]*\bfrom\b|\binsert\s+into\b|\bupdate\s+\S+\s+set\b|\bdelete\s+from\b|\bwhere\s+[\w."`[\]]+\s*(=|<>|!=|<|>|\blike\b|\bilike\b|\bin\b)|\border\s+by\b|\bgroup\s+by\b/i;
 
 function sqlCall(ctx: JsContext, node: Node, callee: Node, canonical: string, args: Node[]): Sink | null {
   const c = unwrap(callee);
