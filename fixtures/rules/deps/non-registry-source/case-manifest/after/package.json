@@ -1,0 +1,24 @@
+{
+  "name": "web",
+  "version": "1.0.0",
+  "private": true,
+  "workspaces": ["packages/*"],
+  "dependencies": {
+    "react": "^19.0.0",
+    "internal-lib": "github:acme/internal-lib#v1.1.0",
+    "left-pad": "git+https://github.com/someone/left-pad.git",
+    "tiny-lib": "someone/tiny-lib#main",
+    "vendored": "https://example.com/vendored-1.0.0.tgz",
+    "shared-config": "file:../../shared-config",
+    "local-ui": "file:./packages/local-ui",
+    "design": "workspace:*",
+    "zod": "catalog:",
+    "linked": "link:./packages/linked",
+    "my-react": "npm:react@^19.0.0",
+    "@std/path": "jsr:^1.0.0",
+    "express": "^4.21.2"
+  },
+  "devDependencies": {
+    "gen": "exec:./scripts/build-gen.js"
+  }
+}

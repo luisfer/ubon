@@ -1,0 +1,8 @@
+{
+  "name": "bot",
+  "version": "0.0.1-security",
+  "private": true,
+  "dependencies": {
+    "discord.js": "^14.16.3"
+  }
+}

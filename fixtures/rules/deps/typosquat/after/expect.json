@@ -1,0 +1,25 @@
+{
+  "files": {
+    "package.json": [
+      { "line": 8, "level": "warn" },
+      { "line": 9, "level": "warn" },
+      { "line": 10, "level": "warn" },
+      { "line": 11, "level": "warn" },
+      { "line": 12, "level": "warn" },
+      { "line": 13, "level": "warn" },
+      { "line": 14, "level": "warn" },
+      { "line": 29, "level": "warn" }
+    ]
+  },
+  "ok": [
+    "lodash, preact, zod, vitest, @types/lodash: popular packages never match",
+    "json-2-csv: a legitimate package that looks like json2csv, kept in the bundled lookalike list",
+    "my-lodash: an npm alias whose real package is lodash",
+    "zod: moved from devDependencies to dependencies, not new",
+    "loadsh: already at the base; only its version changed",
+    "chalkk: on packages.allow in ubon.json",
+    "shop-utils: a workspace package",
+    "reqeust: a git dependency, reported by deps/non-registry-source instead",
+    "eslint-plugin-yaml: yaml and yml are two spellings, both real plugins"
+  ]
+}

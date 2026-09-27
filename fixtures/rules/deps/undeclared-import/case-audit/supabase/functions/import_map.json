@@ -1,0 +1,6 @@
+{
+  "imports": {
+    "openai": "npm:openai@4.77.0",
+    "std/": "https://deno.land/std@0.224.0/"
+  }
+}

@@ -50,7 +50,7 @@ export function pathContexts(path: string): Set<PathContext> {
 
 export function hasGeneratedHeader(text: string): boolean {
   const head = text.slice(0, 600);
-  return /@generated|DO NOT EDIT|auto-?generated|This file is generated/i.test(head);
+  return /@generated|DO NOT EDIT|auto-?generated|This file (?:is|was|has been) (?:automatically )?generated/i.test(head);
 }
 
 /** Server-only locations by framework convention. */

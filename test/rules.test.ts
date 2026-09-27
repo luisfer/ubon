@@ -28,7 +28,9 @@ test('every file, project, and diff rule has fixtures', () => {
 
 test('block rules have at least 4 flagged cases and 5 safe cases', () => {
   const short: string[] = [];
-  for (const rule of RULES.filter((r) => r.meta.level === 'block' && r.meta.scope !== 'hook')) {
+  // Rules whose only check is a registry or OSV lookup cannot flag anything offline; test/deps.test.ts covers them with a stubbed network.
+  const onlineOnly = (r: (typeof RULES)[number]) => Boolean(r.online) && !r.js && !r.text && !r.project && !r.diff;
+  for (const rule of RULES.filter((r) => r.meta.level === 'block' && r.meta.scope !== 'hook' && !onlineOnly(r))) {
     let flagged = 0;
     let ok = 0;
     for (const c of cases.filter((x) => x.rule === rule.meta.id)) {

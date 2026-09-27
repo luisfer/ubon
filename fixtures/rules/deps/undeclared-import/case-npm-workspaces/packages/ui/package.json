@@ -1,0 +1,7 @@
+{
+  "name": "@mono/ui",
+  "version": "1.0.0",
+  "dependencies": {
+    "react-dropzone": "^14.3.5"
+  }
+}

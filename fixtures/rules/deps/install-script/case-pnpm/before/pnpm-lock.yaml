@@ -1,0 +1,19 @@
+lockfileVersion: '6.0'
+
+settings:
+  autoInstallPeers: true
+  excludeLinksFromLockfile: false
+
+dependencies:
+  esbuild:
+    specifier: 0.20.0
+    version: 0.20.0
+
+packages:
+
+  /esbuild@0.20.0:
+    resolution: {integrity: sha512-esbuild020}
+    engines: {node: '>=12'}
+    hasBin: true
+    requiresBuild: true
+    dev: false

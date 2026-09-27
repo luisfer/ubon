@@ -1,0 +1,11 @@
+{
+  "name": "site",
+  "version": "1.0.0",
+  "private": true,
+  "dependencies": {
+    "react": "^19.0.0"
+  },
+  "devDependencies": {
+    "esbuild": "0.20.0"
+  }
+}

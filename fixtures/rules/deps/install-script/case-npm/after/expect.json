@@ -1,0 +1,14 @@
+{
+  "files": {
+    "package-lock.json": [
+      { "line": 23, "level": "warn" },
+      { "line": 43, "level": "warn" },
+      { "line": 72, "level": "warn" }
+    ]
+  },
+  "ok": [
+    "esbuild: a new version, but esbuild already ran its install script at the base",
+    "bcrypt: on packages.allow in ubon.json",
+    "left-pad, chokidar-cli, react: no install script"
+  ]
+}

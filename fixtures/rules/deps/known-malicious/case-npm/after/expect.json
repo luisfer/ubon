@@ -1,0 +1,15 @@
+{
+  "files": {
+    "package.json": [
+      { "line": 7, "level": "block" },
+      { "line": 10, "level": "block" }
+    ],
+    "package-lock.json": [{ "line": 56, "level": "block" }]
+  },
+  "ok": [
+    "the project's own version field is 0.0.1-security; it is not a dependency",
+    "left-pad 0.0.1 and security-headers ^0.0.1: ordinary versions",
+    "old-helper: the placeholder was already in the lockfile at the base",
+    "discordi.js and noblox.js-proxy in package-lock.json: reported once, on their package.json lines"
+  ]
+}

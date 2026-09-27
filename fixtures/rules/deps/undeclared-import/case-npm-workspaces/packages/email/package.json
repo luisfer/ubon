@@ -1,0 +1,8 @@
+{
+  "name": "@mono/email",
+  "version": "1.0.0",
+  "dependencies": {
+    "@mono/ui": "*",
+    "date-fns": "^4.1.0"
+  }
+}

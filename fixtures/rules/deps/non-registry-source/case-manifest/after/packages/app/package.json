@@ -1,0 +1,9 @@
+{
+  "name": "@web/app",
+  "version": "1.0.0",
+  "private": true,
+  "dependencies": {
+    "@web/lib": "file:../lib",
+    "legacy": "file:../../../legacy"
+  }
+}

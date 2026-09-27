@@ -1,0 +1,12 @@
+{
+  "name": "chat",
+  "version": "1.0.0",
+  "private": true,
+  "dependencies": {
+    "next": "15.1.2",
+    "react": "^19.0.0",
+    "react-markdown-pro-renderer": "^2.1.0",
+    "@vercel/ai-sdk-helpers": "^1.0.0",
+    "zod": "^3.23.8"
+  }
+}

@@ -1,0 +1,15 @@
+{
+  "files": {
+    "package-lock.json": [
+      { "line": 39, "level": "warn" },
+      { "line": 45, "level": "warn" },
+      { "line": 62, "level": "warn" }
+    ]
+  },
+  "ok": [
+    "@acme/ui: downloaded from npm.pkg.github.com, the registry .npmrc sets for @acme",
+    "cli-helper: already a git dependency at the base; only the commit changed",
+    "chalk and react: registry.npmjs.org",
+    "mirror-pkg: registry.yarnpkg.com serves the public npm registry"
+  ]
+}

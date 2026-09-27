@@ -1,0 +1,13 @@
+{
+  "name": "shop",
+  "version": "1.0.0",
+  "private": true,
+  "dependencies": {
+    "react": "^19.0.0",
+    "express": "^4.21.2",
+    "loadsh": "1.0.0"
+  },
+  "devDependencies": {
+    "zod": "^3.23.8"
+  }
+}

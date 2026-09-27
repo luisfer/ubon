@@ -10,6 +10,10 @@ MIT License. Copyright (C) 2012-2014 by various contributors (see AUTHORS in the
 
 ISC License. Copyright Eemeli Aro <eemeli@gmail.com>.
 
+## npm-high-impact 1.13.0
+
+MIT License. Copyright (c) Titus Wormer <tituswormer@gmail.com>. The list of popular package names in `src/data/popular-packages.ts`, which `deps/typosquat` compares new dependencies with, comes from this package.
+
 ## Secret format patterns
 
 Some provider key patterns are adapted from gitleaks (MIT, Copyright (c) 2019 Zachary Rice) and Betterleaks (MIT).

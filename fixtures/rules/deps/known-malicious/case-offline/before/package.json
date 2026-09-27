@@ -1,0 +1,9 @@
+{
+  "name": "worker",
+  "version": "1.0.0",
+  "private": true,
+  "dependencies": {
+    "debug": "4.4.1",
+    "chalk": "5.6.0"
+  }
+}

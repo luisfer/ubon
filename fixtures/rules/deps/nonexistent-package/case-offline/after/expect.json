@@ -1,0 +1,8 @@
+{
+  "files": {},
+  "ok": [
+    "react-markdown-pro-renderer and @vercel/ai-sdk-helpers: new names that may not exist, but lookups are off in this run, so the rule reports them under not checked instead of guessing",
+    "zod: a valid new name; existence needs a registry lookup",
+    "next: a version change, not a new package"
+  ]
+}

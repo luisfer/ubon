@@ -1,0 +1,14 @@
+{
+  "name": "tools",
+  "version": "1.0.0",
+  "private": true,
+  "dependencies": {
+    "react": "^19.0.0",
+    "cli-helper": "github:acme/cli-helper#v1",
+    "@acme/ui": "^1.2.0",
+    "chalk": "^5.3.0",
+    "fancy-log": "^2.0.0",
+    "tarball-dep": "^1.0.0",
+    "mirror-pkg": "^1.0.0"
+  }
+}

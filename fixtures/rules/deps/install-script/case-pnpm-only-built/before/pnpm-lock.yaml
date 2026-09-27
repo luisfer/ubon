@@ -1,0 +1,12 @@
+lockfileVersion: '6.0'
+
+dependencies:
+  left-pad:
+    specifier: 1.3.0
+    version: 1.3.0
+
+packages:
+
+  /left-pad@1.3.0:
+    resolution: {integrity: sha512-leftpad130}
+    dev: false

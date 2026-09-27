@@ -1,0 +1,10 @@
+{
+  "files": {},
+  "ok": [
+    "next 15.1.2: a new version; its publish date needs a registry lookup, which is off in this run",
+    "typescript@next: a dist-tag that usually points at a nightly build; offline it is listed under not checked",
+    "brand-new-helper: a new package whose first publish date needs a lookup",
+    "react: unchanged",
+    "no finding is ever reported from a guess: without lookups the rule only says what it did not check"
+  ]
+}

@@ -1,0 +1,38 @@
+lockfileVersion: '9.0'
+
+settings:
+  autoInstallPeers: true
+  excludeLinksFromLockfile: false
+
+importers:
+
+  .:
+    dependencies:
+      chalk:
+        specifier: ^5.3.0
+        version: 5.3.0
+      table-formatter:
+        specifier: ^2.0.0
+        version: 2.0.0
+
+packages:
+
+  chalk@5.3.0:
+    resolution: {integrity: sha512-chalk530}
+    engines: {node: ^12.17.0 || ^14.13 || >=16.0.0}
+
+  colorss@0.0.1-security:
+    resolution: {integrity: sha512-colorss}
+
+  table-formatter@2.0.0:
+    resolution: {integrity: sha512-tableformatter200}
+
+snapshots:
+
+  chalk@5.3.0: {}
+
+  colorss@0.0.1-security: {}
+
+  table-formatter@2.0.0:
+    dependencies:
+      colorss: 0.0.1-security

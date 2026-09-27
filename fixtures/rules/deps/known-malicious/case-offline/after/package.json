@@ -1,0 +1,10 @@
+{
+  "name": "worker",
+  "version": "1.0.0",
+  "private": true,
+  "dependencies": {
+    "debug": "4.4.2",
+    "chalk": "5.6.1",
+    "is-arrayish": "0.3.3"
+  }
+}

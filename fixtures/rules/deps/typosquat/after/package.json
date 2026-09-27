@@ -1,0 +1,31 @@
+{
+  "name": "shop",
+  "version": "1.0.0",
+  "private": true,
+  "dependencies": {
+    "react": "^19.0.0",
+    "express": "^4.21.2",
+    "lodahs": "^4.17.21",
+    "expresss": "^4.19.2",
+    "react_dom": "^19.0.0",
+    "rnongoose": "^8.0.0",
+    "core-tracing": "^1.0.0",
+    "axios-js": "^1.0.0",
+    "supabase-js": "^2.45.0",
+    "lodash": "^4.17.21",
+    "preact": "^10.24.0",
+    "json-2-csv": "^5.5.0",
+    "my-lodash": "npm:lodash@^4.17.21",
+    "zod": "^3.23.8",
+    "chalkk": "^1.0.0",
+    "loadsh": "1.0.1",
+    "shop-utils": "workspace:*",
+    "reqeust": "github:someone/reqeust",
+    "eslint-plugin-yaml": "^1.0.3"
+  },
+  "devDependencies": {
+    "@types/lodash": "^4.17.13",
+    "vitest": "^2.1.8",
+    "@bable/core": "^7.26.0"
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "lockfileVersion": 1,
+  "workspaces": {
+    "": {
+      "name": "cli",
+      "dependencies": {
+        "commander": "^12.1.0",
+      },
+    },
+  },
+  "packages": {
+    "commander": ["commander@12.1.0", "", {}, "sha512-commander1210"],
+  }
+}

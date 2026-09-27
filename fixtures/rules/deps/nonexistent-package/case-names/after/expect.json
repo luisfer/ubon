@@ -1,0 +1,19 @@
+{
+  "files": {
+    "package.json": [
+      { "line": 8, "level": "block" },
+      { "line": 9, "level": "block" },
+      { "line": 10, "level": "block" },
+      { "line": 11, "level": "block" },
+      { "line": 12, "level": "block" }
+    ]
+  },
+  "ok": [
+    "Old Name: already at the base, not added in this change",
+    "JSONStream: uppercase letters are valid in names published before npm required lowercase",
+    "lodash.merge and @types/node: valid names",
+    "my-dom: an npm alias whose target, react-dom, is a valid name",
+    "notes-ui: a workspace package, not looked up on a registry",
+    "Git Helper: a git dependency, not installed from a registry by that name"
+  ]
+}

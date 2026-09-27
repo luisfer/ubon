@@ -1,0 +1,7 @@
+{
+  "files": {},
+  "ok": [
+    "debug 4.4.2 and chalk 5.6.1: versions whose malicious-package records only OSV can confirm; offline they are listed under not checked",
+    "is-arrayish: a new package; offline there is nothing to look up"
+  ]
+}

@@ -1,0 +1,19 @@
+{
+  "lockfileVersion": 1,
+  "workspaces": {
+    "": {
+      "name": "cli",
+      "dependencies": {
+        "commander": "^12.1.0",
+        "prompt-kit": "^3.0.0",
+      },
+    },
+  },
+  "packages": {
+    "commander": ["commander@12.1.0", "", {}, "sha512-commander1210"],
+
+    "commanderr": ["commanderr@0.0.1-security", "", {}, "sha512-commanderr"],
+
+    "prompt-kit": ["prompt-kit@3.0.0", "", { "dependencies": { "commanderr": "0.0.1-security" } }, "sha512-promptkit300"],
+  }
+}

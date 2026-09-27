@@ -1,0 +1,21 @@
+{
+  "files": {
+    "package.json": [
+      { "line": 9, "level": "warn" },
+      { "line": 10, "level": "warn" },
+      { "line": 11, "level": "warn" },
+      { "line": 12, "level": "warn" },
+      { "line": 22, "level": "warn" }
+    ],
+    "packages/app/package.json": [{ "line": 7, "level": "warn" }]
+  },
+  "ok": [
+    "internal-lib: already a git dependency at the base; only the ref changed",
+    "local-ui and @web/lib: file: paths inside the repository",
+    "design and zod: workspace: and catalog: protocols",
+    "linked: link: to a folder inside the repository",
+    "my-react: an npm alias, installed from the registry",
+    "@std/path: a JSR package, from the JSR registry",
+    "react and express: registry ranges"
+  ]
+}

@@ -1,0 +1,7 @@
+{
+  "name": "example-with-auth",
+  "private": true,
+  "dependencies": {
+    "express": "^4.21.2"
+  }
+}

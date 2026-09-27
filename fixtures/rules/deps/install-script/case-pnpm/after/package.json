@@ -1,0 +1,15 @@
+{
+  "name": "api",
+  "version": "1.0.0",
+  "private": true,
+  "dependencies": {
+    "esbuild": "0.25.0",
+    "sharp": "0.33.5",
+    "@swc/core": "1.9.3",
+    "left-pad": "1.3.0",
+    "ws": "8.18.0"
+  },
+  "pnpm": {
+    "neverBuiltDependencies": ["bufferutil"]
+  }
+}

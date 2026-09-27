@@ -1,0 +1,6 @@
+{
+  "files": {
+    "bun.lock": [{ "line": 15, "level": "block" }]
+  },
+  "ok": ["commander: already at the base", "prompt-kit 3.0.0: an ordinary version"]
+}

@@ -1,0 +1,13 @@
+{
+  "files": {
+    "pnpm-lock.yaml": [
+      { "line": 26, "level": "warn" },
+      { "line": 49, "level": "warn" }
+    ]
+  },
+  "ok": [
+    "esbuild: a new version of a package that already built at the base",
+    "bufferutil: listed in pnpm.neverBuiltDependencies, so pnpm does not run its script",
+    "left-pad and ws: no requiresBuild"
+  ]
+}

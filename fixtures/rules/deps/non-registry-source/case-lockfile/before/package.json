@@ -1,0 +1,9 @@
+{
+  "name": "tools",
+  "version": "1.0.0",
+  "private": true,
+  "dependencies": {
+    "react": "^19.0.0",
+    "cli-helper": "github:acme/cli-helper#v1"
+  }
+}

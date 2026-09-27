@@ -1,0 +1,6 @@
+{
+  "files": {
+    "pnpm-lock.yaml": [{ "line": 16, "level": "warn" }]
+  },
+  "ok": ["left-pad: no requiresBuild"]
+}

@@ -1,0 +1,6 @@
+{
+  "files": {
+    "pnpm-lock.yaml": [{ "line": 24, "level": "block" }]
+  },
+  "ok": ["chalk and table-formatter: ordinary versions", "the snapshots section repeats colorss; it is reported once, where the package is defined"]
+}

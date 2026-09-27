@@ -1,0 +1,10 @@
+{
+  "name": "web",
+  "version": "1.0.0",
+  "private": true,
+  "workspaces": ["packages/*"],
+  "dependencies": {
+    "react": "^19.0.0",
+    "internal-lib": "github:acme/internal-lib#v1.0.0"
+  }
+}

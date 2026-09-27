@@ -139,6 +139,11 @@ class Run {
   private readonly notChecked: string[] = [];
   private readonly failures: string[] = [];
   private readonly tooLarge: string[] = [];
+
+  /** Lockfiles and build output are read by the rules that need them, with their own limits, so they are not listed. */
+  private noteTooLarge(path: string): void {
+    if (!pathContexts(path).has('generated')) this.tooLarge.push(path);
+  }
   private readonly unparsable: string[] = [];
   private readonly infoCache = new Map<string, FileInfo>();
   private readonly known: ReadonlySet<string>;
@@ -198,14 +203,14 @@ class Run {
       if (staged !== undefined) {
         text = staged;
         if (text !== null && Buffer.byteLength(text) > this.config.maxFileSize) {
-          this.tooLarge.push(view.path);
+          this.noteTooLarge(view.path);
           continue;
         }
         if (text !== null && isBinaryText(text)) continue;
       } else {
         const read = readTextFile(`${this.root}/${view.path}`, this.config.maxFileSize);
         if (!read.ok) {
-          if (read.reason === 'too-large') this.tooLarge.push(view.path);
+          if (read.reason === 'too-large') this.noteTooLarge(view.path);
           continue;
         }
         text = read.text;

@@ -1,0 +1,1 @@
+{ "config": { "packages": { "allow": ["bcrypt"] } } }

@@ -1,0 +1,5 @@
+packages:
+  - '.'
+# ok: pnpm builds only esbuild; the script of sharp does not run, so sharp is not reported
+onlyBuiltDependencies:
+  - esbuild
