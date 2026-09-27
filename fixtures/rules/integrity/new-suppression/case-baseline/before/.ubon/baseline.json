@@ -1,0 +1,6 @@
+{
+  "version": 1,
+  "findings": [
+    { "rule": "secret/db-url-password", "file": "docker/seed.ts", "fingerprint": "0f3a9c1d2b4e5f60" }
+  ]
+}

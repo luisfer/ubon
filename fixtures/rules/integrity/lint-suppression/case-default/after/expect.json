@@ -1,0 +1,6 @@
+{
+  "files": {
+    "tools/sync.py": [{ "line": 1, "level": "block" }, { "line": 3, "level": "warn" }]
+  },
+  "ok": []
+}

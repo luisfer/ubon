@@ -1,0 +1,15 @@
+{
+  "name": "shop",
+  "private": true,
+  "jest": {
+    "coverageThreshold": {
+      "global": {
+        "lines": 80,
+        "branches": 70
+      },
+      "./src/payments/": {
+        "lines": 95
+      }
+    }
+  }
+}

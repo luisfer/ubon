@@ -29,19 +29,37 @@
               "data/permissive-policy",
               "data/service-role-in-client",
               "data/firebase-open-rules",
+              "deps/undeclared-import",
+              "deps/nonexistent-package",
+              "deps/young-package",
+              "deps/typosquat",
+              "deps/install-script",
+              "deps/non-registry-source",
+              "deps/known-malicious",
               "ci/expression-injection",
               "ci/untrusted-checkout",
               "ci/publish-token",
               "integrity/invalid-suppression",
-              "integrity/unused-suppression"
+              "integrity/unused-suppression",
+              "integrity/test-skipped",
+              "integrity/test-deleted",
+              "integrity/type-suppression",
+              "integrity/lint-suppression",
+              "integrity/checks-weakened",
+              "integrity/new-suppression",
+              "hygiene/elided-code",
+              "hygiene/placeholder",
+              "hygiene/variant-file"
             ]
           },
           {
             "enum": [
               "secret/*",
               "data/*",
+              "deps/*",
               "ci/*",
-              "integrity/*"
+              "integrity/*",
+              "hygiene/*"
             ]
           }
         ]

@@ -1,0 +1,6 @@
+{
+  "files": {
+    "src/user.ts": [{ "line": 13, "level": "warn" }]
+  },
+  "ok": []
+}

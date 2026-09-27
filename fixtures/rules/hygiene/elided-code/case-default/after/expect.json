@@ -1,0 +1,7 @@
+{
+  "files": {
+    "src/routes.ts": [{ "line": 5, "level": "block" }, { "line": 10, "level": "block" }],
+    "app/worker.py": [{ "line": 5, "level": "block" }]
+  },
+  "ok": ["src/cart.ts: `/* ... */` next to other code in the same body is not the only content"]
+}

@@ -36,6 +36,9 @@ import type { Finding, Level, Report, ScopeMode, SuppressedFinding } from './typ
  * past the engine: a failing rule is reported under "not checked".
  */
 
+
+/** Rules whose findings are about suppressions themselves. */
+const UNSUPPRESSIBLE = new Set(['integrity/new-suppression', 'integrity/invalid-suppression', 'integrity/unused-suppression']);
 export interface CheckOptions {
   /** Directory to check. The git root above it becomes the root. Default: process.cwd(). */
   cwd?: string;
@@ -552,6 +555,8 @@ class Run {
     drafts = drafts.filter((d) => {
       const state = this.files.get(d.file);
       if (!state) return true;
+      // Findings about suppressions cannot be suppressed; otherwise a comment could hide its own listing.
+      if (UNSUPPRESSIBLE.has(d.rule)) return true;
       const sup = findSuppression(state.suppressions, d.rule, d.range.start.line);
       if (!sup) return true;
       used.add(sup);

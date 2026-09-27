@@ -1,0 +1,13 @@
+{
+  "root": true,
+  "rules": {
+    "no-eval": "off",
+    "prefer-const": 2
+  },
+  "overrides": [
+    {
+      "files": ["scripts/**"],
+      "rules": { "no-process-exit": 1 }
+    }
+  ]
+}

@@ -1,0 +1,9 @@
+{
+  "files": {
+    ".ubon/baseline.json": [{ "line": 4, "level": "warn" }, { "line": 6, "level": "warn" }]
+  },
+  "ok": [
+    "the secret/db-url-password entry existed at the base",
+    "suppressions.agent is human-only, but this check is not an agent session, so new entries warn instead of blocking"
+  ]
+}

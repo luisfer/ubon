@@ -1,0 +1,13 @@
+{
+  "files": {
+    "tsconfig.json": [{ "line": 6, "level": "block" }],
+    "packages/web/tsconfig.json": [{ "line": 6, "level": "block" }],
+    "packages/api/tsconfig.json": [{ "line": 4, "level": "block" }]
+  },
+  "ok": [
+    "tsconfig.json: skipLibCheck turned on is not a weakening",
+    "packages/cli/tsconfig.json: strictness raised",
+    "examples/basic/tsconfig.json: example projects are not checked",
+    "packages/web/tsconfig.json: strict inherited from the root is off now, but that is reported once, on the root file"
+  ]
+}

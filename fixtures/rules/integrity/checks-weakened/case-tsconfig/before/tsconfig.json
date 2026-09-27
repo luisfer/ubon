@@ -1,0 +1,10 @@
+{
+  // Shared settings for every package.
+  "compilerOptions": {
+    "target": "es2022",
+    "module": "nodenext",
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "skipLibCheck": false
+  }
+}

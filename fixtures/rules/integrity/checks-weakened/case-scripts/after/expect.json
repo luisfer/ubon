@@ -1,0 +1,16 @@
+{
+  "files": {
+    "package.json": [
+      { "line": 7, "level": "block" },
+      { "line": 9, "level": "block" },
+      { "line": 10, "level": "block" },
+      { "line": 11, "level": "block" }
+    ]
+  },
+  "ok": [
+    "dev: not a check script",
+    "build: `|| true` on a build script is not a test, lint, or type check",
+    "test:e2e: removing --bail and changing the reporter still fails on a failing test",
+    "format: switching prettier from --check to --write is not a test, lint, or type check"
+  ]
+}

@@ -1,0 +1,38 @@
+name: CI
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test: # expect-block: integrity/checks-weakened
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm ci
+      - name: Lint
+        run: npm run lint
+        continue-on-error: true # expect-block: integrity/checks-weakened
+      # ok: new flags on the same test command are not a removal
+      - name: Unit tests
+        run: npm test -- --coverage --reporter=dot
+      # ok: a new optional job that is allowed to fail did not exist before
+      - name: Bundle size report
+        run: npx size-limit
+        continue-on-error: true
+  e2e:
+    if: false # expect-block: integrity/checks-weakened
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: npm ci
+      - run: npx playwright test
+  python:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: pip install -r requirements.txt
+      - run: pytest -q || true # expect-block: integrity/checks-weakened

@@ -1,0 +1,10 @@
+{
+  "files": {
+    "legacy/.eslintrc.json": [{ "line": 4, "level": "block" }, { "line": 10, "level": "block" }],
+    "biome.json": [{ "line": 6, "level": "block" }, { "line": 8, "level": "block" }]
+  },
+  "ok": [
+    "legacy/.eslintrc.json: prefer-const stays at error (2)",
+    "biome.json: noConsole was only a warning, so turning it off does not weaken a failing check"
+  ]
+}

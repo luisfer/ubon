@@ -1,0 +1,13 @@
+{
+  "files": {
+    "src/price.test.ts": [{ "line": 1, "level": "block" }],
+    "pkg/calc_test.go": [{ "line": 1, "level": "block" }],
+    "tests/test_billing.py": [{ "line": 1, "level": "block" }]
+  },
+  "ok": [
+    "src/legacy.test.ts was deleted together with src/legacy.ts, the code it tested",
+    "src/util/__tests__/format.test.ts moved to test/util/format.test.ts",
+    "src/old.test.ts only held skipped tests",
+    "src/math.test.ts only tested square(), which was removed from src/math.ts in the same change"
+  ]
+}

@@ -1,0 +1,4 @@
+{
+  "session": true,
+  "config": { "suppressions": { "agent": "human-only" } }
+}

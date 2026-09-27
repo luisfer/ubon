@@ -1,0 +1,11 @@
+{
+  "files": {
+    "package.json": [{ "line": 7, "level": "block" }],
+    "packages/lib/.nycrc": [{ "line": 2, "level": "block" }]
+  },
+  "ok": [
+    "package.json: the global branches threshold was raised from 70 to 75",
+    "package.json: the per-folder threshold for ./src/payments/ is unchanged",
+    "packages/lib/.nycrc: adding a reporter does not weaken anything"
+  ]
+}

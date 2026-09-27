@@ -1,0 +1,5 @@
+{
+  "check-coverage": false,
+  "lines": 85,
+  "reporter": ["text", "html"]
+}

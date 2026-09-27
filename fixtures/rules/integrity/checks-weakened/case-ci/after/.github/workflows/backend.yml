@@ -1,0 +1,10 @@
+name: Backend
+on: [push, pull_request]
+jobs:
+  go:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      # ok: go.yml was deleted, and its checks moved to this workflow
+      - run: go vet ./...
+      - run: go test -race ./...

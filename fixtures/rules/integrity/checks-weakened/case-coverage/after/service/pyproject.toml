@@ -1,0 +1,6 @@
+[project]
+name = "service"
+
+[tool.coverage.report]
+fail_under = 75 # expect-block: integrity/checks-weakened
+show_missing = true

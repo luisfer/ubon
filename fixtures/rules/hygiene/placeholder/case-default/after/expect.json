@@ -1,0 +1,6 @@
+{
+  "files": {
+    "src/billing.ts": [{ "line": 16, "level": "warn" }]
+  },
+  "ok": []
+}

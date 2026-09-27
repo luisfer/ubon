@@ -1,2 +1,4 @@
 * text=auto eol=lf
 *.png binary
+# Fixtures that test Windows line endings keep them.
+fixtures/**/case-crlf/** -text
