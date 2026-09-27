@@ -1,7 +1,7 @@
 import { expect, it } from 'vitest';
 
 const webhook = {
-  url: 'https://webhook.site/30fb66a9',
+  url: 'https://hooks.example.com/30fb66a9',
   secret: '{{fake:stripe-webhook}}', // dummy secret
 };
 const leaked = '{{fake:stripe-webhook:2}}'; // expect: secret/provider-key
