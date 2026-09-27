@@ -19,7 +19,7 @@ This command never fails the agent's action because of an Ubon error: on any
 internal problem it allows the action and prints a notice.
 
 Options:
-  --record <file>  Append each payload, with secrets masked, to a JSONL file
+  --record <file>  Append each payload and Ubon's answer, with secrets masked, to a JSONL file
 `;
 
 const MAX_STDIN = 10 * 1024 * 1024;
@@ -66,21 +66,25 @@ export async function runHook(argv: string[], io: IO): Promise<number> {
   } catch {
     return failOpen('payload is not valid JSON');
   }
-  if (values.record && typeof values.record === 'string') {
+  // --record appends the payload and Ubon's answer, both masked, for debugging and session fixtures.
+  const record = (output: { stdout?: string; stderr?: string; exitCode: number }) => {
+    if (!values.record || typeof values.record !== 'string') return;
     try {
-      appendFileSync(resolve(io.cwd, values.record), `${maskSecrets(JSON.stringify({ agent: agentName, event: eventName, payload }))}\n`);
+      appendFileSync(resolve(io.cwd, values.record), `${maskSecrets(JSON.stringify({ agent: agentName, event: eventName, payload, output }))}\n`);
     } catch {
       // recording is a debugging aid only
     }
-  }
+  };
   try {
     const checks = await loadChecks();
     const result = await runHookEvent({ agent: agentName as AgentId, event: eventName, payload, cwd: io.cwd, checks });
     if (result.output.stdout) io.stdout(result.output.stdout);
     if (result.output.stderr) io.stderr(result.output.stderr);
+    record(result.output);
     return result.output.exitCode;
   } catch (error) {
     if (process.env.UBON_DEBUG && error instanceof Error) io.stderr(`${error.stack ?? error.message}\n`);
+    record({ stdout: '', stderr: 'fail open', exitCode: 0 });
     return failOpen(error instanceof Error ? error.message.slice(0, 160) : 'unknown error');
   }
 }
