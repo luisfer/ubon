@@ -1,3 +1,4 @@
+import { parseJsonLoose } from '../../core/project.ts';
 import { parseShell } from '../../lang/shell.ts';
 import type { Rule } from '../types.ts';
 import { type AutorunEntry, type ConfigDoc, HOOK_KINDS, autorunEntries, configKind, parseConfig } from './config-files.ts';
@@ -25,6 +26,7 @@ const SETUP: Array<[string, RegExp]> = [
   ['nuxi', /^prepare$/],
   ['nuxt', /^prepare$/],
   ['astro', /^sync$/],
+  ['fumadocs-mdx', /^$/],
   ['panda', /^codegen\b/],
   ['ts-patch', /^install\b/],
   ['is-ci', /^$/],
@@ -33,7 +35,7 @@ const SETUP: Array<[string, RegExp]> = [
 ];
 
 /** True when the command only runs Ubon, a formatter or linter, or a local setup tool. */
-export function isBenignAutorun(command: string): boolean {
+export function isBenignAutorun(command: string, scripts: Readonly<Record<string, string>> = {}, depth = 0): boolean {
   if (!command.trim()) return false;
   const parse = parseShell(command);
   const top = parse.commands.filter((c) => c.origin === 'top');
@@ -43,9 +45,28 @@ export function isBenignAutorun(command: string): boolean {
     const name = effectiveName(c);
     if (name === 'node' && argv.slice(1).some((a) => /(^|[\\/])ubon(\.mjs)?$|[\\/]dist[\\/]ubon\.mjs$/.test(a))) return true;
     if (FORMATTERS.has(name)) return true;
+    // `npm run format` is as benign as the package script it runs (one level deep).
+    const script = packageScriptOf(name, argv.slice(1));
+    if (script !== null && depth === 0 && Object.hasOwn(scripts, script)) return isBenignAutorun(scripts[script] as string, scripts, depth + 1);
     const rest = argv.slice(1).join(' ');
     return SETUP.some(([tool, args]) => tool === name && args.test(rest));
   });
+}
+
+/** The package script a command runs: npm run x, npm x for lifecycle names, pnpm x, yarn x, bun run x. */
+function packageScriptOf(name: string, args: readonly string[]): string | null {
+  const words = args.filter((a) => !a.startsWith('-'));
+  if (name === 'npm') return words[0] === 'run' || words[0] === 'run-script' ? (words[1] ?? null) : null;
+  if (name === 'bun') return words[0] === 'run' ? (words[1] ?? null) : null;
+  if (name === 'pnpm' || name === 'yarn') return words[0] === 'run' ? (words[1] ?? null) : (words[0] ?? null);
+  return null;
+}
+
+function packageScripts(read: (path: string) => string | null): Record<string, string> {
+  const pkg = parseJsonLoose(read('package.json') ?? '');
+  const scripts = pkg?.scripts;
+  if (!scripts || typeof scripts !== 'object' || Array.isArray(scripts)) return {};
+  return Object.fromEntries(Object.entries(scripts as Record<string, unknown>).filter((e): e is [string, string] => typeof e[1] === 'string'));
 }
 
 function when(entry: AutorunEntry, doc: ConfigDoc): string {
@@ -90,9 +111,10 @@ export const autorunConfig: Rule = {
     const doc = parseConfig(ctx.file.path, ctx.text);
     // A plugin's hooks run for the people who install the plugin, not when this repository is opened.
     if (!doc?.data || doc.kind === 'plugin-hooks') return;
+    const scripts = packageScripts((p) => ctx.project.read(p));
     for (const entry of autorunEntries(doc, ctx.project.files)) {
       // The listing is for review; formatters and hook installers such as husky would only add noise.
-      if (!entry.url && isBenignAutorun(entry.command)) continue;
+      if (!entry.url && isBenignAutorun(entry.command, scripts)) continue;
       ctx.report({
         line: entry.line,
         level: 'warn',
@@ -109,9 +131,10 @@ export const autorunConfig: Rule = {
     const files = ctx.scopeFiles.map((f) => f.path);
     const before = ctx.before ? parseConfig(ctx.file.path, ctx.before) : null;
     const existing = new Set(before?.data ? autorunEntries(before, files).map((e) => e.id) : []);
+    const scripts = packageScripts((p) => ctx.project.read(p));
     for (const entry of autorunEntries(doc, files)) {
       if (existing.has(entry.id)) continue;
-      const benign = !entry.url && isBenignAutorun(entry.command);
+      const benign = !entry.url && isBenignAutorun(entry.command, scripts);
       ctx.report({
         line: entry.line,
         level: benign || doc.kind === 'plugin-hooks' ? 'warn' : 'block',

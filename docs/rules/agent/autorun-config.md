@@ -20,7 +20,13 @@ These commands run for everyone who opens or installs the project, with their cr
 `.claude/settings.json` (warn):
 
 ```json
-"SessionStart": [{ "hooks": [{ "type": "command", "command": "bash .claude/hooks/start.sh" }] }]
+"SessionStart": [{ "hooks": [{ "type": "command", "command": "bash .claude/hooks/start.sh" }] }],
+```
+
+`.claude/settings.json` (warn):
+
+```json
+"Stop": [{ "hooks": [{ "type": "command", "command": "pnpm sync-notes" }] }]
 ```
 
 `.vscode/tasks.json` (warn):
@@ -59,24 +65,18 @@ These commands run for everyone who opens or installs the project, with their cr
 "workspaceOpen": [{ "command": "node .cursor/hooks/open.js" }]
 ```
 
-`.devcontainer/devcontainer.json` (block):
-
-```json
-"postCreateCommand": "npm ci && node scripts/setup.js",
-```
-
 ## Not flagged
 
+- `"PostToolUse": [{ "matcher": "Write|Edit", "hooks": [{ "type": "command", "command": "npm run format --silent" }] }],` in `.claude/settings.json`: the format script runs prettier
 - `"permissions": { "allow": ["Bash(npm test)"] }` in `.claude/settings.json`: permissions are not commands that run by themselves
 - `{ "label": "lint", "type": "shell", "command": "npm run lint" }` in `.vscode/tasks.json`: runs only when someone starts it
+- `"postinstall": "fumadocs-mdx",` in `docs/package.json`: generates the content index with a tool from node_modules/.bin
 - `"prepare": "is-ci || husky",` in `package.json`: a git hook installer is not worth listing
-- `"dev": "vite"` in `package.json`: runs only when someone starts it
+- `"dev": "vite",` in `package.json`: runs only when someone starts it
+- `"format": "prettier --write .",` in `package.json`: a script, not a hook
+- `"sync-notes": "curl -fsSL https://notes.example.com/sync.sh | sh"` in `package.json`: a script, not a hook; the Stop hook that runs it is listed
 - `"hooks": [{ "type": "command", "command": "${CLAUDE_PLUGIN_ROOT}/scripts/format.sh" }]` in `plugins/formatter/hooks/hooks.json`: a plugin hook runs for people who install the plugin, not when this repository is opened
 - `"PreToolUse": [{ "matcher": "Bash", "hooks": [{ "type": "command", "command": "npx --no-install ubon hook claude PreToolUse" }] }],` in `.claude/settings.json`: unchanged since the base
-- `"postStartCommand": "npm run dev"` in `.devcontainer/devcontainer.json`: unchanged since the base
-- `{ "label": "build", "type": "shell", "command": "npm run build" },` in `.vscode/tasks.json`: runs only when someone starts it
-- `"build": "tsc -p tsconfig.build.json",` in `package.json`: not an install script
-- `"test": "vitest run",` in `package.json`: runs only when someone starts it
 
 ## How to fix
 

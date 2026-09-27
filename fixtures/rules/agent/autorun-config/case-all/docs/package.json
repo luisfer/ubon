@@ -1,0 +1,8 @@
+{
+  "name": "docs",
+  "private": true,
+  "scripts": {
+    "postinstall": "fumadocs-mdx", // ok: generates the content index with a tool from node_modules/.bin
+    "build": "next build"
+  }
+}

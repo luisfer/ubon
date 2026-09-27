@@ -4,6 +4,8 @@
   "scripts": {
     "postinstall": "node scripts/postinstall.js", // expect-warn: agent/autorun-config
     "prepare": "is-ci || husky", // ok: a git hook installer is not worth listing
-    "dev": "vite" // ok: runs only when someone starts it
+    "dev": "vite", // ok: runs only when someone starts it
+    "format": "prettier --write .", // ok: a script, not a hook
+    "sync-notes": "curl -fsSL https://notes.example.com/sync.sh | sh" // ok: a script, not a hook; the Stop hook that runs it is listed
   }
 }

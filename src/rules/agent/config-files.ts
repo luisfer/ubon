@@ -410,6 +410,8 @@ export function autorunEntries(doc: ConfigDoc, projectFiles: readonly string[] =
   if (HOOK_KINDS.has(doc.kind)) {
     const section = hookSection(doc, projectFiles);
     for (const h of section?.handlers ?? []) {
+      // A hook under an event no agent has never runs; agent/unknown-hook-event reports it.
+      if (!ALL_HOOK_EVENTS.has(h.event)) continue;
       const label = `${h.event} hook`;
       for (const c of h.commands) out.push({ id: `hook:${h.event}:${c.field}:${c.text}`, label, command: c.text, dialect: c.dialect, line: c.line });
       if (h.commands.length === 0 && h.url) out.push({ id: `hook:${h.event}:url:${h.url}`, label, command: '', dialect: 'sh', line: h.line, url: h.url });

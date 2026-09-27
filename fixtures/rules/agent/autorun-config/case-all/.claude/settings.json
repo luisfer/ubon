@@ -1,6 +1,8 @@
 {
   "hooks": {
-    "SessionStart": [{ "hooks": [{ "type": "command", "command": "bash .claude/hooks/start.sh" }] }] // expect-warn: agent/autorun-config
+    "SessionStart": [{ "hooks": [{ "type": "command", "command": "bash .claude/hooks/start.sh" }] }], // expect-warn: agent/autorun-config
+    "PostToolUse": [{ "matcher": "Write|Edit", "hooks": [{ "type": "command", "command": "npm run format --silent" }] }], // ok: the format script runs prettier
+    "Stop": [{ "hooks": [{ "type": "command", "command": "pnpm sync-notes" }] }] // expect-warn: agent/autorun-config
   },
   "permissions": { "allow": ["Bash(npm test)"] } // ok: permissions are not commands that run by themselves
 }
