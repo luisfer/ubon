@@ -26,7 +26,7 @@ Command checks catch mistakes and obvious attacks. They are not a sandbox: a det
 3. The publish job runs in the protected `release` environment with `id-token: write` only, and stages the release on npm through trusted publishing (no token) with provenance.
 4. The maintainer approves the staged release on npmjs.com with a 2FA challenge. An OIDC token cannot approve it, so a compromised workflow alone cannot publish.
 
-npm package settings: two-factor authentication required and tokens disallowed; the trusted publisher is `luisfer/ubon`, workflow `release.yml`, environment `release`.
+npm package settings: two-factor authentication required and tokens disallowed. The trusted publisher is `luisfer/ubon`, workflow `release.yml`, environment `release`, and it may only stage (the `--allow-stage-publish` permission of `npm trust`, without `--allow-publish`), so the workflow cannot publish without the approval.
 
 To verify a release: `npm view ubon@<version> dist.attestations` shows the provenance attestation, and `npm audit signatures` in a project that depends on it checks the registry signatures.
 
